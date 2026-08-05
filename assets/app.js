@@ -9,7 +9,7 @@
 // ── CONFIG ───────────────────────────────────────────────────
 const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
-const HCAPTCHA_SITE_KEY = "945cf1d2-1232-4078-b790-5f4c36703276";
+const HCAPTCHA_SITE_KEY = "f48e617a-c39c-4394-81e4-682e75342f76";
 
 const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
 

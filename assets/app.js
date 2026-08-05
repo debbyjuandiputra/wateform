@@ -8,7 +8,7 @@
 
 // ── CONFIG ───────────────────────────────────────────────────
 const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const HCAPTCHA_SITE_KEY = "f48e617a-c39c-4394-81e4-682e75342f76";
 
 const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;

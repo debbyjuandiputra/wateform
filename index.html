@@ -180,11 +180,6 @@
     <a href="login.html#register" class="btn btn-solid btn-lg" id="hero-register-btn">Create a free account</a>
     <a href="login.html" class="btn btn-ghost btn-lg">Log in</a>
   </div>
-  <div class="channel-row">
-    <span class="channel-text channel-text-wa">WhatsApp</span>
-    <span class="channel-sep">/</span>
-    <span class="channel-text channel-text-tg">Telegram</span>
-  </div>
 </section>
 
 <hr class="lp-divider">
@@ -331,7 +326,7 @@ const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   if (session) {
     ["nav-register-btn","hero-register-btn","cta-register-btn"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.href = "dashboard.html"; el.textContent = "Go to dashboard"; }
+      if (el) { el.href = "dashboard.html"; el.textContent = "Log in"; }
     });
     document.querySelector('a[href="login.html"]')?.remove();
   }

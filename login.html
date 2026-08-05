@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title translate="no">Log in — WateForm</title>
+<link rel="icon" href="assets/logo.webp" type="image/webp">
+<link rel="stylesheet" href="assets/style.css">
+
+<!--
+  Supabase JS client
+  Exposes: window.supabase.createClient()
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<!--
+  hCaptcha widget
+  onload=onHCaptchaLoad  → calls window.onHCaptchaLoad() defined in app.js
+  render=explicit        → we render widgets manually (one per form)
+-->
+<script
+  src="https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
+  async defer>
+</script>
+</head>
+<body>
+
+<div class="auth-shell">
+
+  <a href="index.html" class="back-home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+    Back to <span translate="no">&nbsp;WateForm</span>
+  </a>
+
+  <!-- ── Left panel ── -->
+  <aside class="auth-side">
+    <a href="index.html" class="brand">
+      <img src="assets/logo.webp" alt="WateForm">
+      <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+    </a>
+
+    <div class="auth-quote">
+      <h2>Sign in to keep every response landing in your chat.</h2>
+      <p>Workspaces, forms and responses are tied to your account — log in to pick up where your team left off.</p>
+
+      <div class="auth-mock">
+        <div class="bubble-out">
+          <b>New response · Patient intake</b>
+          Rizky A. submitted the form 2 minutes ago.
+        </div>
+      </div>
+    </div>
+
+    <small>© 2026 <span translate="no">WateForm</span> · <span translate="no">wateform.my.id</span></small>
+  </aside>
+
+  <!-- ── Right panel ── -->
+  <main class="auth-main">
+    <div class="auth-box">
+
+      <!-- Brand shown on mobile (sidebar hidden) -->
+      <div class="brand">
+        <img src="assets/logo.webp" alt="WateForm" style="height:30px;">
+        <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Log in</button>
+        <button class="auth-tab" data-tab="register">Create account</button>
+      </div>
+
+      <!-- ══════════════ LOGIN ══════════════ -->
+      <div data-panel="login">
+        <h1>Welcome back</h1>
+        <p class="sub">Log in to open your workspaces and forms.</p>
+
+        <!-- General server error -->
+        <div id="login-general-error" class="error-banner" style="display:none;"></div>
+
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="login-email">Email</label>
+            <div class="input-wrap">
+              <input type="email" id="login-email" name="email"
+                     placeholder="you@gmail.com" autocomplete="email" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="login-password">Password</label>
+            <div class="input-wrap">
+              <input type="password" id="login-password" name="password"
+                     placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+          </div>
+
+          <!-- hCaptcha widget — rendered by app.js into this div -->
+          <div class="captcha-wrap">
+            <div id="captcha-login"></div>
+            <div id="login-captcha-error" class="error-text" style="display:none;"></div>
+          </div>
+
+          <button type="submit" class="btn btn-solid auth-submit">Log in</button>
+        </form>
+
+        <p class="form-foot-link">
+          Don't have a workspace yet?
+          <a href="#register"
+             onclick="document.querySelector('[data-tab=register]').click();return false;">
+            Create an account
+          </a>
+        </p>
+      </div>
+
+      <!-- ══════════════ REGISTER ══════════════ -->
+      <div data-panel="register" style="display:none;">
+        <h1>Create your account</h1>
+        <p class="sub">One account, then build your first workspace.</p>
+
+        <!-- General server error -->
+        <div id="register-general-error" class="error-banner" style="display:none;"></div>
+
+        <form id="register-form" novalidate>
+          <div class="field">
+            <label for="reg-fullname">Full name</label>
+            <div class="input-wrap">
+              <input type="text" id="reg-fullname" name="full_name"
+                     placeholder="Nadia Putri" autocomplete="name" required>
+            </div>
+            <div class="error-text"></div>
+          </div>
+
+          <div class="field">
+            <label for="reg-username">Username</label>
+            <div class="input-wrap">
+              <input type="text" id="reg-username" name="username"
+                     placeholder="nadia.putri"
+                     pattern="[a-zA-Z0-9_.]{3,20}"
+                     autocomplete="username" required>
+            </div>
+            <div class="hint">This is what teammates type to invite you into a workspace.</div>
+            <div class="error-text"></div>
+          </div>
+
+          <div class="field">
+            <label for="reg-email">Email</label>
+            <div class="input-wrap">
+              <input type="email" id="reg-email" name="email"
+                     placeholder="you@gmail.com" autocomplete="email" required>
+            </div>
+            <div class="error-text">Please use a @gmail.com address.</div>
+          </div>
+
+          <div class="pw-row">
+            <div class="field">
+              <label for="reg-password">Password</label>
+              <div class="input-wrap">
+                <input type="password" id="reg-password" name="password"
+                       placeholder="At least 8 characters"
+                       autocomplete="new-password" minlength="8" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="reg-password-confirm">Confirm password</label>
+              <div class="input-wrap">
+                <input type="password" id="reg-password-confirm" name="password_confirm"
+                       placeholder="Repeat password"
+                       autocomplete="new-password" minlength="8" required>
+              </div>
+              <div class="error-text">Passwords don't match.</div>
+            </div>
+          </div>
+
+          <!-- hCaptcha widget — rendered by app.js into this div -->
+          <div class="captcha-wrap">
+            <div id="captcha-register"></div>
+            <div id="register-captcha-error" class="error-text" style="display:none;"></div>
+          </div>
+
+          <button type="submit" class="btn btn-solid auth-submit">Create account</button>
+        </form>
+
+        <p class="form-foot-link">
+          Already have an account?
+          <a href="#login"
+             onclick="document.querySelector('[data-tab=login]').click();return false;">
+            Log in
+          </a>
+        </p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

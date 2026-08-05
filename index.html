@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title translate="no">WateForm</title>
+<meta name="description" content="Build a form, share one link, and every submission arrives as a message in WhatsApp or Telegram — no inbox, no dashboard to babysit.">
+<link rel="icon" href="assets/logo.webp" type="image/webp">
+<link rel="stylesheet" href="assets/style.css">
+</head> 
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <img src="assets/logo.webp" alt="WateForm">
+      <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+    </a>
+    <nav class="main-nav">
+      <a href="#question-types">Question types</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#workspaces">Workspaces</a>
+    </nav>
+    <div class="header-actions">
+      <button class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <a href="login.html" class="btn btn-ghost">Log in</a>
+      <a href="login.html#register" class="btn btn-solid">Create a form</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="wrap hero-badgeless">
+    <div>
+      <h1>Every form reply,<br>delivered as a <span class="accent">message</span>, not a spreadsheet.</h1>
+      <p class="lead"><span translate="no">WateForm</span> turns a normal-looking form into a chat. Someone fills it in on the web, hits send, and the answers show up in your WhatsApp or Telegram — the same place you already check.</p>
+      <div class="hero-cta">
+        <a href="login.html#register" class="btn btn-solid">Build your first form</a>
+        <a href="#how-it-works" class="btn btn-ghost">See how it routes</a>
+      </div>
+      <div class="dest-row">
+        <span>Deliver to</span>
+        <span class="badge"><span class="dot wa"></span> WhatsApp</span>
+        <span class="badge"><span class="dot tg"></span> Telegram</span>
+        <span class="badge">or both at once</span>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="float-chip c1"><span class="ic wa">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>
+        </span> Delivered in 1.2s</div>
+      <div class="float-chip c2"><span class="ic tg">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
+        </span> Sent to @klinik_admin</div>
+
+      <div class="thread-card">
+        <div class="thread-top">
+          <div>
+            <div class="thread-form-title">Appointment request</div>
+            <div class="thread-form-sub" translate="no">wateform.my.id/x7Qp2m</div>
+          </div>
+          <div class="thread-target">
+            <span class="pill wa">WA</span>
+            <span class="pill tg">TG</span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-label">Full name</div>
+          <div class="field-value">Nadia Putri</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">Preferred date</div>
+          <div class="field-value">Aug 12, 2026 · 10:00</div>
+        </div>
+        <div class="field-row">
+          <div class="field-label">How urgent is this?</div>
+          <div class="field-bar"><span style="width:70%"></span></div>
+        </div>
+
+        <div class="arrow-out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          routed on submit
+        </div>
+
+        <div class="bubble-out">
+          <b>New response · Appointment request</b>
+          Nadia Putri wants Aug 12, 10:00 — marked urgent. Reply to confirm.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="logo-strip">
+  <div class="wrap">
+    <p>Answers land where the conversation already happens</p>
+    <div class="dest-icons">
+      <span class="dot wa"></span>&nbsp;WhatsApp Business &amp; personal numbers
+      <span style="width:1px;height:14px;background:var(--border);display:inline-block;margin:0 4px;"></span>
+      <span class="dot tg"></span>&nbsp;Telegram bots &amp; usernames
+    </div>
+  </div>
+</div>
+
+<section id="question-types">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Fourteen question types, one message out</h2>
+      <p>Mix and match short text, choices, media and contact fields — <span translate="no">WateForm</span> formats the final message for you.</p>
+    </div>
+    <div class="qtype-grid">
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg></div><h4>Title / heading</h4><p>Section breaks with no answer field.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h4>Short text</h4><p>One-line answers like names or roles.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h16M4 13h10"/></svg></div><h4>Long text</h4><p>Paragraphs — notes, messages, feedback.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></div><h4>Multiple choice</h4><p>Single pick, with an optional "Other" field.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/></svg></div><h4>Checkboxes</h4><p>Pick any number of options.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div><h4>Dropdown</h4><p>Long option lists without scrolling a page.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"/></svg></div><h4>Number</h4><p>Digits only, with min/max limits.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><h4>Date</h4><p>A calendar picker, no typing needed.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 2.6 6.1L21 9.8l-5 4.3 1.5 6.4L12 17l-5.5 3.5L8 14.1 3 9.8l6.4-.7Z"/></svg></div><h4>Rating</h4><p>Stars, from 1 up to a scale you set.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div><h4>Email</h4><p>Optionally locked to @gmail.com addresses.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6A2 2 0 0 1 22 16.9Z"/></svg></div><h4>Phone number</h4><p>Country-code prefix for almost every country.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5-11 11"/></svg></div><h4>Image</h4><p>Upload a file or drop in a link.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-4v12l-6-4"/></svg></div><h4>Video</h4><p>Upload a file or embed a link.</p></div>
+
+      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div><h4>Every field, formatted</h4><p>Subheading, rich text, image and "required" toggle apply to all types above.</p></div>
+
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works" style="background:var(--bg-raised);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>From blank form to a message in someone's chat</h2>
+      <p>Four steps, in order — this is genuinely the sequence, not decoration.</p>
+    </div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div><h4>Create a workspace</h4><p>Give it a name, invite teammates by username, and everyone in it can build and read responses together.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div><h4>Build the form</h4><p>Drag in question types, write the copy, set which ones are required — a live preview updates as you go.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div><h4>Point it at WhatsApp or Telegram</h4><p>Add a phone number, a Telegram username, or both. Pick the language and the text on the submit button.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div><h4>Publish and share the link</h4><p translate="no">wateform.my.id/&lt;code&gt;</p><p>goes live. Every completed reply arrives as a message — no inbox to check.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="workspaces">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>One workspace, every form your team runs</h2>
+      <p>Owners and members share a workspace URL, see when it was created, and manage forms from a single list.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-bar">
+        <span></span><span></span><span></span>
+        <span class="panel-url" translate="no">wateform.my.id/x7Qp2m</span>
+      </div>
+      <div class="panel-body">
+        <div class="panel-side">
+          <div class="ws-card">
+            <h5>Klinik Sehat Jaya</h5>
+            <div class="id" translate="no">x7Qp2m · created Aug 2, 2026</div>
+          </div>
+          <div class="side-item active">Forms</div>
+          <div class="side-item">Members</div>
+          <div class="side-item">Responses</div>
+          <div class="side-item">Settings</div>
+        </div>
+        <div class="panel-main">
+          <div class="form-row-mock">
+            <div>
+              <div class="name">Appointment request</div>
+              <div class="meta" translate="no">/x7Qp2m/9kLp3a · 214 responses</div>
+            </div>
+            <div class="chip-set"><span class="pill wa">WA</span><span class="pill tg">TG</span></div>
+          </div>
+          <div class="form-row-mock">
+            <div>
+              <div class="name">Patient intake</div>
+              <div class="meta" translate="no">/x7Qp2m/2fRt8q · 96 responses</div>
+            </div>
+            <div class="chip-set"><span class="pill wa">WA</span></div>
+          </div>
+          <div class="form-row-mock">
+            <div>
+              <div class="name">Staff feedback</div>
+              <div class="meta" translate="no">/x7Qp2m/mN4vQ1 · 12 responses</div>
+            </div>
+            <div class="chip-set"><span class="pill tg">TG</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Your first form takes about three minutes</h2>
+      <p>Create a workspace, add a question or two, point it at a WhatsApp number or Telegram username, and publish.</p>
+      <a href="login.html#register" class="btn btn-solid">Create your workspace</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a href="index.html" class="brand">
+          <img src="assets/logo.webp" alt="WateForm">
+          <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+        </a>
+        <p>Forms that end up as a message, not a spreadsheet — delivered straight to WhatsApp or Telegram.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="#question-types">Question types</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#workspaces">Workspaces</a>
+        </div>
+        <div class="foot-col">
+          <h5>Account</h5>
+          <a href="login.html">Log in</a>
+          <a href="login.html#register">Create an account</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 <span translate="no">WateForm</span>.</span>
+      <span translate="no">wateform.my.id</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

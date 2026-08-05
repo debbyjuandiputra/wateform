@@ -1,180 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title translate="no">Log in — WateForm</title>
+<meta name="google" content="notranslate">
+<title>Log in — WateForm</title>
 <link rel="icon" href="assets/logo.webp" type="image/webp">
 <link rel="stylesheet" href="assets/style.css">
-
-<!--
-  Supabase JS client
-  Exposes: window.supabase.createClient()
--->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
-<!-- hCaptcha dinonaktifkan sementara — aktifkan kembali setelah dikonfigurasi -->
 </head>
 <body>
 
-<div class="auth-shell">
+<div class="auth-page">
 
-  <a href="index.html" class="back-home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M19 12H5M12 19l-7-7 7-7"/>
-    </svg>
-    Back to <span translate="no">&nbsp;WateForm</span>
-  </a>
-
-  <!-- ── Left panel ── -->
-  <aside class="auth-side">
+  <!-- Top bar -->
+  <div class="auth-top">
     <a href="index.html" class="brand">
-      <img src="assets/logo.webp" alt="WateForm">
+      <img src="assets/logo.webp" alt="WateForm" style="height:28px">
       <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
     </a>
+    <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    </button>
+  </div>
 
-    <div class="auth-quote">
-      <h2>Sign in to keep every response landing in your chat.</h2>
-      <p>Workspaces, forms and responses are tied to your account — log in to pick up where your team left off.</p>
-
-      <div class="auth-mock">
-        <div class="bubble-out">
-          <b>New response · Patient intake</b>
-          Rizky A. submitted the form 2 minutes ago.
-        </div>
-      </div>
-    </div>
-
-    <small>© 2026 <span translate="no">WateForm</span> · <span translate="no">wateform.my.id</span></small>
-  </aside>
-
-  <!-- ── Right panel ── -->
-  <main class="auth-main">
-    <div class="auth-box">
-
-      <!-- Brand shown on mobile (sidebar hidden) -->
-      <div class="brand">
-        <img src="assets/logo.webp" alt="WateForm" style="height:30px;">
-        <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
-      </div>
+  <!-- Auth card -->
+  <div class="auth-main">
+    <div class="auth-card">
 
       <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login">Log in</button>
+        <button class="auth-tab active" data-tab="login" translate="yes">Log in</button>
         <button class="auth-tab" data-tab="register">Create account</button>
       </div>
 
-      <!-- ══════════════ LOGIN ══════════════ -->
+      <!-- ── LOGIN ────────────────────────────────── -->
       <div data-panel="login">
         <h1>Welcome back</h1>
-        <p class="sub">Log in to open your workspaces and forms.</p>
+        <p class="sub"></p>
 
-        <!-- General server error -->
-        <div id="login-general-error" class="error-banner" style="display:none;"></div>
+        <div id="login-general-error" class="error-banner"></div>
 
-        <form id="login-form" novalidate>
+        <form id="login-form" class="auth-form" novalidate>
           <div class="field">
             <label for="login-email">Email</label>
-            <div class="input-wrap">
-              <input type="email" id="login-email" name="email"
-                     placeholder="you@gmail.com" autocomplete="email" required>
-            </div>
+            <input type="email" id="login-email" autocomplete="email">
           </div>
-
           <div class="field">
             <label for="login-password">Password</label>
-            <div class="input-wrap">
-              <input type="password" id="login-password" name="password"
-                     placeholder="••••••••" autocomplete="current-password" required>
-            </div>
+            <input type="password" id="login-password" autocomplete="current-password">
           </div>
-
           <button type="submit" class="btn btn-solid auth-submit">Log in</button>
         </form>
 
-        <p class="form-foot-link">
-          Don't have a workspace yet?
-          <a href="#register"
-             onclick="document.querySelector('[data-tab=register]').click();return false;">
-            Create an account
-          </a>
+        <p class="auth-foot">
+          No account?
+          <a href="#register" onclick="document.querySelector('[data-tab=register]').click();return false;">Create one</a>
         </p>
       </div>
 
-      <!-- ══════════════ REGISTER ══════════════ -->
-      <div data-panel="register" style="display:none;">
+      <!-- ── REGISTER ──────────────────────────────── -->
+      <div data-panel="register" style="display:none">
         <h1>Create your account</h1>
-        <p class="sub">One account, then build your first workspace.</p>
+        <p class="sub"></p>
 
-        <!-- General server error -->
-        <div id="register-general-error" class="error-banner" style="display:none;"></div>
+        <div id="register-general-error" class="error-banner"></div>
 
-        <form id="register-form" novalidate>
+        <form id="register-form" class="auth-form" novalidate>
           <div class="field">
             <label for="reg-fullname">Full name</label>
-            <div class="input-wrap">
-              <input type="text" id="reg-fullname" name="full_name"
-                     placeholder="Nadia Putri" autocomplete="name" required>
-            </div>
+            <input type="text" id="reg-fullname" autocomplete="name">
             <div class="error-text"></div>
           </div>
-
           <div class="field">
             <label for="reg-username">Username</label>
-            <div class="input-wrap">
-              <input type="text" id="reg-username" name="username"
-                     placeholder="nadia.putri"
-                     pattern="[a-zA-Z0-9_.]{3,20}"
-                     autocomplete="username" required>
-            </div>
-            <div class="hint">This is what teammates type to invite you into a workspace.</div>
+            <input type="text" id="reg-username" autocomplete="username">
+            <!-- <div class="hint">Teammates use this to invite you to a workspace.</div> -->
             <div class="error-text"></div>
           </div>
-
           <div class="field">
             <label for="reg-email">Email</label>
-            <div class="input-wrap">
-              <input type="email" id="reg-email" name="email"
-                     placeholder="you@gmail.com" autocomplete="email" required>
-            </div>
+            <input type="email" id="reg-email" autocomplete="email">
             <div class="error-text">Please use a @gmail.com address.</div>
           </div>
-
-          <div class="pw-row">
-            <div class="field">
-              <label for="reg-password">Password</label>
-              <div class="input-wrap">
-                <input type="password" id="reg-password" name="password"
-                       placeholder="At least 8 characters"
-                       autocomplete="new-password" minlength="8" required>
-              </div>
-            </div>
-            <div class="field">
-              <label for="reg-password-confirm">Confirm password</label>
-              <div class="input-wrap">
-                <input type="password" id="reg-password-confirm" name="password_confirm"
-                       placeholder="Repeat password"
-                       autocomplete="new-password" minlength="8" required>
-              </div>
-              <div class="error-text">Passwords don't match.</div>
-            </div>
+          <div class="field">
+            <label for="reg-password">Password</label>
+            <input type="password" id="reg-password" placeholder="At least 8 characters" autocomplete="new-password">
           </div>
-
+          <div class="field">
+            <label for="reg-password-confirm">Confirm password</label>
+            <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
+            <div class="error-text">Passwords don't match.</div>
+          </div>
           <button type="submit" class="btn btn-solid auth-submit">Create account</button>
         </form>
 
-        <p class="form-foot-link">
+        <p class="auth-foot">
           Already have an account?
-          <a href="#login"
-             onclick="document.querySelector('[data-tab=login]').click();return false;">
-            Log in
-          </a>
+          <a href="#login" onclick="document.querySelector('[data-tab=login]').click();return false;">Log in</a>
         </p>
       </div>
 
     </div>
-  </main>
+  </div>
 </div>
 
-<script src="assets/app.js"></script>
+<script src="assets/auth.js"></script>
 </body>
 </html>

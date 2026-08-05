@@ -1,270 +1,354 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title translate="no">WateForm</title>
-<meta name="description" content="Build a form, share one link, and every submission arrives as a message in WhatsApp or Telegram — no inbox, no dashboard to babysit.">
+<meta name="google" content="notranslate">
+<title>WateForm — WhatsApp & Telegram Forms</title>
 <link rel="icon" href="assets/logo.webp" type="image/webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/style.css">
-</head> 
+<style>
+/* Landing page uses DM Sans instead of Inter */
+.lp-nav, .lp-hero, .lp-features, .lp-steps, .lp-cta, .lp-footer {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ── Landing-specific styles ──────────────────────────── */
+.lp-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 48px; border-bottom: 1px solid var(--border);
+  background: var(--bg-raised); position: sticky; top: 0; z-index: 50;
+}
+.lp-nav-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Hero */
+.lp-hero {
+  padding: 75px 48px 80px;
+  max-width: 720px; margin: 0 auto;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+}
+.lp-tagline {
+  font-size: 12px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--teal-deep);
+}
+[data-theme="dark"] .lp-tagline { color: var(--teal); }
+.lp-hero h1 {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 700; margin: 0; line-height: 1.15;
+  color: var(--text); letter-spacing: -.5px;
+}
+/* .lp-hero h1 emWa { font-style: normal; color: var(--teal); } */
+.lp-hero h1 .emWa { font-style: normal; color: #23D366 ; }
+.lp-hero h1 .emTe { font-style: normal; color: #33A7E2; }
+.lp-hero p {
+  font-size: 16px; color: var(--text-soft);
+  max-width: 500px; margin: 0; line-height: 1.65;
+}
+.lp-hero-cta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.btn-lg { padding: 12px 24px; font-size: 14.5px; }
+
+/* Channel text row — plain text, no pills */
+.channel-row {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-wrap: wrap; margin-top: 4px;
+}
+.channel-text { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.channel-text-wa { color: #18a057; }
+.channel-text-tg { color: #1478a8; }
+[data-theme="dark"] .channel-text-wa { color: #25D366; }
+[data-theme="dark"] .channel-text-tg { color: #229ED9; }
+.channel-sep { color: var(--border); font-size: 16px; }
+
+/* Divider */
+.lp-divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* Features */
+.lp-features {
+  padding: 72px 48px;
+  max-width: 1000px; margin: 0 auto;
+}
+.lp-section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--teal-deep); margin-bottom: 12px;
+}
+[data-theme="dark"] .lp-section-label { color: var(--teal); }
+.lp-section-title {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(24px, 3vw, 34px); font-weight: 700; letter-spacing: -.3px;
+  color: var(--text); margin: 0 0 48px;
+}
+.feat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+.feat-card {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.feat-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--teal-dim); color: var(--teal-deep);
+  display: flex; align-items: center; justify-content: center;
+}
+[data-theme="dark"] .feat-icon { color: var(--teal); }
+.feat-icon svg { width: 20px; height: 20px; }
+.feat-card h3 { font-size: 14.5px; font-weight: 700; margin: 0; }
+.feat-card p  { font-size: 13px; color: var(--text-soft); margin: 0; line-height: 1.6; }
+
+/* Steps */
+.lp-steps {
+  padding: 72px 48px;
+  background: var(--bg-mid); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.lp-steps-inner { max-width: 780px; margin: 0 auto; }
+.steps-list { display: flex; flex-direction: column; gap: 0; }
+.step-row {
+  display: flex; align-items: flex-start; gap: 24px;
+  padding: 28px 0; border-bottom: 1px solid var(--border);
+}
+.step-row:last-child { border-bottom: none; }
+.step-num {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1.5px solid var(--border); background: var(--bg-raised);
+  font-family: 'Amaranth', cursive; font-size: 15px; font-weight: 700;
+  color: var(--text-muted); display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+.step-body h4 { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
+.step-body p  { font-size: 13.5px; color: var(--text-soft); margin: 0; line-height: 1.6; }
+
+/* CTA strip */
+.lp-cta {
+  padding: 80px 48px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.lp-cta h2 {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(24px, 3vw, 36px); font-weight: 700; letter-spacing: -.3px;
+  margin: 0; color: var(--text);
+}
+.lp-cta p { font-size: 15px; color: var(--text-soft); margin: 0; }
+
+/* Footer */
+.lp-footer {
+  padding: 24px 48px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: var(--text-muted); flex-wrap: wrap; gap: 12px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .lp-nav   { padding: 14px 20px; }
+  .lp-hero  { padding: 60px 20px 52px; }
+  .lp-features, .lp-steps, .lp-cta { padding: 52px 20px; }
+  .lp-footer { padding: 20px; }
+  .lp-nav .btn-ghost { display: none; }
+}
+</style>
+</head>
 <body>
 
-<header class="site-header">
-  <div class="wrap">
-    <a href="index.html" class="brand">
-      <img src="assets/logo.webp" alt="WateForm">
-      <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
-    </a>
-    <nav class="main-nav">
-      <a href="#question-types">Question types</a>
-      <a href="#how-it-works">How it works</a>
-      <a href="#workspaces">Workspaces</a>
-    </nav>
-    <div class="header-actions">
-      <button class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
-      </button>
-      <a href="login.html" class="btn btn-ghost">Log in</a>
-      <a href="login.html#register" class="btn btn-solid">Create a form</a>
-    </div>
+<!-- Nav -->
+<nav class="lp-nav">
+  <a href="index.html" class="brand" translate="no">
+    <img src="assets/logo.webp" alt="WateForm" style="height:28px">
+    <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+  </a>
+  <div class="lp-nav-actions">
+    <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    </button>
+    <a href="login.html" class="btn btn-ghost btn-sm">Log in</a>
+    <a href="login.html#register" class="btn btn-solid btn-sm" id="nav-register-btn">Get started</a>
   </div>
-</header>
+</nav>
 
-<section class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="wrap hero-badgeless">
-    <div>
-      <h1>Every form reply,<br>delivered as a <span class="accent">message</span>, not a spreadsheet.</h1>
-      <p class="lead"><span translate="no">WateForm</span> turns a normal-looking form into a chat. Someone fills it in on the web, hits send, and the answers show up in your WhatsApp or Telegram — the same place you already check.</p>
-      <div class="hero-cta">
-        <a href="login.html#register" class="btn btn-solid">Build your first form</a>
-        <a href="#how-it-works" class="btn btn-ghost">See how it routes</a>
+<!-- Hero -->
+<section class="lp-hero">
+  <h1>Forms that send replies via <em class="emWa">WhatsApp</em> &amp; <em class="emTe">Telegram</em></h1>
+  <p>Build forms in minutes. When someone submits, they get an instant reply straight to their chat app — no email, no waiting.</p>
+  <div class="lp-hero-cta">
+    <a href="login.html#register" class="btn btn-solid btn-lg" id="hero-register-btn">Create a free account</a>
+    <a href="login.html" class="btn btn-ghost btn-lg">Log in</a>
+  </div>
+  <div class="channel-row">
+    <span class="channel-text channel-text-wa">WhatsApp</span>
+    <span class="channel-sep">/</span>
+    <span class="channel-text channel-text-tg">Telegram</span>
+  </div>
+  <!-- <p class="lp-tagline">No coding needed</p> -->
+</section>
+
+<hr class="lp-divider">
+
+<!-- Features -->
+<section class="lp-features">
+  <div class="lp-section-label">What you get</div>
+  <h2 class="lp-section-title">Everything to collect and respond, fast</h2>
+  <div class="feat-grid">
+
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <path d="M8 10h8M8 14h5"/>
+        </svg>
       </div>
-      <div class="dest-row">
-        <span>Deliver to</span>
-        <span class="badge"><span class="dot wa"></span> WhatsApp</span>
-        <span class="badge"><span class="dot tg"></span> Telegram</span>
-        <span class="badge">or both at once</span>
-      </div>
+      <h3>Drag-and-drop builder</h3>
+      <p>Add text, choice, phone, rating, and file questions. Reorder with a drag. No code, no config.</p>
     </div>
 
-    <div class="hero-visual">
-      <div class="float-chip c1"><span class="ic wa">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Z"/></svg>
-        </span> Delivered in 1.2s</div>
-      <div class="float-chip c2"><span class="ic tg">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>
-        </span> Sent to @klinik_admin</div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.8 19.8 0 0 1 1.61 3.37 2 2 0 0 1 3.61 1h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 5.5 5.5l.96-.96a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 21 16.92Z"/>
+        </svg>
+      </div>
+      <h3>Instant WhatsApp &amp; Telegram replies</h3>
+      <p>Respondents get a personalised confirmation message the moment they submit — on the channel they use daily.</p>
+    </div>
 
-      <div class="thread-card">
-        <div class="thread-top">
-          <div>
-            <div class="thread-form-title">Appointment request</div>
-            <div class="thread-form-sub" translate="no">wateform.my.id/x7Qp2m</div>
-          </div>
-          <div class="thread-target">
-            <span class="pill wa">WA</span>
-            <span class="pill tg">TG</span>
-          </div>
-        </div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <h3>Team workspaces</h3>
+      <p>Organise forms by project or client. Invite teammates to collaborate — each workspace keeps things separate.</p>
+    </div>
 
-        <div class="field-row">
-          <div class="field-label">Full name</div>
-          <div class="field-value">Nadia Putri</div>
-        </div>
-        <div class="field-row">
-          <div class="field-label">Preferred date</div>
-          <div class="field-value">Aug 12, 2026 · 10:00</div>
-        </div>
-        <div class="field-row">
-          <div class="field-label">How urgent is this?</div>
-          <div class="field-bar"><span style="width:70%"></span></div>
-        </div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <h3>Response dashboard</h3>
+      <p>All submissions in one view. See who responded, when, and what they said — without leaving the app.</p>
+    </div>
 
-        <div class="arrow-out">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
-          routed on submit
-        </div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49"/>
+        </svg>
+      </div>
+      <h3>Shareable link &amp; embed</h3>
+      <p>Copy a public link to share anywhere, or embed the form on your website with one snippet.</p>
+    </div>
 
-        <div class="bubble-out">
-          <b>New response · Appointment request</b>
-          Nadia Putri wants Aug 12, 10:00 — marked urgent. Reply to confirm.
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2"/>
+          <path d="M8 21h8M12 17v4"/>
+        </svg>
+      </div>
+      <h3>Works on any device</h3>
+      <p>The form builder and dashboard work on desktop, tablet, and mobile — no app to install.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- Steps -->
+<section class="lp-steps">
+  <div class="lp-steps-inner">
+    <div class="lp-section-label">How it works</div>
+    <h2 class="lp-section-title">Up and running in three steps</h2>
+    <div class="steps-list">
+      <div class="step-row">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Build your form</h4>
+          <p>Use the visual builder to add questions — text, multiple choice, phone number, rating, and more. Set your WhatsApp or Telegram bot as the reply channel.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Share the link</h4>
+          <p>Copy the public link and send it via message, email, or social media. Or embed the form directly on your site.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Replies land in their chat</h4>
+          <p>Every submission triggers an instant, personalised message to the respondent on WhatsApp or Telegram — no inbox checking, no delay.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="logo-strip">
-  <div class="wrap">
-    <p>Answers land where the conversation already happens</p>
-    <div class="dest-icons">
-      <span class="dot wa"></span>&nbsp;WhatsApp Business &amp; personal numbers
-      <span style="width:1px;height:14px;background:var(--border);display:inline-block;margin:0 4px;"></span>
-      <span class="dot tg"></span>&nbsp;Telegram bots &amp; usernames
-    </div>
-  </div>
-</div>
-
-<section id="question-types">
-  <div class="wrap">
-    <div class="section-head">
-      <h2>Fourteen question types, one message out</h2>
-      <p>Mix and match short text, choices, media and contact fields — <span translate="no">WateForm</span> formats the final message for you.</p>
-    </div>
-    <div class="qtype-grid">
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5h16v2M9 20h6M12 5v15"/></svg></div><h4>Title / heading</h4><p>Section breaks with no answer field.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h4>Short text</h4><p>One-line answers like names or roles.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h16M4 13h10"/></svg></div><h4>Long text</h4><p>Paragraphs — notes, messages, feedback.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></div><h4>Multiple choice</h4><p>Single pick, with an optional "Other" field.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/></svg></div><h4>Checkboxes</h4><p>Pick any number of options.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div><h4>Dropdown</h4><p>Long option lists without scrolling a page.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"/></svg></div><h4>Number</h4><p>Digits only, with min/max limits.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><h4>Date</h4><p>A calendar picker, no typing needed.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 2.6 6.1L21 9.8l-5 4.3 1.5 6.4L12 17l-5.5 3.5L8 14.1 3 9.8l6.4-.7Z"/></svg></div><h4>Rating</h4><p>Stars, from 1 up to a scale you set.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div><h4>Email</h4><p>Optionally locked to @gmail.com addresses.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.4 2.1L8 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.4c.9.3 1.8.5 2.7.6A2 2 0 0 1 22 16.9Z"/></svg></div><h4>Phone number</h4><p>Country-code prefix for almost every country.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5-11 11"/></svg></div><h4>Image</h4><p>Upload a file or drop in a link.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-4v12l-6-4"/></svg></div><h4>Video</h4><p>Upload a file or embed a link.</p></div>
-
-      <div class="qtype"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div><h4>Every field, formatted</h4><p>Subheading, rich text, image and "required" toggle apply to all types above.</p></div>
-
-    </div>
-  </div>
+<!-- CTA strip -->
+<section class="lp-cta">
+  <h2>Ready to try it?</h2>
+  <p>Free to start. No credit card required.</p>
+  <a href="login.html#register" class="btn btn-solid btn-lg" id="cta-register-btn">Create your account</a>
 </section>
 
-<section id="how-it-works" style="background:var(--bg-raised);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-  <div class="wrap">
-    <div class="section-head">
-      <h2>From blank form to a message in someone's chat</h2>
-      <p>Four steps, in order — this is genuinely the sequence, not decoration.</p>
-    </div>
-    <div class="flow">
-      <div class="flow-step">
-        <div class="flow-num">1</div>
-        <div><h4>Create a workspace</h4><p>Give it a name, invite teammates by username, and everyone in it can build and read responses together.</p></div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">2</div>
-        <div><h4>Build the form</h4><p>Drag in question types, write the copy, set which ones are required — a live preview updates as you go.</p></div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">3</div>
-        <div><h4>Point it at WhatsApp or Telegram</h4><p>Add a phone number, a Telegram username, or both. Pick the language and the text on the submit button.</p></div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">4</div>
-        <div><h4>Publish and share the link</h4><p translate="no">wateform.my.id/&lt;code&gt;</p><p>goes live. Every completed reply arrives as a message — no inbox to check.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="workspaces">
-  <div class="wrap">
-    <div class="section-head">
-      <h2>One workspace, every form your team runs</h2>
-      <p>Owners and members share a workspace URL, see when it was created, and manage forms from a single list.</p>
-    </div>
-    <div class="panel">
-      <div class="panel-bar">
-        <span></span><span></span><span></span>
-        <span class="panel-url" translate="no">wateform.my.id/x7Qp2m</span>
-      </div>
-      <div class="panel-body">
-        <div class="panel-side">
-          <div class="ws-card">
-            <h5>Klinik Sehat Jaya</h5>
-            <div class="id" translate="no">x7Qp2m · created Aug 2, 2026</div>
-          </div>
-          <div class="side-item active">Forms</div>
-          <div class="side-item">Members</div>
-          <div class="side-item">Responses</div>
-          <div class="side-item">Settings</div>
-        </div>
-        <div class="panel-main">
-          <div class="form-row-mock">
-            <div>
-              <div class="name">Appointment request</div>
-              <div class="meta" translate="no">/x7Qp2m/9kLp3a · 214 responses</div>
-            </div>
-            <div class="chip-set"><span class="pill wa">WA</span><span class="pill tg">TG</span></div>
-          </div>
-          <div class="form-row-mock">
-            <div>
-              <div class="name">Patient intake</div>
-              <div class="meta" translate="no">/x7Qp2m/2fRt8q · 96 responses</div>
-            </div>
-            <div class="chip-set"><span class="pill wa">WA</span></div>
-          </div>
-          <div class="form-row-mock">
-            <div>
-              <div class="name">Staff feedback</div>
-              <div class="meta" translate="no">/x7Qp2m/mN4vQ1 · 12 responses</div>
-            </div>
-            <div class="chip-set"><span class="pill tg">TG</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <div class="cta-band">
-      <h2>Your first form takes about three minutes</h2>
-      <p>Create a workspace, add a question or two, point it at a WhatsApp number or Telegram username, and publish.</p>
-      <a href="login.html#register" class="btn btn-solid">Create your workspace</a>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <div class="foot-top">
-      <div class="foot-brand">
-        <a href="index.html" class="brand">
-          <img src="assets/logo.webp" alt="WateForm">
-          <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
-        </a>
-        <p>Forms that end up as a message, not a spreadsheet — delivered straight to WhatsApp or Telegram.</p>
-      </div>
-      <div class="foot-cols">
-        <div class="foot-col">
-          <h5>Product</h5>
-          <a href="#question-types">Question types</a>
-          <a href="#how-it-works">How it works</a>
-          <a href="#workspaces">Workspaces</a>
-        </div>
-        <div class="foot-col">
-          <h5>Account</h5>
-          <a href="login.html">Log in</a>
-          <a href="login.html#register">Create an account</a>
-        </div>
-      </div>
-    </div>
-    <div class="foot-bottom">
-      <span>© 2026 <span translate="no">WateForm</span>.</span>
-      <span translate="no">wateform.my.id</span>
-    </div>
-  </div>
+<!-- Footer -->
+<footer class="lp-footer">
+  <span translate="no">WateForm</span>
+  <span>Built for teams that move fast on WhatsApp &amp; Telegram.</span>
 </footer>
 
-<script src="assets/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+(async function() {
+  // Handle magic link / email confirmation redirect (hash from Supabase)
+  const hash = window.location.hash;
+  if (hash.includes("access_token")) {
+    const params = new URLSearchParams(hash.substring(1));
+    const { error } = await client.auth.setSession({
+      access_token:  params.get("access_token"),
+      refresh_token: params.get("refresh_token"),
+    });
+    window.location.href = error ? "login.html" : "dashboard.html";
+    return;
+  }
+
+  // If already logged in, redirect register/login buttons to dashboard
+  const { data: { session } } = await client.auth.getSession();
+  if (session) {
+    ["nav-register-btn","hero-register-btn","cta-register-btn"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.href = "dashboard.html"; el.textContent = "Go to dashboard"; }
+    });
+    document.querySelector('a[href="login.html"]')?.remove();
+  }
+})();
+
+// Theme toggle (reuse same logic as other pages)
+(function(){
+  const saved = localStorage.getItem("theme");
+  if(saved) document.documentElement.setAttribute("data-theme", saved);
+  document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    const next = cur === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+  });
+})();
+</script>
 </body>
 </html>

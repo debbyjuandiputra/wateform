@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Dashboard — WateForm</title>
+<link rel="icon" href="assets/logo.webp" type="image/webp">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app-shell" id="app">
+
+  <!-- Top bar -->
+  <header class="app-topbar">
+    <a href="index.html" class="brand topbar-brand">
+      <img src="assets/logo.webp" alt="WateForm">
+      <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+    </a>
+    <div class="topbar-sep"></div>
+    <span class="topbar-title" id="topbar-ws-name">Dashboard</span>
+    <div class="topbar-right">
+      <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <div class="dropdown">
+        <button class="topbar-user" id="user-btn">
+          <div class="avatar" id="user-avatar">?</div>
+          <div>
+            <div class="name" id="user-name">…</div>
+            <div class="username" id="user-handle">@…</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dropdown-menu" id="user-menu">
+          <button class="dropdown-item danger" id="logout-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Workspaces</div>
+        <div id="ws-list"></div>
+        <button class="sidebar-add" id="new-ws-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          New workspace
+        </button>
+      </div>
+      <div class="sidebar-footer">
+        <button class="sidebar-item" id="sidebar-home-btn" style="width:100%">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          All workspaces
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="app-main" id="main-content">
+      <!-- Injected by JS -->
+    </main>
+  </div>
+</div>
+
+<!-- ── Modals ─────────────────────────────────────────────── -->
+
+<!-- Create / Edit Workspace -->
+<div class="modal-backdrop" id="ws-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="ws-modal-title">New workspace</h3>
+      <button class="modal-close" data-close="ws-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="ws-modal-error" class="error-banner"></div>
+      <div class="field">
+        <label for="ws-name">Workspace name <span style="color:var(--red)">*</span></label>
+        <input type="text" id="ws-name" placeholder="e.g. Klinik Sehat Jaya" maxlength="80">
+        <div class="error-text"></div>
+      </div>
+      <div class="field">
+        <label for="ws-desc">Description <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+        <textarea id="ws-desc" placeholder="What is this workspace for?" rows="2" maxlength="300"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="ws-modal">Cancel</button>
+      <button class="btn btn-solid btn-sm" id="ws-save-btn">Create workspace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invite member -->
+<div class="modal-backdrop" id="invite-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Invite member</h3>
+      <button class="modal-close" data-close="invite-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="invite-error" class="error-banner"></div>
+      <div class="field">
+        <label for="invite-username">Username</label>
+        <input type="text" id="invite-username" placeholder="e.g. nadia.putri">
+        <div class="hint">Type the exact username of the person you want to invite.</div>
+        <div class="error-text"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="invite-modal">Cancel</button>
+      <button class="btn btn-solid btn-sm" id="invite-save-btn">Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create form -->
+<div class="modal-backdrop" id="form-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>New form</h3>
+      <button class="modal-close" data-close="form-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="form-modal-error" class="error-banner"></div>
+      <div class="field">
+        <label for="form-title">Form title <span style="color:var(--red)">*</span></label>
+        <input type="text" id="form-title" placeholder="e.g. Appointment request" maxlength="120">
+        <div class="error-text"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="form-modal">Cancel</button>
+      <button class="btn btn-solid btn-sm" id="form-save-btn">Create form</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rename form -->
+<div class="modal-backdrop" id="rename-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Rename form</h3>
+      <button class="modal-close" data-close="rename-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="rename-input">New name</label>
+        <input type="text" id="rename-input" maxlength="120">
+        <div class="error-text"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="rename-modal">Cancel</button>
+      <button class="btn btn-solid btn-sm" id="rename-save-btn">Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3 id="confirm-title">Delete?</h3>
+      <button class="modal-close" data-close="confirm-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <p id="confirm-body" style="margin:0 0 8px;font-size:13.5px;color:var(--text-soft)"></p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="confirm-modal">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="confirm-ok-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share form -->
+<div class="modal-backdrop" id="share-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>Share form</h3>
+      <button class="modal-close" data-close="share-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Public link</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="share-link" readonly style="flex:1;background:var(--bg-mid)">
+          <button class="btn btn-ghost btn-sm" id="share-copy-btn">Copy</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Embed code</label>
+        <textarea id="share-embed" readonly rows="3" style="background:var(--bg-mid);font-family:monospace;font-size:12px"></textarea>
+        <button class="btn btn-ghost btn-sm" id="embed-copy-btn" style="align-self:flex-start;margin-top:4px">Copy embed</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/dashboard.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
 *.sql
 .env
 *.md
-*.zip
+assets.zip

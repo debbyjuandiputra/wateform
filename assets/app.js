@@ -3,13 +3,12 @@
  *
  * Dependencies loaded from CDN in login.html:
  *   @supabase/supabase-js  (window.supabase)
- *   hCaptcha widget script (window.hcaptcha)
+ *   hCaptcha DINONAKTIFKAN sementara
  */
 
 // ── CONFIG ───────────────────────────────────────────────────
 const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
-const HCAPTCHA_SITE_KEY = "f48e617a-c39c-4394-81e4-682e75342f76";
 
 const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
 
@@ -71,25 +70,9 @@ function sb() {
 
   if (location.hash === "#register") switchTab("register");
 
-  // ── hCaptcha ──────────────────────────────────────────────
-  let captchaLoginId    = null;
-  let captchaRegisterId = null;
-
-  window.onHCaptchaLoad = function () {
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-
-    captchaLoginId = window.hcaptcha.render("captcha-login", {
-      sitekey:  HCAPTCHA_SITE_KEY,
-      theme:    isDark ? "dark" : "light",
-      callback: () => clearError("login-captcha-error"),
-    });
-
-    captchaRegisterId = window.hcaptcha.render("captcha-register", {
-      sitekey:  HCAPTCHA_SITE_KEY,
-      theme:    isDark ? "dark" : "light",
-      callback: () => clearError("register-captcha-error"),
-    });
-  };
+  // ── hCaptcha — DINONAKTIFKAN ──────────────────────────────
+  // TODO: aktifkan kembali setelah hCaptcha dikonfigurasi di Supabase
+  window.onHCaptchaLoad = function () { /* no-op */ };
 
   // ── UI helpers ────────────────────────────────────────────
   function setFieldError(fieldEl, msg) {
@@ -172,34 +155,22 @@ function sb() {
       const passEl  = document.getElementById("login-password");
       const btn     = loginForm.querySelector("[type=submit]");
 
-      const captchaToken =
-        captchaLoginId !== null ? window.hcaptcha.getResponse(captchaLoginId) : null;
-
-      if (!captchaToken) {
-        showError("login-captcha-error", "Please complete the CAPTCHA.");
-        return;
-      }
-
       setLoading(btn, true);
 
       const { error } = await sb().auth.signInWithPassword({
         email:    emailEl.value.trim(),
         password: passEl.value,
-        options:  { captchaToken },
       });
 
       setLoading(btn, false);
 
       if (error) {
-        window.hcaptcha.reset(captchaLoginId);
         showError("login-general-error",
           error.message.includes("Invalid login")
             ? "Email or password is incorrect."
-            : error.message.includes("captcha")
-              ? "CAPTCHA validation failed — please try again."
-              : error.message.includes("Email not confirmed")
-                ? "Please verify your email first. Check your inbox."
-                : error.message
+            : error.message.includes("Email not confirmed")
+              ? "Please verify your email first. Check your inbox."
+              : error.message
         );
         return;
       }
@@ -261,14 +232,6 @@ function sb() {
         valid = false;
       } else clearFieldError(pw2Field);
 
-      // hCaptcha
-      const captchaToken =
-        captchaRegisterId !== null ? window.hcaptcha.getResponse(captchaRegisterId) : null;
-      if (!captchaToken) {
-        showError("register-captcha-error", "Please complete the CAPTCHA.");
-        valid = false;
-      }
-
       if (!valid) return;
 
       setLoading(btn, true);
@@ -294,12 +257,10 @@ function sb() {
         email:    emailEl.value.trim(),
         password: pw1El.value,
         options: {
-          captchaToken,
           data: {
             full_name: fullnameEl.value.trim(),
             username:  usernameEl.value.trim(),
           },
-          // Beritahu Supabase bahwa kita akan verifikasi via OTP, bukan magic link
           emailRedirectTo: undefined,
         },
       });
@@ -307,13 +268,10 @@ function sb() {
       setLoading(btn, false);
 
       if (error) {
-        window.hcaptcha.reset(captchaRegisterId);
         showError("register-general-error",
           error.message.includes("already registered")
             ? "An account with this email already exists."
-            : error.message.includes("captcha")
-              ? "CAPTCHA validation failed — please try again."
-              : error.message
+            : error.message
         );
         return;
       }

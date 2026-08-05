@@ -13,15 +13,7 @@
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
-<!--
-  hCaptcha widget
-  onload=onHCaptchaLoad  → calls window.onHCaptchaLoad() defined in app.js
-  render=explicit        → we render widgets manually (one per form)
--->
-<script
-  src="https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
-  async defer>
-</script>
+<!-- hCaptcha dinonaktifkan sementara — aktifkan kembali setelah dikonfigurasi -->
 </head>
 <body>
 
@@ -96,12 +88,6 @@
             </div>
           </div>
 
-          <!-- hCaptcha widget — rendered by app.js into this div -->
-          <div class="captcha-wrap">
-            <div id="captcha-login"></div>
-            <div id="login-captcha-error" class="error-text" style="display:none;"></div>
-          </div>
-
           <button type="submit" class="btn btn-solid auth-submit">Log in</button>
         </form>
 
@@ -171,12 +157,6 @@
               </div>
               <div class="error-text">Passwords don't match.</div>
             </div>
-          </div>
-
-          <!-- hCaptcha widget — rendered by app.js into this div -->
-          <div class="captcha-wrap">
-            <div id="captcha-register"></div>
-            <div id="register-captcha-error" class="error-text" style="display:none;"></div>
           </div>
 
           <button type="submit" class="btn btn-solid auth-submit">Create account</button>

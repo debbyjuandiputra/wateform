@@ -7,7 +7,7 @@
  */
 
 // ── CONFIG ───────────────────────────────────────────────────
-const SUPABASE_URL      = "https://xxxxxxxxxxxx.supabase.co";
+const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 const HCAPTCHA_SITE_KEY = "945cf1d2-1232-4078-b790-5f4c36703276";
 

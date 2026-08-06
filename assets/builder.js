@@ -912,10 +912,9 @@ function renderSettingsPanel() {
     <div class="field" id="s-closed-msg-wrap" style="display:${s.closeAt ? '' : 'none'}">
       <label style="display:flex;align-items:center;gap:6px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Pesan saat form ditutup <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
+        Closed message <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
       </label>
-      <textarea id="s-closed-msg" rows="3" placeholder="Contoh: Pendaftaran telah ditutup. Terima kasih atas minat Anda." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5">${esc(s.closedMessage||"")}</textarea>
-      <div class="hint">Pesan ini ditampilkan di halaman form setelah form ditutup.</div>
+      <textarea id="s-closed-msg" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5">${esc(s.closedMessage||"")}</textarea>
     </div>
   `;
 

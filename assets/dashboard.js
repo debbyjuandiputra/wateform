@@ -137,7 +137,6 @@ function renderHome() {
     <div class="dash-header">
       <div>
         <h2>Your workspaces</h2>
-        <p>Each workspace groups forms and members together.</p>
       </div>
       <button class="btn btn-solid btn-sm" id="create-ws-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -287,8 +286,6 @@ async function openWorkspace(wsId) {
     can_edit_questions: true, can_edit_settings: true,
     can_add_members: true, can_see_members: true
   };
-  const createdDate = new Date(ws.created_at).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
-
   const main = document.getElementById("main-content");
   main.innerHTML = `
     <div class="dash-header">
@@ -301,7 +298,7 @@ async function openWorkspace(wsId) {
             ${esc(ws.name)}
             <span class="ws-card-id font-mono" style="font-size:12px">${ws.short_id}</span>
           </h2>
-          <p>Created ${createdDate}${ws.description ? " · " + esc(ws.description) : ""}</p>
+          ${ws.description ? `<p>${esc(ws.description)}</p>` : ""}
         </div>
       </div>
       <div style="display:flex;gap:8px">
@@ -772,24 +769,30 @@ async function openResponses(formId) {
   const questions = form?.questions || [];
   const main = document.getElementById("main-content");
   main.innerHTML = `
-    <div class="dash-header">
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn-icon" id="back-from-resp">
+    <div class="dash-header" style="justify-content:flex-start">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+        <button class="btn-icon" id="back-from-resp" style="flex-shrink:0">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
         </button>
-        <div><h2>Responses · ${esc(form?.title || "Form")}</h2><p>${responses?.length || 0} submissions</p></div>
+        <div style="min-width:0"><h2 style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Responses · ${esc(form?.title || "Form")}</h2><p>${responses?.length || 0} submissions</p></div>
       </div>
+      ${responses?.length ? `<div id="resp-actions" style="display:none;gap:8px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" id="copy-csv-btn">Copy as CSV</button>
+        <button class="btn btn-sm" id="export-csv-btn">Export CSV</button>
+      </div>` : ""}
     </div>
     <div class="dash-body">
       ${!responses?.length ? `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h4>No responses yet</h4><p>Responses will appear here after someone submits the form.</p></div>` :
       `<div class="resp-table-wrap"><table class="resp-table">
         <thead><tr>
+          <th style="width:36px"><input type="checkbox" id="resp-select-all" /></th>
           <th>#</th>
           ${questions.map(q => `<th>${esc(q.title || q.type)}</th>`).join("")}
           <th>Sent to</th><th>Time</th>
         </tr></thead>
         <tbody>
           ${responses.map((r, i) => `<tr>
+            <td><input type="checkbox" class="resp-select-row" data-idx="${i}" /></td>
             <td style="color:var(--text-muted)">${i+1}</td>
             ${questions.map(q => `<td>${esc(String(r.answers?.[q.id] ?? ""))}</td>`).join("")}
             <td>${r.sent_to === "wa" ? '<span class="pill pill-wa">WA</span>' : r.sent_to === "tg" ? '<span class="pill pill-tg">TG</span>' : r.sent_to === "both" ? '<span class="pill pill-wa">WA</span><span class="pill pill-tg">TG</span>' : "-"}</td>
@@ -800,6 +803,87 @@ async function openResponses(formId) {
     </div>
   `;
   document.getElementById("back-from-resp").addEventListener("click", () => openWorkspace(activeWsId));
+
+  if (responses?.length) {
+    const selectAll  = document.getElementById("resp-select-all");
+    const actions    = document.getElementById("resp-actions");
+    const exportBtn  = document.getElementById("export-csv-btn");
+    const copyBtn    = document.getElementById("copy-csv-btn");
+    const rowChecks  = () => Array.from(document.querySelectorAll(".resp-select-row"));
+
+    function refreshExportState() {
+      const checked = rowChecks().filter(c => c.checked);
+      actions.style.display = checked.length ? "flex" : "none";
+      exportBtn.textContent = checked.length ? `Export CSV (${checked.length})` : "Export CSV";
+      copyBtn.textContent = checked.length ? `Copy as CSV (${checked.length})` : "Copy as CSV";
+    }
+
+    selectAll.addEventListener("change", () => {
+      rowChecks().forEach(c => c.checked = selectAll.checked);
+      refreshExportState();
+    });
+
+    rowChecks().forEach(c => c.addEventListener("change", () => {
+      const all = rowChecks();
+      selectAll.checked = all.length > 0 && all.every(x => x.checked);
+      selectAll.indeterminate = all.some(x => x.checked) && !selectAll.checked;
+      refreshExportState();
+    }));
+
+    exportBtn.addEventListener("click", () => {
+      const selectedIdx = rowChecks().filter(c => c.checked).map(c => Number(c.dataset.idx));
+      const rows = selectedIdx.map(i => responses[i]);
+      exportResponsesToCsv(rows, questions, form?.title || "responses");
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const selectedIdx = rowChecks().filter(c => c.checked).map(c => Number(c.dataset.idx));
+      const rows = selectedIdx.map(i => responses[i]);
+      const csv = buildCsv(rows, questions);
+      try {
+        await navigator.clipboard.writeText(csv);
+        toast("Copied as CSV");
+      } catch {
+        toast("Failed to copy", "error");
+      }
+    });
+  }
+}
+
+// ── CSV export ────────────────────────────────────────────────
+function csvEscape(val) {
+  const s = String(val ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function buildCsv(rows, questions) {
+  const headers = ["#", ...questions.map(q => q.title || q.type), "Sent to", "Time"];
+  const lines = [headers.map(csvEscape).join(",")];
+  rows.forEach((r, i) => {
+    const sentTo = r.sent_to === "wa" ? "WA" : r.sent_to === "tg" ? "TG" : r.sent_to === "both" ? "WA, TG" : "-";
+    const cols = [
+      i + 1,
+      ...questions.map(q => r.answers?.[q.id] ?? ""),
+      sentTo,
+      new Date(r.submitted_at).toLocaleString(),
+    ];
+    lines.push(cols.map(csvEscape).join(","));
+  });
+  return lines.join("\r\n");
+}
+
+function exportResponsesToCsv(rows, questions, formTitle) {
+  const csv = "\uFEFF" + buildCsv(rows, questions);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${formTitle.replace(/[^a-z0-9]+/gi, "_").toLowerCase() || "responses"}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ── Confirm modal ─────────────────────────────────────────────

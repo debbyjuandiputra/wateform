@@ -308,9 +308,11 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 
 /* ── Dashboard ──────────────────────────────────────────────── */
 .dash-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: flex-start;
   padding: 28px 32px 20px; border-bottom: 1px solid var(--border);
+  gap: 12px;
 }
+.dash-header > div:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .dash-header h2 { font-size: 20px; font-weight: 800; margin: 0; }
 .dash-header p  { font-size: 13.5px; color: var(--text-soft); margin: 4px 0 0; }
 .dash-body { padding: 24px 32px; }
@@ -549,6 +551,8 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .resp-table td { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); font-size: 13.5px; vertical-align: top; max-width: 220px; overflow-wrap: break-word; word-break: break-word; }
 .resp-table tr:last-child td { border-bottom: none; }
 .resp-table tr:hover td { background: var(--bg-mid); }
+.resp-table th:first-child, .resp-table td:first-child { width: 36px; padding-right: 0; white-space: nowrap; }
+.resp-table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--teal); }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -607,10 +611,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 
   /* Dashboard responsive */
   .dash-header {
-    flex-direction: column; align-items: flex-start;
-    padding: 16px 16px 12px; gap: 12px;
+    flex-direction: row; align-items: center; flex-wrap: wrap;
+    padding: 14px 16px 12px; gap: 8px;
   }
-  .dash-header > div:last-child { width: 100%; display: flex; justify-content: flex-end; }
+  .dash-header > div:last-child:not(:only-child) { display: flex; justify-content: flex-end; }
   .dash-body { padding: 16px; }
   .ws-grid { grid-template-columns: 1fr; }
 

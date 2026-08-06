@@ -278,10 +278,9 @@ async function openWorkspace(wsId) {
   }
   console.log("Members with profiles:", members);
 
-  const myMember = members?.find(m => m.user_id === currentUser.id)
-    || ws.workspace_members?.find(m => m.user_id === currentUser.id);
-  const myRole = myMember?.role || (ws.owner_id === currentUser.id ? "owner" : "member");
-  const isOwner = myRole === "owner" || ws.owner_id === currentUser.id;
+  const myMember = members?.find(m => m.user_id === currentUser.id);
+  const myRole = myMember?.role || "member";
+  const isOwner = myRole === "owner";
 
   // Permissions: all members have full access
   const perms = {
@@ -292,40 +291,32 @@ async function openWorkspace(wsId) {
 
   const main = document.getElementById("main-content");
   main.innerHTML = `
-    <div style="padding:12px 0 0 0">
-      <button class="btn-icon" id="back-btn" title="Back" style="margin-bottom:8px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
-    </div>
     <div class="dash-header">
       <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-icon" id="back-btn" title="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
         <div>
           <h2 style="display:flex;align-items:center;gap:8px">
             ${esc(ws.name)}
             <span class="ws-card-id font-mono" style="font-size:12px">${ws.short_id}</span>
-            <div class="ws-info-tooltip-wrap" style="position:relative;display:inline-flex;align-items:center">
-              <button class="btn-icon ws-info-btn" title="Workspace info" style="width:22px;height:22px;border-radius:50%;background:var(--bg-mid);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-              </button>
-              <div class="ws-info-tooltip" style="display:none;position:absolute;left:28px;top:50%;transform:translateY(-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;white-space:nowrap;font-size:12.5px;color:var(--text-soft);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:50;min-width:200px">
-                <div style="margin-bottom:${ws.description ? "6px" : "0"}"><span style="color:var(--text-muted);font-size:11px">Created</span><br><span style="color:var(--text)">${createdDate}</span></div>
-                ${ws.description ? `<div><span style="color:var(--text-muted);font-size:11px">Description</span><br><span style="color:var(--text)">${esc(ws.description)}</span></div>` : ""}
-              </div>
-            </div>
           </h2>
+          <p>Created ${createdDate}${ws.description ? " · " + esc(ws.description) : ""}</p>
         </div>
       </div>
       <div style="display:flex;gap:8px">
         ${isOwner ? `
-        <button class="btn btn-ghost btn-sm" id="ws-delete-btn" style="color:var(--red);padding:6px 8px">
+        <button class="btn btn-ghost btn-sm" id="ws-delete-btn" style="color:var(--red)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Delete
         </button>
-        <button class="btn btn-ghost btn-sm" id="ws-settings-btn" style="padding:6px 8px">
+        <button class="btn btn-ghost btn-sm" id="ws-settings-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          Edit
         </button>` : ""}
         <button class="btn btn-solid btn-sm" data-i18n="form" id="new-form-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
-          New
+          New form
         </button>
       </div>
     </div>
@@ -358,18 +349,6 @@ async function openWorkspace(wsId) {
   document.getElementById("new-form-btn").addEventListener("click", () => openNewFormModal(wsId));
   document.getElementById("ws-settings-btn")?.addEventListener("click", () => openEditWsModal(ws));
   document.getElementById("ws-delete-btn")?.addEventListener("click", () => openDeleteWsModal(ws));
-
-  // Info tooltip toggle
-  const infoBtn = main.querySelector(".ws-info-btn");
-  const infoTip = main.querySelector(".ws-info-tooltip");
-  if (infoBtn && infoTip) {
-    infoBtn.addEventListener("click", e => {
-      e.stopPropagation();
-      const shown = infoTip.style.display !== "none";
-      infoTip.style.display = shown ? "none" : "block";
-    });
-    document.addEventListener("click", () => { infoTip.style.display = "none"; }, { capture: false });
-  }
   document.getElementById("invite-btn")?.addEventListener("click", () => openInviteModal(wsId));
 
   renderFormList(forms || [], wsId, isOwner);
@@ -559,7 +538,7 @@ function renderMemberList(members, wsId, isOwner, meId) {
         await _sb.from("workspace_members").delete().eq("workspace_id", wsId).eq("user_id", uid);
         openWorkspace(wsId);
         toast("Member removed");
-      });
+      }, "Remove");
       return;
     }
     // Transfer ownership
@@ -575,12 +554,13 @@ function renderMemberList(members, wsId, isOwner, meId) {
         async () => {
           const { error: e1 } = await _sb.from("workspace_members").update({ role: "owner" }).eq("workspace_id", wsId).eq("user_id", uid);
           const { error: e2 } = await _sb.from("workspace_members").update({ role: "member" }).eq("workspace_id", wsId).eq("user_id", meId);
-          await _sb.from("workspaces").update({ owner_id: uid }).eq("id", wsId);
-          if (e1 || e2) { toast("Transfer failed", "error"); return; }
+          const { error: e3 } = await _sb.from("workspaces").update({ owner_id: uid }).eq("id", wsId);
+          if (e1 || e2 || e3) { toast("Transfer failed", "error"); return; }
           toast("Ownership transferred");
           await loadWorkspaces();
           openWorkspace(wsId);
-        }
+        },
+        "Yes"
       );
       return;
     }
@@ -819,10 +799,15 @@ async function openResponses(formId) {
 }
 
 // ── Confirm modal ─────────────────────────────────────────────
-function openConfirm(title, body, onOk) {
+function openConfirm(title, body, onOk, okLabel) {
   document.getElementById("confirm-title").textContent = title;
   document.getElementById("confirm-body").textContent = body;
-  document.getElementById("confirm-ok-btn").onclick = () => { closeModal("confirm-modal"); onOk(); };
+  const okBtn = document.getElementById("confirm-ok-btn");
+  okBtn.textContent = okLabel || "Delete";
+  okBtn.className = (okLabel && okLabel !== "Delete")
+    ? "btn btn-solid btn-sm"
+    : "btn btn-danger btn-sm";
+  okBtn.onclick = () => { closeModal("confirm-modal"); onOk(); };
   openModal("confirm-modal");
 }
 

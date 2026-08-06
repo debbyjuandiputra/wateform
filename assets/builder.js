@@ -830,6 +830,25 @@ function renderSettingsPanel() {
 
   body.innerHTML = `
     <div class="field">
+      <label class="toggle-row" style="cursor:pointer">
+        <span class="toggle-label" style="font-weight:600;color:var(--text)">Active</span>
+        <label class="toggle">
+          <input type="checkbox" id="s-active" ${s.isActive === false ? "" : "checked"}>
+          <span class="toggle-track"></span>
+        </label>
+      </label>
+    </div>
+    <div class="field">
+      <label class="toggle-row" style="cursor:pointer">
+        <span class="toggle-label" style="font-weight:600;color:var(--text)">Remove watermark</span>
+        <label class="toggle">
+          <input type="checkbox" id="s-watermark" ${s.removeWatermark === false ? "" : "checked"}>
+          <span class="toggle-track"></span>
+        </label>
+      </label>
+    </div>
+    <div class="settings-sep"></div>
+    <div class="field">
       <label>Form title</label>
       <input type="text" id="s-title" value="${esc(formData?.title || "")}" maxlength="120">
     </div>
@@ -842,7 +861,9 @@ function renderSettingsPanel() {
       <label>Public URL</label>
       <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
         <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
-        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4"
+        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4" required
+          placeholder="${esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx"))}"
+          pattern="[A-Za-z0-9._~-]+" autocapitalize="off" autocorrect="off" spellcheck="false"
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)">
       </div>
       <!-- <div class="hint" id="s-slug-hint">Type a custom name (min 4 chars) for a short link like <strong>${window.location.host}/your-custom-name</strong>. Leave blank to use the default two-part link.</div> -->
@@ -863,7 +884,7 @@ function renderSettingsPanel() {
           <select id="s-wa-prefix" class="phone-prefix">
             ${COUNTRY_CODES.map(c=>`<option value="${c.code}" ${(s.waPrefix||"+62")===c.code?"selected":""}>${c.code} ${c.label.split(" ")[0]}</option>`).join("")}
           </select>
-          <input type="text" id="s-wa-number" value="${esc(s.waNumber||"")}" >
+          <input type="tel" id="s-wa-number" inputmode="numeric" pattern="[0-9]*" value="${esc(s.waNumber||"")}" >
         </div>
       </div>
     </div>
@@ -873,6 +894,7 @@ function renderSettingsPanel() {
         <div style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px">
           <span style="color:var(--text-muted)">@</span>
           <input type="text" id="s-tg-user" value="${esc(s.tgUsername||"")}" placeholder="username"
+            pattern="[A-Za-z0-9_]+" maxlength="32" autocapitalize="off" autocorrect="off" spellcheck="false"
             style="border:none;background:transparent;padding:0;outline:none;font-size:14px;width:100%;color:var(--text)">
         </div>
       </div>
@@ -907,7 +929,6 @@ function renderSettingsPanel() {
           <!-- <div class="hint" style="margin-top:3px">Leave blank to never close.</div> -->
         </div>
       </div>
-      <div id="s-schedule-preview" style="margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
     </div>
     <div class="field" id="s-closed-msg-wrap" style="display:${s.closeAt ? '' : 'none'}">
       <label style="display:flex;align-items:center;gap:6px">
@@ -924,8 +945,25 @@ function renderSettingsPanel() {
     updateTargetVisibility();
     saveSetting();
   });
+  document.getElementById("s-active")?.addEventListener("change", () => saveSetting());
+  document.getElementById("s-watermark")?.addEventListener("change", () => saveSetting());
   ["s-title","s-desc","s-slug","s-wa-number","s-tg-user"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", () => saveSetting());
+  });
+  // Public URL: strip anything that isn't a letter, digit, or a URL-safe symbol (no spaces)
+  document.getElementById("s-slug")?.addEventListener("input", (e) => {
+    const cleaned = e.target.value.replace(/[^A-Za-z0-9._~-]/g, "");
+    if (cleaned !== e.target.value) e.target.value = cleaned;
+  });
+  // WhatsApp number: digits only, numeric keyboard on mobile
+  document.getElementById("s-wa-number")?.addEventListener("input", (e) => {
+    const cleaned = e.target.value.replace(/[^0-9]/g, "");
+    if (cleaned !== e.target.value) e.target.value = cleaned;
+  });
+  // Telegram username: letters, digits, underscore only — no spaces or unsupported symbols
+  document.getElementById("s-tg-user")?.addEventListener("input", (e) => {
+    const cleaned = e.target.value.replace(/[^A-Za-z0-9_]/g, "");
+    if (cleaned !== e.target.value) e.target.value = cleaned;
   });
   ["s-wa-prefix","s-lang"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", () => saveSetting());
@@ -933,7 +971,6 @@ function renderSettingsPanel() {
   ["s-open-at","s-close-at"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", () => {
       saveSetting();
-      updateSchedulePreview();
       // Show closed-message field only when closeAt is set
       const closeAtVal = document.getElementById("s-close-at")?.value;
       const wrap = document.getElementById("s-closed-msg-wrap");
@@ -941,20 +978,6 @@ function renderSettingsPanel() {
     });
   });
   document.getElementById("s-closed-msg")?.addEventListener("input", () => saveSetting());
-  updateSchedulePreview();
-}
-
-function updateSchedulePreview() {
-  const el = document.getElementById("s-schedule-preview");
-  if (!el) return;
-  const openAt  = document.getElementById("s-open-at")?.value;
-  const closeAt = document.getElementById("s-close-at")?.value;
-  if (!openAt && !closeAt) { el.textContent = ""; return; }
-  const fmt = dt => new Date(dt).toLocaleString(undefined, { dateStyle:"medium", timeStyle:"short" });
-  const parts = [];
-  if (openAt)  parts.push("Opens " + fmt(openAt));
-  if (closeAt) parts.push("Closes " + fmt(closeAt));
-  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ` + parts.join(" · ");
 }
 
 function updateTargetVisibility() {
@@ -1006,9 +1029,14 @@ async function saveSetting() {
   }
   const slugInput = document.getElementById("s-slug");
   const slugHint  = document.getElementById("s-slug-hint");
-  let newSlug = slugInput?.value.trim() || null;
-  if (newSlug && newSlug.length < 4) {
-    if (slugHint) { slugHint.textContent = "Custom link must be at least 4 characters."; slugHint.style.color = "var(--red)"; }
+  // Public URL is required and may only contain letters, digits, and URL-safe symbols (no spaces)
+  let newSlug = (slugInput?.value || "").replace(/[^A-Za-z0-9._~-]/g, "").trim() || null;
+  if (slugInput && slugInput.value !== (newSlug || "")) slugInput.value = newSlug || "";
+  if (!newSlug || newSlug.length < 4) {
+    if (slugHint) {
+      slugHint.textContent = newSlug ? "Custom link must be at least 4 characters." : "Public URL is required.";
+      slugHint.style.color = "var(--red)";
+    }
     slugInput?.classList.add("input-error");
     newSlug = formData?.slug || null; // don't persist an invalid value
   } else {
@@ -1021,10 +1049,12 @@ async function saveSetting() {
     }
   }
   settings.slug        = newSlug;
+  settings.isActive    = document.getElementById("s-active")?.checked !== false;
+  settings.removeWatermark = document.getElementById("s-watermark")?.checked !== false;
   settings.target      = document.getElementById("s-target")?.value || "wa";
   settings.waPrefix    = document.getElementById("s-wa-prefix")?.value || "+62";
-  settings.waNumber    = document.getElementById("s-wa-number")?.value.trim() || "";
-  settings.tgUsername  = document.getElementById("s-tg-user")?.value.trim() || "";
+  settings.waNumber    = (document.getElementById("s-wa-number")?.value || "").replace(/[^0-9]/g, "");
+  settings.tgUsername  = (document.getElementById("s-tg-user")?.value || "").replace(/[^A-Za-z0-9_]/g, "");
   settings.language    = document.getElementById("s-lang")?.value || "en";
   settings.openAt        = document.getElementById("s-open-at")?.value  || null;
   settings.closeAt       = document.getElementById("s-close-at")?.value || null;
@@ -1072,6 +1102,15 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
       toast("Form title cannot be empty.", "error");
       document.getElementById("settings-panel").classList.add("open");
       setTimeout(() => document.getElementById("s-title")?.focus(), 150);
+      return;
+    }
+
+    // Cek public URL (wajib diisi)
+    const slugVal = (settings.slug || "").trim();
+    if (!slugVal || slugVal.length < 4) {
+      toast("Set a public URL for this form (min 4 characters).", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-slug")?.focus(), 150);
       return;
     }
 

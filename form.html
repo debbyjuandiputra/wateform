@@ -17,6 +17,7 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 }
 .form-topbar .brand img { height: 24px; }
 .form-topbar .brand-word { font-size: 17px; }
+.form-topbar.hidden { display: none; }
 
 .form-wrap {
   flex: 1; display: flex; flex-direction: column;
@@ -200,6 +201,18 @@ const customSlug = params.get("slug");
 
 // ── Render helpers ────────────────────────────────────────────
 const root = document.getElementById("root");
+
+function showInactive() {
+  root.className = "state-screen";
+  root.innerHTML = `
+    <div class="state-box">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:20px">
+        <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>
+      </svg>
+      <h2 style="color:var(--text-muted)">Form is inactive</h2>
+      <p>This form has been turned off by its owner and is not accepting responses right now.</p>
+    </div>`;
+}
 
 function showError(msg) {
   root.className = "state-screen";
@@ -624,11 +637,17 @@ function renderForm(form) {
   card.appendChild(submitDiv);
   root.appendChild(card);
 
-  // ── Branding footer ──────────────────────────────────────────
-  const branding = document.createElement("p");
-  branding.style.cssText = "text-align:center;margin-top:16px;font-size:12.5px;color:var(--text-muted)";
-  branding.innerHTML = '<strong>This form was created using <a href="https://wateform.my.id" target="_blank" rel="noopener" style="color:#2bbda4;text-decoration:underline">WateForm</a></strong>';
-  root.appendChild(branding);
+  // ── Branding footer & navbar ───────────────────────────────────
+  // removeWatermark defaults to true — hides the topbar (logo/name) and the
+  // "created using WateForm" footer, leaving only the form itself.
+  const hideBranding = settings.removeWatermark !== false;
+  document.querySelector(".form-topbar")?.classList.toggle("hidden", hideBranding);
+  if (!hideBranding) {
+    const branding = document.createElement("p");
+    branding.style.cssText = "text-align:center;margin-top:16px;font-size:12.5px;color:var(--text-muted)";
+    branding.innerHTML = '<strong>This form was created using <a href="https://wateform.my.id" target="_blank" rel="noopener" style="color:#2bbda4;text-decoration:underline">WateForm</a></strong>';
+    root.appendChild(branding);
+  }
 
   // ── Validate helper ─────────────────────────────────────────
   function validateForm() {
@@ -759,6 +778,12 @@ function renderForm(form) {
 
   const s   = form.settings || {};
   const now = new Date();
+
+  // Check Active toggle first — an inactive form always shows the inactive page
+  if (s.isActive === false) {
+    showInactive();
+    return;
+  }
 
   // Check open schedule
   if (s.openAt) {

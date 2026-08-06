@@ -639,82 +639,8 @@ function openEditModal(idx) {
     setMediaTab(initMode);
   }
 
-  if (!["image","video","title"].includes(q.type)) {
-    // Question image: URL input and Upload button inline
-    const imgWrap = document.createElement("div");
-    imgWrap.className = "field";
-    const imgLbl = document.createElement("label");
-    imgLbl.innerHTML = "Image <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>";
-    imgWrap.appendChild(imgLbl);
-
-    // URL input + Upload button side by side in one row
-    const imgUrlRow = document.createElement("div");
-    imgUrlRow.style.cssText = "display:flex;align-items:center;gap:8px";
-
-    const imgUrlInp = document.createElement("input");
-    imgUrlInp.type = "url"; imgUrlInp.id = "em-image";
-    imgUrlInp.value = q.image || "";
-    imgUrlInp.placeholder = "Paste image URL…";
-    imgUrlInp.style.cssText = "flex:1;min-width:0";
-    imgUrlRow.appendChild(imgUrlInp);
-
-    const imgFileInp = document.createElement("input");
-    imgFileInp.type = "file"; imgFileInp.id = "em-image-file";
-    imgFileInp.accept = "image/*"; imgFileInp.style.display = "none";
-
-    const imgUploadBtn = document.createElement("button");
-    imgUploadBtn.type = "button"; imgUploadBtn.className = "btn btn-ghost btn-sm";
-    imgUploadBtn.style.cssText = "white-space:nowrap;flex-shrink:0";
-    imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload';
-    imgUploadBtn.addEventListener("click", () => imgFileInp.click());
-    imgUrlRow.appendChild(imgFileInp);
-    imgUrlRow.appendChild(imgUploadBtn);
-
-    imgFileInp.addEventListener("change", async () => {
-      const file = imgFileInp.files?.[0];
-      if (!file) return;
-      const maxMb = 25;
-      if (file.size > maxMb * 1024 * 1024) {
-        toast(`File too large (max ${maxMb}MB)`, "error");
-        imgFileInp.value = "";
-        return;
-      }
-      const objUrl = URL.createObjectURL(file);
-      imgUrlInp.value = objUrl; // instant local preview while uploading
-      let prevEl = imgWrap.querySelector(".img-preview");
-      if (!prevEl) {
-        prevEl = document.createElement("img");
-        prevEl.className = "img-preview";
-        prevEl.style.cssText = "max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;object-fit:cover;border:1px solid var(--border)";
-        imgWrap.appendChild(prevEl);
-      }
-      prevEl.src = objUrl;
-      imgUploadBtn.disabled = true;
-      imgUploadBtn.textContent = "Uploading…";
-      try {
-        const publicUrl = await uploadFormMedia(file);
-        imgUrlInp.value = publicUrl; // replace blob url with the real hosted url
-        prevEl.src = publicUrl;
-        imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' + file.name.slice(0,12) + (file.name.length>12?'…':'');
-        toast("Image uploaded");
-      } catch (err) {
-        console.error("Upload failed:", err);
-        const msg = err?.message || "Upload failed";
-        toast(msg.length > 80 ? "Upload failed — check console for details" : msg, "error");
-        imgUrlInp.value = "";
-        prevEl.src = "";
-      } finally {
-        imgUploadBtn.disabled = false;
-        URL.revokeObjectURL(objUrl);
-      }
-    });
-
-    imgWrap.appendChild(imgUrlRow);
-    body.appendChild(imgWrap);
-  }
-
-  // ── Required toggle (not for title type)
-  if (!isTitle) {
+  // ── Required toggle (not for title/image/video types)
+  if (!isTitle && q.type !== "image" && q.type !== "video") {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -828,8 +754,9 @@ function saveEditToMemory() {
   q.title       = get("em-title")?.value || "";
   q.subtitle    = get("em-subtitle")?.innerHTML || "";
   q.placeholder = get("em-placeholder")?.value || "";
-  q.image       = get("em-image")?.value || "";
-  q.required    = get("em-required")?.checked || false;
+  if (q.type !== "image" && q.type !== "video") {
+    q.required  = get("em-required")?.checked || false;
+  }
   q.gmailOnly   = get("em-gmail-only")?.checked || false;
   if (q.type === "checkbox") {
     q.checkboxOptions = collectOptions();

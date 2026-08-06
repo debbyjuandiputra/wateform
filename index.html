@@ -144,6 +144,23 @@
   font-size: 12.5px; color: var(--text-muted); flex-wrap: wrap; gap: 12px;
 }
 
+/* Adaptive Login button: dark text on light bg, white text on dark bg */
+.btn-login-adaptive {
+  color: var(--text);
+  border-color: var(--border);
+  background: transparent;
+}
+[data-theme="dark"] .btn-login-adaptive {
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.25);
+}
+.btn-login-adaptive:hover {
+  background: var(--bg-mid);
+}
+[data-theme="dark"] .btn-login-adaptive:hover {
+  background: rgba(255,255,255,0.08);
+}
+
 /* Mobile */
 @media (max-width: 640px) {
   .lp-nav   { padding: 14px 20px; }
@@ -166,19 +183,18 @@
     <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
     </button>
-    <a href="login.html" class="btn btn-ghost btn-sm">Log in</a>
+    <a href="login.html" class="btn btn-ghost btn-sm btn-login-adaptive">Log in</a>
     <a href="login.html#register" class="btn btn-solid btn-sm" id="nav-register-btn">Get started</a>
   </div>
 </nav>
 
 <!-- Hero -->
 <section class="lp-hero">
-  <p class="lp-tagline">No coding needed</p>
+  <!-- <p class="lp-tagline">No coding needed</p> -->
   <h1>Forms that send replies via <em class="emWa">WhatsApp</em> &amp; <em class="emTe">Telegram</em></h1>
-  <p>Build forms in minutes. When someone submits, they get an instant reply straight to their chat app — no email, no waiting.</p>
+  <p>Build forms in minutes. When someone submits, they get an instant reply straight to their chat app. No email, no coding, no waiting.</p>
   <div class="lp-hero-cta">
-    <a href="login.html#register" class="btn btn-solid btn-lg" id="hero-register-btn">Create a free account</a>
-    <a href="login.html" class="btn btn-ghost btn-lg">Log in</a>
+    <a href="login.html#register" class="btn btn-solid btn-lg" id="hero-register-btn">Create form</a>
   </div>
 </section>
 

@@ -16,7 +16,14 @@ const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
 let _sb = null;
 function sb() {
   if (!_sb && window.supabase) {
-    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession:   true,
+        storageKey:       "wf-session",
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    });
   }
   return _sb;
 }
@@ -249,7 +256,7 @@ function sb() {
           setLoading(btn, false);
           return;
         }
-      } catch { /* non-fatal, DB constraint akan catch */ }
+      } catch { /* non-fatal, DB constraint will catch this */ }
 
       const { error } = await sb().auth.signUp({
         email:    emailEl.value.trim(),
@@ -349,7 +356,7 @@ function sb() {
     );
   }
 
-  // ── OTP input: navigasi antar kotak otomatis ──────────────
+  // ── OTP input: auto-navigate between boxes ──────────────
   function initOtpInputs() {
     const digits  = document.querySelectorAll(".otp-digit");
     const otpForm = document.getElementById("otp-form");
@@ -365,7 +372,7 @@ function sb() {
         [...pasted].forEach((ch, idx) => {
           if (digits[idx]) digits[idx].value = ch;
         });
-        // Fokus ke kotak terakhir yang terisi
+        // Focus on the last filled box
         const lastFilled = Math.min(pasted.length, digits.length) - 1;
         if (digits[lastFilled]) digits[lastFilled].focus();
         if (pasted.length === 6) tryAutoSubmit();
@@ -388,11 +395,11 @@ function sb() {
         if (e.key === "ArrowRight" && i < digits.length - 1) { e.preventDefault(); digits[i + 1].focus(); }
       });
 
-      // Klik pada kotak: select teks supaya mudah diganti
+      // Click on box: select text for easy replacement
       input.addEventListener("click", () => input.select());
     });
 
-    // Fokus ke kotak pertama
+    // Focus on the first box
     digits[0]?.focus();
 
     // Auto-submit saat semua 6 digit terisi
@@ -429,7 +436,7 @@ function sb() {
       setLoading(btn, false);
 
       if (error) {
-        // Kosongkan semua kotak dan fokus ulang ke awal
+        // Clear all boxes and re-focus from the start
         digits.forEach((d) => (d.value = ""));
         digits[0]?.focus();
 

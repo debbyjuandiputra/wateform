@@ -3,7 +3,14 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const BASE_URL = window.location.origin;
 
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession:     true,
+    storageKey:         "wf-session",
+    autoRefreshToken:   true,
+    detectSessionInUrl: false,
+  },
+});
 
 // ── State ─────────────────────────────────────────────────────
 let currentUser    = null;
@@ -73,7 +80,15 @@ async function init() {
   document.getElementById("user-handle").textContent = "@" + (profile?.username || "");
 
   await loadWorkspaces();
-  renderHome();
+
+  // Auto-open workspace if redirected from builder (?ws=<id>)
+  const urlParams = new URLSearchParams(location.search);
+  const wsParam = urlParams.get("ws");
+  if (wsParam && workspaces.find(w => w.id === wsParam)) {
+    openWorkspace(wsParam);
+  } else {
+    renderHome();
+  }
 }
 
 // ── Load workspaces ───────────────────────────────────────────
@@ -89,32 +104,12 @@ async function loadWorkspaces() {
 
   if (error) { console.error(error); return; }
   workspaces = data || [];
-  renderSidebar();
 }
 
-// ── Sidebar ───────────────────────────────────────────────────
-function renderSidebar() {
-  const list = document.getElementById("ws-list");
-  list.innerHTML = "";
-  workspaces.forEach(ws => {
-    const btn = document.createElement("button");
-    btn.className = "sidebar-item" + (ws.id === activeWsId ? " active" : "");
-    btn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-      </svg>
-      <span class="sidebar-ws-name">${esc(ws.name)}</span>
-    `;
-    btn.addEventListener("click", () => openWorkspace(ws.id));
-    list.appendChild(btn);
-  });
-}
 
 // ── Home view (all workspaces) ────────────────────────────────
 function renderHome() {
   activeWsId = null;
-  renderSidebar();
   document.getElementById("topbar-ws-name").textContent = "Dashboard";
   const main = document.getElementById("main-content");
   main.innerHTML = `
@@ -147,6 +142,7 @@ function renderWsGrid() {
   grid.innerHTML = "";
   workspaces.forEach(ws => {
     const myRole = ws.workspace_members?.find(m => m.user_id === currentUser.id)?.role || "member";
+    const isOwner = myRole === "owner";
     const formCount = ws.forms?.[0]?.count || 0;
     const memberCount = ws.workspace_members?.length || 1;
     const createdDate = new Date(ws.created_at).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric"});
@@ -161,7 +157,34 @@ function renderWsGrid() {
           <h4>${esc(ws.name)}</h4>
           <div class="meta">Created ${createdDate}</div>
         </div>
-        <span class="role-badge ${myRole === 'owner' ? 'role-owner' : 'role-member'}">${myRole}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="role-badge ${myRole === 'owner' ? 'role-owner' : 'role-member'}">${myRole}</span>
+          <div class="dropdown ws-card-menu">
+            <button class="btn-icon ws-menu-btn" data-ws-menu="${ws.id}" title="More options" style="width:28px;height:28px;border-radius:var(--radius)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+            <div class="dropdown-menu ws-dropdown-menu" style="right:0;left:auto;min-width:180px">
+              <button class="dropdown-item" data-ws-action="open" data-ws-id="${ws.id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                Open workspace
+              </button>
+              <button class="dropdown-item" data-ws-action="invite" data-ws-id="${ws.id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                Manage members
+              </button>
+              ${isOwner ? `
+              <button class="dropdown-item" data-ws-action="edit" data-ws-id="${ws.id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                Edit workspace
+              </button>
+              <div class="dropdown-sep"></div>
+              <button class="dropdown-item danger" data-ws-action="delete" data-ws-id="${ws.id}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                Delete workspace
+              </button>` : ""}
+            </div>
+          </div>
+        </div>
       </div>
       ${ws.description ? `<div class="desc">${esc(ws.description)}</div>` : ""}
       <div class="ws-card-footer">
@@ -172,26 +195,83 @@ function renderWsGrid() {
         <span class="ws-card-id font-mono">${ws.short_id}</span>
       </div>
     `;
-    card.addEventListener("click", () => openWorkspace(ws.id));
+    // click card body → open workspace (but not menu)
+    card.addEventListener("click", e => {
+      if (e.target.closest(".ws-card-menu")) return;
+      openWorkspace(ws.id);
+    });
+    // menu button toggle
+    card.querySelector("[data-ws-menu]").addEventListener("click", e => {
+      e.stopPropagation();
+      const menu = card.querySelector(".ws-dropdown-menu");
+      document.querySelectorAll(".ws-dropdown-menu.open").forEach(m => { if (m !== menu) m.classList.remove("open"); });
+      menu.classList.toggle("open");
+    });
+    // menu item actions
+    card.querySelector(".ws-dropdown-menu").addEventListener("click", e => {
+      e.stopPropagation();
+      const btn = e.target.closest("[data-ws-action]");
+      if (!btn) return;
+      const action = btn.dataset.wsAction;
+      const wsId = btn.dataset.wsId;
+      const wsObj = workspaces.find(w => w.id === wsId);
+      card.querySelector(".ws-dropdown-menu").classList.remove("open");
+      if (action === "open")   { openWorkspace(wsId); return; }
+      if (action === "invite") { openWorkspace(wsId).then(() => { document.getElementById("invite-btn")?.click(); }); return; }
+      if (action === "edit")   { openEditWsModal(wsObj); return; }
+      if (action === "delete") { openDeleteWsModal(wsObj); return; }
+    });
     grid.appendChild(card);
   });
+
+  // Close ws dropdowns on outside click
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".ws-dropdown-menu.open").forEach(m => m.classList.remove("open"));
+  }, { capture: true, once: false });
 }
 
 // ── Workspace view ────────────────────────────────────────────
 async function openWorkspace(wsId) {
   activeWsId = wsId;
-  renderSidebar();
   const ws = workspaces.find(w => w.id === wsId);
   if (!ws) return;
   document.getElementById("topbar-ws-name").textContent = ws.name;
 
-  const [{ data: forms }, { data: members }] = await Promise.all([
+  const [{ data: forms }, { data: rawMembers, error: memberErr }] = await Promise.all([
     _sb.from("forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false }),
-    _sb.from("workspace_members").select("*, profiles(full_name, username)").eq("workspace_id", wsId)
+    _sb.from("workspace_members").select("*").eq("workspace_id", wsId)
   ]);
 
-  const myRole = members?.find(m => m.user_id === currentUser.id)?.role || "member";
-  const isOwner = myRole === "owner";
+  if (memberErr) console.error("workspace_members query error:", memberErr);
+  console.log("Raw members from DB:", rawMembers);
+
+  // Fetch profiles separately to avoid FK/RLS join issues
+  let members = rawMembers || [];
+  if (members.length > 0) {
+    const userIds = members.map(m => m.user_id);
+    const { data: profiles, error: profErr } = await _sb
+      .from("profiles").select("id, full_name, username").in("id", userIds);
+    if (profErr) console.error("profiles query error:", profErr);
+    const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+    members = members.map(m => ({ ...m, profiles: profileMap[m.user_id] || null }));
+  }
+  console.log("Members with profiles:", members);
+
+  const myMember = members?.find(m => m.user_id === currentUser.id)
+    || ws.workspace_members?.find(m => m.user_id === currentUser.id);
+  const myRole = myMember?.role || (ws.owner_id === currentUser.id ? "owner" : "member");
+  const isOwner = myRole === "owner" || ws.owner_id === currentUser.id;
+
+  // Permissions: owner always has full access; members respect their settings
+  const perms = isOwner ? {
+    can_edit_questions: true, can_edit_settings: true,
+    can_add_members: true, can_see_members: true
+  } : {
+    can_edit_questions: myMember?.permissions?.can_edit_questions !== false,
+    can_edit_settings:  myMember?.permissions?.can_edit_settings  !== false,
+    can_add_members:    myMember?.permissions?.can_add_members    === true,
+    can_see_members:    myMember?.permissions?.can_see_members    === true,
+  };
   const createdDate = new Date(ws.created_at).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
 
   const main = document.getElementById("main-content");
@@ -210,9 +290,14 @@ async function openWorkspace(wsId) {
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        ${isOwner ? `<button class="btn btn-ghost btn-sm" id="ws-settings-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          Settings
+        ${isOwner ? `
+        <button class="btn btn-ghost btn-sm" id="ws-delete-btn" style="color:var(--red)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Delete
+        </button>
+        <button class="btn btn-ghost btn-sm" id="ws-settings-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          Edit
         </button>` : ""}
         <button class="btn btn-solid btn-sm" data-i18n="form" id="new-form-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
@@ -231,27 +316,28 @@ async function openWorkspace(wsId) {
         <div class="form-list" id="form-list"></div>
       </div>
 
-      <!-- Members -->
-      <div>
+      <!-- Members (hidden entirely if can_see_members=false and not owner) -->
+      ${perms.can_see_members ? `<div id="members-section">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <h3 style="font-size:15px;font-weight:700;margin:0">Members</h3>
-          ${isOwner ? `<button class="btn btn-ghost btn-sm" id="invite-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
-            Invite
+          ${(isOwner || perms.can_add_members) ? `<button class="btn btn-ghost btn-sm" id="invite-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+            Add member
           </button>` : ""}
         </div>
         <div id="member-list" style="background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 16px"></div>
-      </div>
+      </div>` : ""}
     </div>
   `;
 
   document.getElementById("back-btn").addEventListener("click", () => { loadWorkspaces().then(renderHome); });
   document.getElementById("new-form-btn").addEventListener("click", () => openNewFormModal(wsId));
   document.getElementById("ws-settings-btn")?.addEventListener("click", () => openEditWsModal(ws));
+  document.getElementById("ws-delete-btn")?.addEventListener("click", () => openDeleteWsModal(ws));
   document.getElementById("invite-btn")?.addEventListener("click", () => openInviteModal(wsId));
 
   renderFormList(forms || [], wsId, isOwner);
-  renderMemberList(members || [], wsId, isOwner);
+  if (perms.can_see_members) renderMemberList(members || [], wsId, isOwner, currentUser.id);
 }
 
 function renderFormList(forms, wsId, isOwner) {
@@ -267,9 +353,7 @@ function renderFormList(forms, wsId, isOwner) {
   forms.forEach(form => {
     const url = `${BASE_URL}/${workspaces.find(w=>w.id===wsId)?.short_id}/${form.short_id}`;
     const target = form.settings?.target;
-    const pillHtml = target === "wa" ? `<span class="pill pill-wa">WhatsApp</span>` :
-                     target === "tg" ? `<span class="pill pill-tg">Telegram</span>` :
-                     target === "both" ? `<span class="pill pill-wa">WA</span><span class="pill pill-tg">TG</span>` : "";
+
     const row = document.createElement("div");
     row.className = "form-row";
     row.innerHTML = `
@@ -280,17 +364,29 @@ function renderFormList(forms, wsId, isOwner) {
         <div class="form-row-name">${esc(form.title)}</div>
         <div class="form-row-meta">${url}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        ${pillHtml}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${form.is_published ? `<span class="pill" style="background:rgba(43,189,164,.12);color:var(--teal-deep)">Published</span>` : `<span class="pill" style="background:var(--bg-mid);color:var(--text-muted)">Draft</span>`}
+        ${(()=>{ const s=form.settings||{}; const now=new Date(); const fmtShort=dt=>new Date(dt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); if(s.openAt&&new Date(s.openAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Opens ${fmtShort(s.openAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Closes ${fmtShort(s.closeAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)<=now&&form.is_published) return `<span class="pill" style="background:rgba(239,68,68,.1);color:var(--red);font-size:11px">Closed</span>`; return ""; })()}
       </div>
       <div class="form-row-actions">
-        <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${form.id}" data-ws="${wsId}">Edit</button>
         <div class="dropdown">
           <button class="btn-icon" data-action="menu-toggle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
           </button>
-          <div class="dropdown-menu">
+          <div class="dropdown-menu" style="min-width:190px">
+            <button class="dropdown-item" data-action="open-builder" data-id="${form.id}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+              Open editor
+            </button>
+            <button class="dropdown-item" data-action="preview" data-id="${form.id}" data-url="${url}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              Preview form
+            </button>
+            <button class="dropdown-item" data-action="settings" data-id="${form.id}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              Settings
+            </button>
+            <div class="dropdown-sep"></div>
             <button class="dropdown-item" data-action="responses" data-id="${form.id}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               View responses
@@ -316,6 +412,12 @@ function renderFormList(forms, wsId, isOwner) {
         </div>
       </div>
     `;
+    // Click row body → open builder
+    row.style.cursor = "pointer";
+    row.addEventListener("click", e => {
+      if (e.target.closest("[data-action]") || e.target.closest(".dropdown")) return;
+      window.location.href = `builder.html?form=${form.id}`;
+    });
     list.appendChild(row);
   });
 
@@ -335,7 +437,9 @@ function renderFormList(forms, wsId, isOwner) {
       return;
     }
 
-    if (action === "edit")       { window.location.href = `builder.html?form=${id}`; return; }
+    if (action === "open-builder") { window.location.href = `builder.html?form=${id}`; return; }
+    if (action === "preview")    { window.open(btn.dataset.url, "_blank"); return; }
+    if (action === "settings")   { window.location.href = `builder.html?form=${id}&panel=settings`; return; }
     if (action === "responses")  { openResponses(id); return; }
     if (action === "share")      { openShareModal(btn.dataset.url); return; }
     if (action === "duplicate")  { duplicateForm(id, btn.dataset.ws); return; }
@@ -344,37 +448,134 @@ function renderFormList(forms, wsId, isOwner) {
   });
 }
 
-function renderMemberList(members, wsId, isOwner) {
+function renderMemberList(members, wsId, isOwner, meId) {
   const list = document.getElementById("member-list");
   list.innerHTML = "";
+
+  if (!members || !members.length) {
+    list.innerHTML = `<div style="padding:20px 0;text-align:center;color:var(--text-muted);font-size:13px">No members yet</div>`;
+    return;
+  }
+
   members.forEach(m => {
+    const isMe = m.user_id === meId;
     const row = document.createElement("div");
     row.className = "member-row";
     const initials = (m.profiles?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+    // Default permissions for display
+    const p = m.permissions || {};
+    const canEditQ  = p.can_edit_questions !== false;
+    const canEditS  = p.can_edit_settings  !== false;
+    const canAddM   = p.can_add_members    === true;
+    const canSeeM   = p.can_see_members    === true;
+
+    const actionsHtml = isOwner && m.role !== "owner" ? `
+      <div style="display:flex;gap:4px;align-items:center">
+        <button class="btn-icon" data-perms="${m.user_id}" data-name="${esc(m.profiles?.full_name || 'Member')}" title="Member permissions"
+          data-ceq="${canEditQ}" data-ces="${canEditS}" data-cam="${canAddM}" data-csm="${canSeeM}"
+          style="color:var(--text-muted)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" data-transfer="${m.user_id}" data-name="${esc(m.profiles?.full_name || 'this member')}" title="Transfer ownership" style="font-size:11px;padding:4px 8px;white-space:nowrap">
+          Transfer
+        </button>
+        <button class="btn-icon danger-hover" data-remove="${m.user_id}" title="Remove member" style="color:var(--text-muted)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>` : "";
+
     row.innerHTML = `
       <div class="avatar">${initials}</div>
       <div class="member-info">
-        <div class="member-name">${esc(m.profiles?.full_name || "Unknown")}</div>
+        <div class="member-name">
+          ${esc(m.profiles?.full_name || "Unknown")}
+          ${isMe ? `<span style="font-size:10px;font-weight:600;background:var(--teal-mid,rgba(43,189,164,.15));color:var(--teal-deep,#0d9488);padding:1px 6px;border-radius:99px;margin-left:6px;vertical-align:middle">You</span>` : ""}
+        </div>
         <div class="member-username">@${esc(m.profiles?.username || "")}</div>
       </div>
-      <span class="role-badge ${m.role === 'owner' ? 'role-owner' : 'role-member'}">${m.role}</span>
-      ${isOwner && m.role !== 'owner' ? `<button class="btn-icon danger-hover" data-remove="${m.user_id}" title="Remove member" style="color:var(--text-muted)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>` : ""}
+      <span class="role-badge ${m.role === "owner" ? "role-owner" : "role-member"}">${m.role}</span>
+      ${actionsHtml}
     `;
     list.appendChild(row);
   });
 
   list.addEventListener("click", async e => {
-    const btn = e.target.closest("[data-remove]");
-    if (!btn) return;
-    const uid = btn.dataset.remove;
-    openConfirm("Remove member?", "This member will lose access to the workspace.", async () => {
-      await _sb.from("workspace_members").delete().eq("workspace_id", wsId).eq("user_id", uid);
-      openWorkspace(wsId);
-      toast("Member removed");
-    });
+    // Remove
+    const removeBtn = e.target.closest("[data-remove]");
+    if (removeBtn) {
+      const uid = removeBtn.dataset.remove;
+      openConfirm("Remove member?", "This member will lose access to the workspace.", async () => {
+        await _sb.from("workspace_members").delete().eq("workspace_id", wsId).eq("user_id", uid);
+        openWorkspace(wsId);
+        toast("Member removed");
+      });
+      return;
+    }
+    // Transfer ownership
+    const transferBtn = e.target.closest("[data-transfer]");
+    if (transferBtn) {
+      const uid = transferBtn.dataset.transfer;
+      const name = transferBtn.dataset.name || "this member";
+      openConfirm(
+        `Transfer ownership to ${name}?`,
+        "You will become a regular member and they will become the owner. This cannot be undone.",
+        async () => {
+          const { error: e1 } = await _sb.from("workspace_members").update({ role: "owner" }).eq("workspace_id", wsId).eq("user_id", uid);
+          const { error: e2 } = await _sb.from("workspace_members").update({ role: "member" }).eq("workspace_id", wsId).eq("user_id", meId);
+          await _sb.from("workspaces").update({ owner_id: uid }).eq("id", wsId);
+          if (e1 || e2) { toast("Transfer failed", "error"); return; }
+          toast("Ownership transferred");
+          await loadWorkspaces();
+          openWorkspace(wsId);
+        }
+      );
+      return;
+    }
+    // Permissions
+    const permsBtn = e.target.closest("[data-perms]");
+    if (permsBtn) {
+      openMemberPermissionsModal(wsId, permsBtn.dataset.perms, permsBtn.dataset.name, {
+        can_edit_questions: permsBtn.dataset.ceq === "true",
+        can_edit_settings:  permsBtn.dataset.ces === "true",
+        can_add_members:    permsBtn.dataset.cam === "true",
+        can_see_members:    permsBtn.dataset.csm === "true",
+      });
+      return;
+    }
   });
+}
+
+// ── Member Permissions Modal ───────────────────────────────────
+function openMemberPermissionsModal(wsId, userId, memberName, currentPerms) {
+  const modal = document.getElementById("member-perms-modal");
+  document.getElementById("perms-member-name").textContent = memberName;
+
+  // Set toggle states
+  document.getElementById("perm-edit-questions").checked = currentPerms.can_edit_questions;
+  document.getElementById("perm-edit-settings").checked  = currentPerms.can_edit_settings;
+  document.getElementById("perm-add-members").checked    = currentPerms.can_add_members;
+  document.getElementById("perm-see-members").checked    = currentPerms.can_see_members;
+
+  document.getElementById("perms-save-btn").onclick = async () => {
+    const newPerms = {
+      can_edit_questions: document.getElementById("perm-edit-questions").checked,
+      can_edit_settings:  document.getElementById("perm-edit-settings").checked,
+      can_add_members:    document.getElementById("perm-add-members").checked,
+      can_see_members:    document.getElementById("perm-see-members").checked,
+    };
+    const btn = document.getElementById("perms-save-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    const { error } = await _sb.from("workspace_members")
+      .update({ permissions: newPerms })
+      .eq("workspace_id", wsId).eq("user_id", userId);
+    btn.disabled = false; btn.textContent = "Save";
+    if (error) { toast("Failed to save permissions", "error"); return; }
+    closeModal("member-perms-modal");
+    toast("Permissions updated");
+    openWorkspace(wsId);
+  };
+  openModal("member-perms-modal");
 }
 
 // ── Workspace CRUD ────────────────────────────────────────────
@@ -428,31 +629,60 @@ async function updateWorkspace(wsId) {
   openWorkspace(wsId);
 }
 
+// ── Delete workspace ──────────────────────────────────────────
+function openDeleteWsModal(ws) {
+  openConfirm(
+    `Delete "${ws.name}"?`,
+    "All forms and responses in this workspace will be permanently deleted. This cannot be undone.",
+    async () => {
+      const { error } = await _sb.from("workspaces").delete().eq("id", ws.id);
+      if (error) { toast("Failed to delete workspace", "error"); return; }
+      toast("Workspace deleted");
+      await loadWorkspaces();
+      renderHome();
+    }
+  );
+}
+
 // ── Invite member ─────────────────────────────────────────────
 function openInviteModal(wsId) {
-  document.getElementById("invite-username").value = "";
+  document.getElementById("invite-email").value = "";
   showError("invite-error", "");
   document.getElementById("invite-save-btn").onclick = () => inviteMember(wsId);
   openModal("invite-modal");
-  setTimeout(() => document.getElementById("invite-username").focus(), 100);
+  setTimeout(() => document.getElementById("invite-email").focus(), 100);
 }
 
 async function inviteMember(wsId) {
-  const username = document.getElementById("invite-username").value.trim();
-  if (!username) { showError("invite-error", "Enter a username."); return; }
+  const email = document.getElementById("invite-email").value.trim().toLowerCase();
+  if (!email) { showError("invite-error", "Enter an email address."); return; }
+  if (!/^[a-zA-Z0-9._%+\-]+@gmail\.com$/.test(email)) { showError("invite-error", "Only @gmail.com addresses are allowed."); return; }
   const btn = document.getElementById("invite-save-btn");
-  btn.disabled = true; btn.textContent = "Inviting…";
+  btn.disabled = true; btn.textContent = "Adding…";
 
-  const { data: profile, error: pe } = await _sb.from("profiles").select("id,full_name").eq("username", username).single();
-  if (pe || !profile) { showError("invite-error", "User not found."); btn.disabled = false; btn.textContent = "Invite"; return; }
-  if (profile.id === currentUser.id) { showError("invite-error", "You are already the owner."); btn.disabled = false; btn.textContent = "Invite"; return; }
+  // Look up user by email via auth.users through profiles (email stored in auth)
+  const { data: authUser, error: ae } = await _sb.rpc("get_user_id_by_email", { email_input: email });
+  let userId = authUser || null;
+  let fullName = email;
 
-  const { error } = await _sb.from("workspace_members").insert({ workspace_id: wsId, user_id: profile.id, role: "member" });
-  btn.disabled = false; btn.textContent = "Invite";
+  if (!userId) {
+    // Fallback: try profiles table if email column exists
+    const { data: profile, error: pe } = await _sb.from("profiles").select("id,full_name,email").eq("email", email).maybeSingle();
+    if (profile) { userId = profile.id; fullName = profile.full_name || email; }
+  } else {
+    const { data: profile } = await _sb.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+    if (profile?.full_name) fullName = profile.full_name;
+  }
+
+  if (!userId) { showError("invite-error", "No account found with that email address."); btn.disabled = false; btn.textContent = "Add member"; return; }
+  if (userId === currentUser.id) { showError("invite-error", "You cannot add yourself."); btn.disabled = false; btn.textContent = "Add member"; return; }
+
+  const { error } = await _sb.from("workspace_members").insert({ workspace_id: wsId, user_id: userId, role: "member" });
+  btn.disabled = false; btn.textContent = "Add member";
   if (error?.code === "23505") { showError("invite-error", "This user is already a member."); return; }
   if (error) { showError("invite-error", error.message); return; }
   closeModal("invite-modal");
-  toast(`${profile.full_name} added as member`);
+  toast(`${fullName} added as member`);
   openWorkspace(wsId);
 }
 
@@ -585,13 +815,132 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   await _sb.auth.signOut();
   window.location.href = "login.html";
 });
-document.getElementById("new-ws-btn").addEventListener("click", openNewWsModal);
-document.getElementById("sidebar-home-btn").addEventListener("click", () => { loadWorkspaces().then(renderHome); });
+
+// ── Delete Account ─────────────────────────────────────────────
+(function initDeleteAccount() {
+  const modal       = document.getElementById("delete-account-modal");
+  const input       = document.getElementById("delete-confirm-input");
+  const confirmBtn  = document.getElementById("delete-confirm-btn");
+  const errorEl     = document.getElementById("delete-modal-error");
+
+  function openModal() {
+    input.value = "";
+    confirmBtn.disabled = true;
+    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+    modal.classList.remove("hidden");
+    setTimeout(() => input.focus(), 50);
+    document.getElementById("user-menu").classList.remove("open");
+  }
+
+  function closeModal() {
+    modal.classList.add("hidden");
+    input.value = "";
+    confirmBtn.disabled = true;
+  }
+
+  document.getElementById("delete-account-btn").addEventListener("click", openModal);
+  document.getElementById("delete-modal-close").addEventListener("click", closeModal);
+  document.getElementById("delete-modal-cancel").addEventListener("click", closeModal);
+
+  // Close on backdrop click
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+  // Enable confirm button only when user types "DELETE"
+  input.addEventListener("input", () => {
+    confirmBtn.disabled = input.value.trim() !== "DELETE";
+    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+  });
+
+  // Keyboard: Enter to confirm, Escape to close
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !confirmBtn.disabled) confirmBtn.click();
+    if (e.key === "Escape") closeModal();
+  });
+
+  confirmBtn.addEventListener("click", async () => {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Deleting…";
+    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
+
+    try {
+      // Hapus data user dari tabel profiles dulu (RLS harus mengizinkan)
+      const { data: { user } } = await _sb.auth.getUser();
+      if (user) {
+        await _sb.from("profiles").delete().eq("id", user.id);
+      }
+
+      // Hapus auth user via Supabase Admin (perlu Edge Function)
+      // Fallback: sign out saja jika tidak ada edge function delete-user
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+        method:  "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization:  `Bearer ${(await _sb.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to delete account");
+
+      await _sb.auth.signOut();
+      window.location.href = "login.html?deleted=1";
+    } catch (err) {
+      if (errorEl) {
+        errorEl.textContent = "Failed to delete account. Please try again or contact support.";
+        errorEl.style.display = "block";
+      }
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Delete my account";
+    }
+  });
+})();
 
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {
   return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 }
+
+
+
+// ── Enter key support for modals ──────────────────────────────
+(function initEnterKey() {
+  // ws-modal: Enter → click ws-save-btn
+  document.getElementById("ws-name")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("ws-save-btn")?.click(); }
+  });
+  document.getElementById("ws-desc")?.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); document.getElementById("ws-save-btn")?.click(); }
+  });
+
+  // invite-modal: Enter → click invite-save-btn
+  document.getElementById("invite-email")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("invite-save-btn")?.click(); }
+  });
+
+  // form-modal: Enter → click form-save-btn
+  document.getElementById("form-title")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("form-save-btn")?.click(); }
+  });
+
+  // rename-modal: Enter → click rename-save-btn
+  document.getElementById("rename-input")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); document.getElementById("rename-save-btn")?.click(); }
+  });
+
+  // confirm-modal: Enter → click confirm-ok-btn
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const confirmModal = document.getElementById("confirm-modal");
+      if (confirmModal?.classList.contains("open")) {
+        e.preventDefault();
+        document.getElementById("confirm-ok-btn")?.click();
+      }
+    }
+    if (e.key === "Escape") {
+      const openModal = document.querySelector(".modal-backdrop.open");
+      if (openModal) { openModal.classList.remove("open"); }
+    }
+  });
+})();
 
 // ── Boot ──────────────────────────────────────────────────────
 init();

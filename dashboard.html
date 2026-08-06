@@ -33,6 +33,11 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="dropdown-menu" id="user-menu">
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" id="delete-account-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Delete account
+          </button>
           <button class="dropdown-item danger" id="logout-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             Sign out
@@ -45,23 +50,7 @@
   <!-- Body -->
   <div class="app-body">
 
-    <!-- Sidebar -->
-    <nav class="sidebar">
-      <div class="sidebar-section">
-        <div class="sidebar-label">Workspaces</div>
-        <div id="ws-list"></div>
-        <button class="sidebar-add" id="new-ws-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          New workspace
-        </button>
-      </div>
-      <div class="sidebar-footer">
-        <button class="sidebar-item" id="sidebar-home-btn" style="width:100%">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          All workspaces
-        </button>
-      </div>
-    </nav>
+
 
     <!-- Main -->
     <main class="app-main" id="main-content">
@@ -83,12 +72,12 @@
       <div id="ws-modal-error" class="error-banner"></div>
       <div class="field">
         <label for="ws-name">Workspace name <span style="color:var(--red)">*</span></label>
-        <input type="text" id="ws-name" placeholder="e.g. Klinik Sehat Jaya" maxlength="80">
+        <input type="text" id="ws-name" maxlength="80">
         <div class="error-text"></div>
       </div>
       <div class="field">
         <label for="ws-desc">Description <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
-        <textarea id="ws-desc" placeholder="What is this workspace for?" rows="2" maxlength="300"></textarea>
+        <textarea id="ws-desc" rows="2" maxlength="300"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -102,21 +91,20 @@
 <div class="modal-backdrop" id="invite-modal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Invite member</h3>
+      <h3>Add member</h3>
       <button class="modal-close" data-close="invite-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body">
       <div id="invite-error" class="error-banner"></div>
       <div class="field">
-        <label for="invite-username">Username</label>
-        <input type="text" id="invite-username" placeholder="e.g. nadia.putri">
-        <div class="hint">Type the exact username of the person you want to invite.</div>
-        <div class="error-text"></div>
+        <label for="invite-email">Email address</label>
+        <input type="email" id="invite-email" autocomplete="off">
+        <!-- <div class="hint">Enter the Gmail address (@gmail.com) of the person you want to add.</div> -->
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" data-close="invite-modal">Cancel</button>
-      <button class="btn btn-solid btn-sm" id="invite-save-btn">Invite</button>
+      <button class="btn btn-solid btn-sm" id="invite-save-btn">Add member</button>
     </div>
   </div>
 </div>
@@ -132,7 +120,7 @@
       <div id="form-modal-error" class="error-banner"></div>
       <div class="field">
         <label for="form-title">Form title <span style="color:var(--red)">*</span></label>
-        <input type="text" id="form-title" placeholder="e.g. Appointment request" maxlength="120">
+        <input type="text" id="form-title"x maxlength="120">
         <div class="error-text"></div>
       </div>
     </div>
@@ -204,6 +192,106 @@
 </div>
 
 <div id="toast-container"></div>
+
+<!-- Member Permissions Modal -->
+<div class="modal-backdrop" id="member-perms-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>Member permissions</h3>
+      <button class="modal-close" data-close="member-perms-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p id="perms-member-name" style="font-weight:600;margin:0 0 16px;font-size:14px"></p>
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">Edit questions</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Can add, edit, and delete form questions</div>
+          </div>
+          <div class="perm-toggle-wrap">
+            <input type="checkbox" id="perm-edit-questions" class="perm-toggle">
+            <span class="perm-toggle-track"></span>
+          </div>
+        </label>
+
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">Edit form settings</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Can change form settings (publish, target, etc.)</div>
+          </div>
+          <div class="perm-toggle-wrap">
+            <input type="checkbox" id="perm-edit-settings" class="perm-toggle">
+            <span class="perm-toggle-track"></span>
+          </div>
+        </label>
+
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">Add members</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Can invite other users to this workspace</div>
+          </div>
+          <div class="perm-toggle-wrap">
+            <input type="checkbox" id="perm-add-members" class="perm-toggle">
+            <span class="perm-toggle-track"></span>
+          </div>
+        </label>
+
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer">
+          <div>
+            <div style="font-size:13.5px;font-weight:500">See member list</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Can see who else is in this workspace</div>
+          </div>
+          <div class="perm-toggle-wrap">
+            <input type="checkbox" id="perm-see-members" class="perm-toggle">
+            <span class="perm-toggle-track"></span>
+          </div>
+        </label>
+
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close="member-perms-modal">Cancel</button>
+      <button class="btn btn-solid btn-sm" id="perms-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Account Modal ── -->
+<div class="modal-backdrop hidden" id="delete-account-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header" style="border-bottom:1px solid var(--border)">
+      <h2 class="modal-title" id="delete-modal-title" style="color:var(--red);display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Delete account
+      </h2>
+      <button class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <p style="color:var(--text-soft);margin:0 0 16px;line-height:1.6">
+        This action is <strong style="color:var(--text)">permanent and cannot be undone.</strong>
+        All your workspaces, forms, and data will be deleted immediately.
+      </p>
+      <p style="color:var(--text-soft);margin:0 0 20px;line-height:1.6;font-size:14px">
+        Type <strong style="color:var(--text);font-family:monospace">DELETE</strong> to confirm:
+      </p>
+      <input
+        type="text"
+        id="delete-confirm-input"
+        placeholder="Type DELETE here"
+        autocomplete="off"
+        spellcheck="false"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-mid);color:var(--text);font-size:14px;font-family:monospace;letter-spacing:.05em;outline:none;transition:border-color .2s"
+      />
+      <div id="delete-modal-error" style="display:none;margin-top:10px;font-size:13px;color:var(--red)"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" id="delete-modal-cancel">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn" disabled>Delete my account</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/dashboard.js"></script>
 </body>

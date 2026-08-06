@@ -3,23 +3,30 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const BASE_URL = window.location.origin;
 
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession:     true,
+    storageKey:         "wf-session",
+    autoRefreshToken:   true,
+    detectSessionInUrl: false,
+  },
+});
 
 // ── Question type definitions ─────────────────────────────────
 const Q_TYPES = [
-  { type:"short",     label:"Short text",    icon:'<path d="M4 6h16M4 12h10"/>',          desc:"Single line answer" },
-  { type:"long",      label:"Long text",     icon:'<path d="M4 6h16M4 10h16M4 14h16M4 18h10"/>', desc:"Multi-line answer" },
-  { type:"choice",    label:"Multiple choice",icon:'<circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>', desc:"Pick one or more" },
-  { type:"checkbox",  label:"Checkbox",      icon:'<rect x="3" y="5" width="6" height="6" rx="1"/><path d="m9 8-2 2-1-1M15 7h6M15 11h6M15 15h4"/>',desc:"Yes/no toggle" },
-  { type:"dropdown",  label:"Dropdown",      icon:'<path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2"/>',desc:"Select from list" },
-  { type:"number",    label:"Number",        icon:'<path d="M4 9l4-4 4 4M8 5v14M16 15l4 4 4-4M20 5v14" transform="scale(.75) translate(3,3)"/>', desc:"Numeric input" },
-  { type:"date",      label:"Date",          icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',desc:"Date picker" },
-  { type:"rating",    label:"Rating",        icon:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',desc:"Star rating" },
-  { type:"email",     label:"Email",         icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>',desc:"Email address" },
-  { type:"phone",     label:"Phone",         icon:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',desc:"Phone number" },
-  { type:"title",     label:"Title / Heading",icon:'<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',desc:"Section heading" },
-  { type:"image",     label:"Image",         icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',desc:"Display an image" },
-  { type:"video",     label:"Video",         icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/>',desc:"Embed a video" },
+  { type:"short",     label:"Short text",     icon:'<path d="M4 6h16M4 12h10"/>',                                                              desc:"Single line answer" },
+  { type:"long",      label:"Long text",      icon:'<path d="M4 6h16M4 10h16M4 14h16M4 18h10"/>',                                             desc:"Multi-line answer" },
+  { type:"choice",    label:"Multiple choice",icon:'<circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>',                              desc:"Pick one or more" },
+  { type:"checkbox",  label:"Checkbox",       icon:'<rect x="4" y="4" width="16" height="16" rx="3"/><polyline points="8 12 11 15 16 9" stroke="var(--bg)" stroke-width="2.2" fill="none"/>', desc:"Yes/no toggle" },
+  { type:"dropdown",  label:"Dropdown",       icon:'<path d="M6 9l6 6 6-6"/><rect x="3" y="3" width="18" height="18" rx="2"/>',               desc:"Select from list" },
+  { type:"number",    label:"Number",         icon:'<text x="2" y="17" font-size="11" font-weight="700" font-family="monospace" fill="currentColor" stroke="none">123</text>', desc:"Numeric input" },
+  { type:"date",      label:"Date",           icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',     desc:"Date picker" },
+  { type:"rating",    label:"Rating",         icon:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>', desc:"Star rating" },
+  { type:"email",     label:"Email",          icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>',            desc:"Email address" },
+  { type:"phone",     label:"Phone",          icon:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', desc:"Phone number" },
+  { type:"title",     label:"Title / Heading",icon:'<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',                                                 desc:"Section heading" },
+  { type:"image",     label:"Image",          icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>', desc:"Display an image" },
+  { type:"video",     label:"Video",          icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/>',desc:"Embed a video" },
 ];
 
 // Phone country codes
@@ -56,12 +63,12 @@ const LANGUAGES = [
 ];
 
 // ── State ─────────────────────────────────────────────────────
-let formId       = null;
-let formData     = null;
-let questions    = [];   // array of question objects
-let settings     = {};
-let activeQIdx   = null;
-let saveTimer    = null;
+let formId    = null;
+let formData  = null;
+let questions = [];
+let settings  = {};
+let saveTimer = null;
+let editingIdx = null; // index of question being edited in modal
 
 // ── Theme ─────────────────────────────────────────────────────
 (function() {
@@ -101,9 +108,6 @@ function esc(str) {
   return String(str||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 }
 function uid() { return Math.random().toString(36).slice(2,9); }
-function svgIcon(path) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">${path}</svg>`;
-}
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
@@ -124,13 +128,15 @@ async function init() {
   document.getElementById("topbar-form-title").textContent = data.title;
   document.title = `${data.title} — WateForm`;
 
-  renderQList();
   renderQTypePicker();
   renderSettingsPanel();
-  if (questions.length > 0) selectQuestion(0);
-
-  // Publish btn state
+  renderQuestionCards();
   updatePublishBtn();
+
+  // Auto-open settings panel if ?panel=settings
+  if (params.get("panel") === "settings") {
+    document.getElementById("settings-panel")?.classList.add("open");
+  }
 }
 
 // ── Auto-save ─────────────────────────────────────────────────
@@ -141,47 +147,17 @@ function scheduleSave() {
 }
 
 async function saveNow() {
-  await _sb.from("forms").update({ questions, settings }).eq("id", formId);
+  // If the form is published, auto-revert to draft on any change
+  const wasPublished = formData?.is_published;
+  const payload = { questions, settings };
+  if (wasPublished) payload.is_published = false;
+  await _sb.from("forms").update(payload).eq("id", formId);
+  if (wasPublished) {
+    formData.is_published = false;
+    updatePublishBtn();
+  }
   document.getElementById("save-indicator").textContent = "Saved";
   setTimeout(() => { document.getElementById("save-indicator").textContent = ""; }, 2000);
-}
-
-// ── Question list (left panel) ────────────────────────────────
-function renderQList() {
-  const list  = document.getElementById("q-list");
-  const count = document.getElementById("q-count");
-  const empty = document.getElementById("center-empty");
-  count.textContent = questions.length;
-  list.innerHTML = "";
-
-  const hasQ = questions.length > 0;
-  if (empty) empty.style.display = hasQ ? "none" : "flex";
-
-  questions.forEach((q, i) => {
-    const def  = Q_TYPES.find(t => t.type === q.type) || Q_TYPES[0];
-    const item = document.createElement("button");
-    item.className = "q-item" + (i === activeQIdx ? " active" : "");
-    item.innerHTML = `
-      <div class="q-item-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>
-      </div>
-      <div class="q-item-label">
-        <div class="q-item-type">${def.label}</div>
-        <div class="q-item-title">${esc(q.title || "Untitled")}</div>
-      </div>
-      <span class="q-item-drag" title="Drag">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h2M9 12h2M9 19h2M13 5h2M13 12h2M13 19h2"/></svg>
-      </span>
-    `;
-    item.addEventListener("click", () => selectQuestion(i));
-    list.appendChild(item);
-  });
-}
-
-function selectQuestion(idx) {
-  activeQIdx = idx;
-  renderQList();
-  renderQEditor(idx);
 }
 
 // ── Question type picker (modal) ──────────────────────────────
@@ -200,350 +176,546 @@ function renderQTypePicker() {
   });
 }
 
-document.getElementById("add-q-btn").addEventListener("click", () => openModal("qtype-modal"));
-document.getElementById("center-add-btn")?.addEventListener("click", () => openModal("qtype-modal"));
-document.addEventListener("click", e => {
-  if (e.target.id === "center-add-btn") openModal("qtype-modal");
-});
-
 function addQuestion(type) {
   const q = {
     id: uid(), type,
     title: "", subtitle: "",
     placeholder: "", image: "",
     required: false,
-    // type-specific
-    options: ["Option 1", "Option 2"],  // choice/dropdown
-    allowOther: false,                   // choice
-    gmailOnly: false,                    // email
-    phonePrefix: "+62",                  // phone
-    maxRating: 5,                        // rating
-    mediaType: "link", mediaUrl: "",     // image/video
-    checked: false,                      // checkbox
+    options: ["Option 1", "Option 2"],
+    checkboxOptions: ["Option 1", "Option 2"],
+    checkboxAllowOther: false,
+    allowOther: false,
+    gmailOnly: false,
+    phonePrefix: "+62",
+    maxRating: 5,
+    mediaType: "link", mediaUrl: "",
+    imageUploadUrl: "",
+    imageInputMode: "url",
+    checked: false,
   };
   questions.push(q);
-  selectQuestion(questions.length - 1);
+  renderQuestionCards();
   scheduleSave();
+  // open edit modal for the new question
+  openEditModal(questions.length - 1);
 }
 
-// ── Question editor (center panel) ───────────────────────────
-function renderQEditor(idx) {
+// ── Compact question card list ─────────────────────────────────
+function renderQuestionCards() {
   const center = document.getElementById("builder-center");
-  const q = questions[idx];
-  if (!q) return;
-  const def = Q_TYPES.find(t => t.type === q.type);
+  const empty  = document.getElementById("center-empty");
 
-  // Remove old editor card if exists
-  const old = center.querySelector(".q-editor-card");
-  if (old) old.remove();
+  // Remove existing cards and add-btn (but keep center-empty)
+  center.querySelectorAll(".qcard, .center-add-q-btn").forEach(el => el.remove());
 
-  const card = document.createElement("div");
-  card.className = "q-editor-card";
-  card.style.maxWidth = "680px";
-  card.style.width = "100%";
+  if (questions.length === 0) {
+    if (empty) empty.style.display = "flex";
+    return;
+  }
+  if (empty) empty.style.display = "none";
 
-  card.innerHTML = `
-    <div class="q-editor-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">${def?.icon || ""}</svg>
-      <span class="q-editor-type">${def?.label || q.type}</span>
-      <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">Q${idx + 1}</span>
-    </div>
-    <div class="q-editor-body" id="qeditor-body"></div>
-    <div class="q-editor-actions">
-      <label class="toggle-row" style="gap:8px;margin-right:auto">
-        <span class="toggle-label">Required</span>
-        <label class="toggle">
-          <input type="checkbox" id="q-required" ${q.required ? "checked" : ""}>
-          <span class="toggle-track"></span>
-        </label>
-      </label>
-      <button class="btn btn-ghost btn-sm" id="q-move-up-btn" ${idx === 0 ? "disabled" : ""}>↑ Move up</button>
-      <button class="btn btn-ghost btn-sm" id="q-move-down-btn" ${idx === questions.length - 1 ? "disabled" : ""}>↓ Move down</button>
-      <button class="btn btn-danger btn-sm" id="q-delete-btn">Delete</button>
-    </div>
-  `;
+  questions.forEach((q, idx) => {
+    const def = Q_TYPES.find(t => t.type === q.type) || Q_TYPES[0];
+    const card = document.createElement("div");
+    card.className = "qcard";
+    card.dataset.idx = idx;
 
-  center.appendChild(card);
+    const icon = document.createElement("div");
+    icon.className = "qcard-icon";
+    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>`;
 
-  // Fill body with type-specific fields
-  buildQEditorBody(q, idx);
+    const info = document.createElement("div");
+    info.className = "qcard-info";
 
-  // Required toggle
-  document.getElementById("q-required").addEventListener("change", e => {
-    questions[idx].required = e.target.checked;
-    scheduleSave();
+    const typeLbl = document.createElement("div");
+    typeLbl.className = "qcard-type";
+    typeLbl.textContent = def.label;
+
+    const titleLbl = document.createElement("div");
+    titleLbl.className = "qcard-title";
+    titleLbl.textContent = q.title || "Untitled";
+
+    info.appendChild(typeLbl);
+    info.appendChild(titleLbl);
+
+    const actions = document.createElement("div");
+    actions.className = "qcard-actions";
+
+    // Delete button
+    const delBtn = document.createElement("button");
+    delBtn.className = "qcard-btn qcard-btn-danger";
+    delBtn.title = "Delete";
+    delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+    delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteQuestion(idx); });
+
+    actions.appendChild(delBtn);
+
+    card.appendChild(icon);
+    card.appendChild(info);
+    card.appendChild(actions);
+
+    // Click card body to edit
+    card.addEventListener("click", () => openEditModal(idx));
+
+    center.appendChild(card);
   });
 
-  // Move / delete
-  document.getElementById("q-move-up-btn").addEventListener("click", () => moveQuestion(idx, -1));
-  document.getElementById("q-move-down-btn").addEventListener("click", () => moveQuestion(idx, 1));
-  document.getElementById("q-delete-btn").addEventListener("click", () => deleteQuestion(idx));
+  // Add question button at the bottom
+  const addBtn = document.createElement("button");
+  addBtn.className = "add-q-btn center-add-q-btn";
+  addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14M5 12h14"/></svg> Add question`;
+  addBtn.addEventListener("click", () => openModal("qtype-modal"));
+  center.appendChild(addBtn);
 }
 
-function buildQEditorBody(q, idx) {
-  const body = document.getElementById("qeditor-body");
+// ── Edit modal ─────────────────────────────────────────────────
+function openEditModal(idx) {
+  editingIdx = idx;
+  const q = questions[idx];
+  const def = Q_TYPES.find(t => t.type === q.type) || Q_TYPES[0];
+
+  // Set modal header
+  document.getElementById("edit-modal-type").textContent = def.label;
+  document.getElementById("edit-modal-qnum").textContent = `Q${idx + 1}`;
+
+  // Build form body
+  const body = document.getElementById("edit-modal-body");
   body.innerHTML = "";
 
-  // ── Common fields (except title/image types) ──────────────
-  if (q.type !== "title") {
-    // Title
-    body.appendChild(makeField("Title", `
-      <input type="text" id="q-title" value="${esc(q.title)}" placeholder="Question title…" maxlength="200">
-    `));
+  // ── Common: Title
+  const isTitle = q.type === "title";
+  body.appendChild(makeField(
+    isTitle ? "Heading text" : "Title",
+    "input",
+    { type:"text", id:"em-title", value: q.title, placeholder: isTitle ? "Section heading…" : "Question title…", maxlength:"200" }
+  ));
 
-    // Subtitle with rich toolbar
-    body.appendChild(makeField("Subtitle <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>", `
-      <div class="rich-toolbar" id="rich-toolbar">
-        <button class="rich-btn" data-cmd="bold" title="Bold"><b>B</b></button>
-        <button class="rich-btn" data-cmd="italic" title="Italic"><i>I</i></button>
-        <button class="rich-btn" data-cmd="underline" title="Underline"><u>U</u></button>
-        <button class="rich-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
-        <button class="rich-btn" data-cmd="insertUnorderedList" title="Bullet list">•</button>
-      </div>
-      <div class="rich-editor" id="q-subtitle" contenteditable="true">${q.subtitle || ""}</div>
-    `));
-  } else {
-    // Title type has bigger title field
-    body.appendChild(makeField("Heading text", `
-      <input type="text" id="q-title" value="${esc(q.title)}" placeholder="Section heading…" maxlength="200">
-    `));
-    body.appendChild(makeField("Subtext <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>", `
-      <div class="rich-toolbar" id="rich-toolbar">
-        <button class="rich-btn" data-cmd="bold"><b>B</b></button>
-        <button class="rich-btn" data-cmd="italic"><i>I</i></button>
-        <button class="rich-btn" data-cmd="underline"><u>U</u></button>
-      </div>
-      <div class="rich-editor" id="q-subtitle" contenteditable="true">${q.subtitle || ""}</div>
-    `));
-  }
+  // ── Common: Subtitle (rich)
+  const subtitleWrap = document.createElement("div");
+  subtitleWrap.className = "field";
+  const subtitleLbl = document.createElement("label");
+  subtitleLbl.innerHTML = (isTitle ? "Subtext" : "Subtitle") + " <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>";
+  subtitleWrap.appendChild(subtitleLbl);
 
-  // ── Type-specific ─────────────────────────────────────────
+  const toolbar = document.createElement("div");
+  toolbar.className = "rich-toolbar";
+  [["bold","B"],["italic","I"],["underline","U"],["strikeThrough","S"]].forEach(([cmd,lbl]) => {
+    const b = document.createElement("button");
+    b.className = "rich-btn"; b.dataset.cmd = cmd; b.type = "button";
+    b.innerHTML = `<${lbl === "S" ? "s" : lbl === "I" ? "i" : lbl === "U" ? "u" : "b"}>${lbl}</${lbl === "S" ? "s" : lbl === "I" ? "i" : lbl === "U" ? "u" : "b"}>`;
+    b.addEventListener("click", () => { document.execCommand(cmd, false, null); editor.focus(); });
+    toolbar.appendChild(b);
+  });
+  const listBtn = document.createElement("button");
+  listBtn.className = "rich-btn"; listBtn.type = "button"; listBtn.textContent = "•";
+  listBtn.addEventListener("click", () => { document.execCommand("insertUnorderedList", false, null); editor.focus(); });
+  toolbar.appendChild(listBtn);
+
+  const editor = document.createElement("div");
+  editor.className = "rich-editor"; editor.id = "em-subtitle"; editor.contentEditable = "true";
+  editor.innerHTML = q.subtitle || "";
+
+  subtitleWrap.appendChild(toolbar);
+  subtitleWrap.appendChild(editor);
+  body.appendChild(subtitleWrap);
+
+  // ── Type-specific fields
   if (["short","long","number","date"].includes(q.type)) {
-    body.appendChild(makeField("Placeholder", `
-      <input type="text" id="q-placeholder" value="${esc(q.placeholder)}" maxlength="120">
-    `));
+    body.appendChild(makeField("Placeholder", "input",
+      { type:"text", id:"em-placeholder", value: q.placeholder, maxlength:"120" }
+    ));
   }
 
   if (q.type === "email") {
-    body.appendChild(makeField("Placeholder", `
-      <input type="text" id="q-placeholder" value="${esc(q.placeholder)}" placeholder="e.g. you@example.com" maxlength="120">
-    `));
-    body.appendChild(makeField("", `
-      <label class="toggle-row">
-        <span class="toggle-label">Require @gmail.com only</span>
-        <label class="toggle">
-          <input type="checkbox" id="q-gmail-only" ${q.gmailOnly ? "checked" : ""}>
-          <span class="toggle-track"></span>
-        </label>
-      </label>
-    `));
+    body.appendChild(makeField("Placeholder", "input",
+      { type:"text", id:"em-placeholder", value: q.placeholder, placeholder:"e.g. you@example.com", maxlength:"120" }
+    ));
+    body.appendChild(makeToggleField("Require @gmail.com only", "em-gmail-only", q.gmailOnly));
   }
 
   if (q.type === "phone") {
-    body.appendChild(makeField("Default country code", `
-      <select id="q-phone-prefix">
-        ${COUNTRY_CODES.map(c => `<option value="${c.code}" ${q.phonePrefix===c.code?"selected":""}>${c.label}</option>`).join("")}
-      </select>
-    `));
-    body.appendChild(makeField("Placeholder", `
-      <input type="text" id="q-placeholder" value="${esc(q.placeholder)}" placeholder="e.g. 812-3456-7890" maxlength="60">
-    `));
-  }
-
-  if (q.type === "rating") {
-    body.appendChild(makeField("Max rating", `
-      <select id="q-max-rating">
-        ${[3,4,5,7,10].map(n => `<option value="${n}" ${q.maxRating===n?"selected":""}>${n} stars</option>`).join("")}
-      </select>
-    `));
-    // Preview stars
-    const starsDiv = document.createElement("div");
-    starsDiv.className = "rating-preview";
-    starsDiv.id = "rating-preview";
-    body.appendChild(starsDiv);
-    renderStarPreview(q.maxRating);
-  }
-
-  if (q.type === "choice" || q.type === "dropdown") {
     const wrap = document.createElement("div");
     wrap.className = "field";
     const lbl = document.createElement("label");
-    lbl.textContent = "Options";
+    lbl.textContent = "Default country code";
+    wrap.appendChild(lbl);
+    const sel = document.createElement("select");
+    sel.id = "em-phone-prefix";
+    COUNTRY_CODES.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.code; opt.textContent = c.label;
+      if (q.phonePrefix === c.code) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    wrap.appendChild(sel);
+    body.appendChild(wrap);
+    body.appendChild(makeField("Placeholder", "input",
+      { type:"text", id:"em-placeholder", value: q.placeholder, placeholder:"e.g. 812-3456-7890", maxlength:"60" }
+    ));
+  }
+
+  if (q.type === "rating") {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const lbl = document.createElement("label"); lbl.textContent = "Max rating";
+    wrap.appendChild(lbl);
+    const sel = document.createElement("select"); sel.id = "em-max-rating";
+    [3,4,5,7,10].forEach(n => {
+      const opt = document.createElement("option");
+      opt.value = n; opt.textContent = `${n} stars`;
+      if (q.maxRating === n) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", () => renderStarsPreview(Number(sel.value)));
+    wrap.appendChild(sel);
+    body.appendChild(wrap);
+
+    const starsDiv = document.createElement("div");
+    starsDiv.className = "rating-preview"; starsDiv.id = "em-stars";
+    body.appendChild(starsDiv);
+    renderStarsPreview(q.maxRating || 5);
+  }
+
+  if (q.type === "choice" || q.type === "dropdown" || q.type === "checkbox") {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const lbl = document.createElement("label");
+    lbl.textContent = q.type === "checkbox" ? "Checkbox options (multi-select)" : "Options";
     wrap.appendChild(lbl);
     const optsDiv = document.createElement("div");
-    optsDiv.className = "choice-options";
-    optsDiv.id = "choice-options";
+    optsDiv.className = "choice-options"; optsDiv.id = "em-options";
     wrap.appendChild(optsDiv);
     const addOptBtn = document.createElement("button");
-    addOptBtn.className = "add-option-btn";
-    addOptBtn.textContent = "+ Add option";
+    addOptBtn.className = "add-option-btn"; addOptBtn.type = "button"; addOptBtn.textContent = "+ Add option";
     addOptBtn.addEventListener("click", () => {
-      questions[idx].options.push("Option " + (questions[idx].options.length + 1));
-      renderChoiceOptions(idx);
-      scheduleSave();
+      const opts = collectOptions();
+      opts.push("Option " + (opts.length + 1));
+      renderOptions(opts, optsDiv);
     });
     wrap.appendChild(addOptBtn);
-    if (q.type === "choice") {
-      const otherRow = document.createElement("label");
-      otherRow.className = "toggle-row";
-      otherRow.style.marginTop = "8px";
-      otherRow.innerHTML = `
-        <span class="toggle-label">Allow "Other" option</span>
-        <label class="toggle">
-          <input type="checkbox" id="q-allow-other" ${q.allowOther ? "checked" : ""}>
-          <span class="toggle-track"></span>
-        </label>
-      `;
-      wrap.appendChild(otherRow);
+    if (q.type === "choice" || q.type === "checkbox") {
+      wrap.appendChild(makeToggleField('Allow "Other" option', "em-allow-other", q.type === "checkbox" ? q.checkboxAllowOther : q.allowOther));
     }
     body.appendChild(wrap);
-    renderChoiceOptions(idx);
+    renderOptions(q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || []), optsDiv);
   }
 
   if (q.type === "image" || q.type === "video") {
-    body.appendChild(makeField("Media source", `
-      <select id="q-media-type">
-        <option value="link" ${q.mediaType==="link"?"selected":""}>Link / URL</option>
-        <option value="upload" ${q.mediaType==="upload"?"selected":""}>Upload file</option>
-      </select>
-    `));
-    body.appendChild(makeField(q.type === "image" ? "Image URL" : "Video URL", `
-      <input type="url" id="q-media-url" value="${esc(q.mediaUrl)}" placeholder="https://…">
-    `));
+    // Tab toggle: URL vs Upload
+    const mediaWrap = document.createElement("div");
+    mediaWrap.className = "field";
+    const mediaLbl = document.createElement("label");
+    mediaLbl.textContent = q.type === "image" ? "Image source" : "Video source";
+    mediaWrap.appendChild(mediaLbl);
+
+    const tabRow = document.createElement("div");
+    tabRow.style.cssText = "display:flex;gap:0;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden";
+    const tabUrl = document.createElement("button");
+    tabUrl.type = "button"; tabUrl.id = "em-tab-url";
+    tabUrl.textContent = "URL / Link";
+    tabUrl.style.cssText = "flex:1;padding:7px 12px;font-size:13px;border:none;cursor:pointer;transition:background .15s";
+    const tabUpload = document.createElement("button");
+    tabUpload.type = "button"; tabUpload.id = "em-tab-upload";
+    tabUpload.textContent = "Upload file";
+    tabUpload.style.cssText = "flex:1;padding:7px 12px;font-size:13px;border:none;cursor:pointer;transition:background .15s";
+    tabRow.appendChild(tabUrl);
+    tabRow.appendChild(tabUpload);
+    mediaWrap.appendChild(tabRow);
+
+    // URL pane
+    const urlPane = document.createElement("div");
+    urlPane.id = "em-url-pane";
+    const urlInp = document.createElement("input");
+    urlInp.type = "url"; urlInp.id = "em-media-url";
+    urlInp.value = q.mediaUrl || "";
+    urlInp.placeholder = "https://…";
+    urlInp.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:14px;font-family:inherit";
+    urlPane.appendChild(urlInp);
+
+    // Upload pane
+    const uploadPane = document.createElement("div");
+    uploadPane.id = "em-upload-pane";
+    const fileInp = document.createElement("input");
+    fileInp.type = "file"; fileInp.id = "em-media-file";
+    fileInp.accept = q.type === "image" ? "image/*" : "video/*";
+    fileInp.style.cssText = "display:none";
+    const uploadBtn = document.createElement("button");
+    uploadBtn.type = "button"; uploadBtn.className = "btn btn-ghost btn-sm";
+    uploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Choose file';
+    uploadBtn.addEventListener("click", () => fileInp.click());
+    const uploadHint = document.createElement("div");
+    uploadHint.id = "em-upload-hint";
+    uploadHint.style.cssText = "font-size:12px;color:var(--text-muted);margin-top:6px";
+    uploadHint.textContent = q.imageUploadUrl ? "File uploaded" : "No file chosen";
+    if (q.imageUploadUrl) {
+      const link = document.createElement("a");
+      link.href = q.imageUploadUrl; link.target = "_blank";
+      link.style.cssText = "font-size:12px;color:var(--teal);display:block;margin-top:4px;word-break:break-all";
+      link.textContent = q.imageUploadUrl;
+      uploadPane.appendChild(link);
+    }
+    fileInp.addEventListener("change", () => {
+      const file = fileInp.files?.[0];
+      uploadHint.textContent = file ? file.name : "No file chosen";
+    });
+    uploadPane.appendChild(fileInp);
+    uploadPane.appendChild(uploadBtn);
+    uploadPane.appendChild(uploadHint);
+
+    mediaWrap.appendChild(urlPane);
+    mediaWrap.appendChild(uploadPane);
+    body.appendChild(mediaWrap);
+
+    // Init active tab
+    const initMode = q.imageInputMode || "url";
+    function setMediaTab(mode) {
+      const isUrl = mode === "url";
+      tabUrl.style.background = isUrl ? "var(--teal-dim)" : "var(--bg-mid)";
+      tabUrl.style.color = isUrl ? "var(--teal-deep)" : "var(--text-muted)";
+      tabUrl.style.fontWeight = isUrl ? "600" : "400";
+      tabUpload.style.background = !isUrl ? "var(--teal-dim)" : "var(--bg-mid)";
+      tabUpload.style.color = !isUrl ? "var(--teal-deep)" : "var(--text-muted)";
+      tabUpload.style.fontWeight = !isUrl ? "600" : "400";
+      urlPane.style.display = isUrl ? "" : "none";
+      uploadPane.style.display = !isUrl ? "" : "none";
+      document.getElementById("em-media-type") && (document.getElementById("em-media-type").value = mode);
+    }
+    // hidden input to track mode
+    const modeInp = document.createElement("input");
+    modeInp.type = "hidden"; modeInp.id = "em-media-type"; modeInp.value = initMode;
+    body.appendChild(modeInp);
+    tabUrl.addEventListener("click", () => { setMediaTab("url"); modeInp.value = "url"; });
+    tabUpload.addEventListener("click", () => { setMediaTab("upload"); modeInp.value = "upload"; });
+    setMediaTab(initMode);
   }
 
-  // Image for any question type (decorative image above question)
   if (!["image","video","title"].includes(q.type)) {
-    body.appendChild(makeField("Question image <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>", `
-      <input type="url" id="q-image" value="${esc(q.image)}" placeholder="Paste image URL or upload link…">
-    `));
-  }
+    // Question image: URL input and Upload button inline
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "field";
+    const imgLbl = document.createElement("label");
+    imgLbl.innerHTML = "Image <span style='font-size:11px;font-weight:400;color:var(--text-muted)'>(optional)</span>";
+    imgWrap.appendChild(imgLbl);
 
-  // ── Wire up events ────────────────────────────────────────
-  const titleEl = document.getElementById("q-title");
-  if (titleEl) {
-    titleEl.addEventListener("input", () => {
-      questions[idx].title = titleEl.value;
-      document.querySelectorAll(".q-item")[idx]?.querySelector(".q-item-title")?.let?.(el => el.textContent = titleEl.value || "Untitled");
-      // Update sidebar
-      renderQList(); activeQIdx = idx;
-      scheduleSave();
+    // URL input + Upload button side by side in one row
+    const imgUrlRow = document.createElement("div");
+    imgUrlRow.style.cssText = "display:flex;align-items:center;gap:8px";
+
+    const imgUrlInp = document.createElement("input");
+    imgUrlInp.type = "url"; imgUrlInp.id = "em-image";
+    imgUrlInp.value = q.image || "";
+    imgUrlInp.placeholder = "Paste image URL…";
+    imgUrlInp.style.cssText = "flex:1;min-width:0";
+    imgUrlRow.appendChild(imgUrlInp);
+
+    const imgFileInp = document.createElement("input");
+    imgFileInp.type = "file"; imgFileInp.id = "em-image-file";
+    imgFileInp.accept = "image/*"; imgFileInp.style.display = "none";
+
+    const imgUploadBtn = document.createElement("button");
+    imgUploadBtn.type = "button"; imgUploadBtn.className = "btn btn-ghost btn-sm";
+    imgUploadBtn.style.cssText = "white-space:nowrap;flex-shrink:0";
+    imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload';
+    imgUploadBtn.addEventListener("click", () => imgFileInp.click());
+    imgUrlRow.appendChild(imgFileInp);
+    imgUrlRow.appendChild(imgUploadBtn);
+
+    imgFileInp.addEventListener("change", () => {
+      const file = imgFileInp.files?.[0];
+      if (file) {
+        const objUrl = URL.createObjectURL(file);
+        imgUrlInp.value = objUrl;
+        imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' + file.name.slice(0,12) + (file.name.length>12?'…':'');
+      }
     });
+
+    imgWrap.appendChild(imgUrlRow);
+    body.appendChild(imgWrap);
   }
 
-  const subtitleEl = document.getElementById("q-subtitle");
-  if (subtitleEl) {
-    subtitleEl.addEventListener("input", () => { questions[idx].subtitle = subtitleEl.innerHTML; scheduleSave(); });
-    document.getElementById("rich-toolbar")?.querySelectorAll(".rich-btn").forEach(btn => {
-      btn.addEventListener("click", () => { document.execCommand(btn.dataset.cmd, false, null); subtitleEl.focus(); });
-    });
-  }
+  // ── Required toggle
+  body.appendChild(document.createElement("hr"));
+  body.appendChild(makeToggleField("Required", "em-required", q.required));
 
-  const placeholderEl = document.getElementById("q-placeholder");
-  if (placeholderEl) placeholderEl.addEventListener("input", () => { questions[idx].placeholder = placeholderEl.value; scheduleSave(); });
+  // ── Move up/down
+  const moveRow = document.createElement("div");
+  moveRow.style.cssText = "display:flex;gap:8px;margin-top:8px;";
+  const upBtn = document.createElement("button");
+  upBtn.className = "btn btn-ghost btn-sm"; upBtn.type = "button"; upBtn.textContent = "↑ Move up";
+  upBtn.disabled = idx === 0;
+  upBtn.addEventListener("click", () => {
+    saveEditToMemory();
+    moveQuestion(idx, -1);
+    // close and re-open at new index
+    closeModal("edit-modal");
+    openEditModal(idx - 1);
+  });
+  const downBtn = document.createElement("button");
+  downBtn.className = "btn btn-ghost btn-sm"; downBtn.type = "button"; downBtn.textContent = "↓ Move down";
+  downBtn.disabled = idx === questions.length - 1;
+  downBtn.addEventListener("click", () => {
+    saveEditToMemory();
+    moveQuestion(idx, 1);
+    closeModal("edit-modal");
+    openEditModal(idx + 1);
+  });
+  moveRow.appendChild(upBtn);
+  moveRow.appendChild(downBtn);
+  body.appendChild(moveRow);
 
-  document.getElementById("q-gmail-only")?.addEventListener("change", e => { questions[idx].gmailOnly = e.target.checked; scheduleSave(); });
-  document.getElementById("q-allow-other")?.addEventListener("change", e => { questions[idx].allowOther = e.target.checked; scheduleSave(); });
-
-  document.getElementById("q-phone-prefix")?.addEventListener("change", e => { questions[idx].phonePrefix = e.target.value; scheduleSave(); });
-
-  const maxRatingEl = document.getElementById("q-max-rating");
-  if (maxRatingEl) {
-    maxRatingEl.addEventListener("change", e => {
-      questions[idx].maxRating = Number(e.target.value);
-      renderStarPreview(questions[idx].maxRating);
-      scheduleSave();
-    });
-  }
-
-  const mediaTypeEl = document.getElementById("q-media-type");
-  if (mediaTypeEl) mediaTypeEl.addEventListener("change", e => { questions[idx].mediaType = e.target.value; scheduleSave(); });
-  const mediaUrlEl = document.getElementById("q-media-url");
-  if (mediaUrlEl) mediaUrlEl.addEventListener("input", () => { questions[idx].mediaUrl = mediaUrlEl.value; scheduleSave(); });
-
-  const imageEl = document.getElementById("q-image");
-  if (imageEl) imageEl.addEventListener("input", () => { questions[idx].image = imageEl.value; scheduleSave(); });
+  openModal("edit-modal");
 }
 
-function makeField(labelHtml, inputHtml) {
-  const div = document.createElement("div");
-  div.className = "field";
-  if (labelHtml) div.innerHTML = `<label>${labelHtml}</label>`;
-  div.insertAdjacentHTML("beforeend", inputHtml);
-  return div;
-}
-
-function renderStarPreview(max) {
-  const div = document.getElementById("rating-preview");
+function renderStarsPreview(max) {
+  const div = document.getElementById("em-stars");
   if (!div) return;
   div.innerHTML = "";
   for (let i = 1; i <= max; i++) {
-    const btn = document.createElement("button");
-    btn.className = "star-btn lit";
-    btn.textContent = "★";
-    btn.type = "button";
-    div.appendChild(btn);
+    const s = document.createElement("button");
+    s.type = "button"; s.className = "star-btn lit"; s.textContent = "★";
+    div.appendChild(s);
   }
 }
 
-function renderChoiceOptions(idx) {
-  const q = questions[idx];
-  const div = document.getElementById("choice-options");
-  if (!div) return;
-  div.innerHTML = "";
-  (q.options || []).forEach((opt, oi) => {
+function renderOptions(opts, container) {
+  container.innerHTML = "";
+  opts.forEach((opt, oi) => {
     const row = document.createElement("div");
     row.className = "choice-opt-row";
-    row.innerHTML = `
-      <input type="text" value="${esc(opt)}" placeholder="Option ${oi+1}" data-oi="${oi}">
-      <button class="choice-remove" data-oi="${oi}" title="Remove">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-    `;
-    div.appendChild(row);
-  });
-  div.querySelectorAll("input").forEach(input => {
-    input.addEventListener("input", () => {
-      questions[idx].options[+input.dataset.oi] = input.value;
-      scheduleSave();
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.value = opt; inp.placeholder = `Option ${oi+1}`; inp.dataset.oi = oi;
+    const rmBtn = document.createElement("button");
+    rmBtn.className = "choice-remove"; rmBtn.type = "button";
+    rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+    rmBtn.addEventListener("click", () => {
+      const cur = collectOptions();
+      cur.splice(oi, 1);
+      renderOptions(cur, container);
     });
-  });
-  div.querySelectorAll(".choice-remove").forEach(btn => {
-    btn.addEventListener("click", () => {
-      questions[idx].options.splice(+btn.dataset.oi, 1);
-      renderChoiceOptions(idx);
-      scheduleSave();
-    });
+    row.appendChild(inp);
+    row.appendChild(rmBtn);
+    container.appendChild(row);
   });
 }
+
+function collectOptions() {
+  const div = document.getElementById("em-options");
+  if (!div) return [];
+  return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+}
+
+function makeField(labelHtml, tag, attrs) {
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lbl = document.createElement("label");
+  lbl.innerHTML = labelHtml;
+  wrap.appendChild(lbl);
+  const el = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => {
+    if (k === "value") el.value = v || "";
+    else el.setAttribute(k, v);
+  });
+  wrap.appendChild(el);
+  return wrap;
+}
+
+function makeToggleField(labelText, id, checked) {
+  const row = document.createElement("label");
+  row.className = "toggle-row";
+  const span = document.createElement("span");
+  span.className = "toggle-label"; span.textContent = labelText;
+  const lbl = document.createElement("label");
+  lbl.className = "toggle";
+  const inp = document.createElement("input");
+  inp.type = "checkbox"; inp.id = id; inp.checked = !!checked;
+  const track = document.createElement("span");
+  track.className = "toggle-track";
+  lbl.appendChild(inp);
+  lbl.appendChild(track);
+  row.appendChild(span);
+  row.appendChild(lbl);
+  return row;
+}
+
+// ── Save from edit modal back to questions[] ──────────────────
+function saveEditToMemory() {
+  if (editingIdx === null) return;
+  const q = questions[editingIdx];
+  const get = id => document.getElementById(id);
+
+  q.title       = get("em-title")?.value || "";
+  q.subtitle    = get("em-subtitle")?.innerHTML || "";
+  q.placeholder = get("em-placeholder")?.value || "";
+  q.image       = get("em-image")?.value || "";
+  q.required    = get("em-required")?.checked || false;
+  q.gmailOnly   = get("em-gmail-only")?.checked || false;
+  if (q.type === "checkbox") {
+    q.checkboxOptions = collectOptions();
+    q.checkboxAllowOther = get("em-allow-other")?.checked || false;
+  } else {
+    q.allowOther  = get("em-allow-other")?.checked || false;
+  }
+  q.phonePrefix = get("em-phone-prefix")?.value || q.phonePrefix;
+  q.maxRating   = Number(get("em-max-rating")?.value) || q.maxRating;
+  q.mediaType   = get("em-media-type")?.value || q.mediaType;
+  q.imageInputMode = get("em-media-type")?.value || q.imageInputMode;
+  q.mediaUrl    = get("em-media-url")?.value || "";
+  if (document.getElementById("em-options")) {
+    if (q.type === "checkbox") {
+      q.checkboxOptions = collectOptions();
+    } else {
+      q.options = collectOptions();
+    }
+  }
+}
+
+// Save button in edit modal
+document.getElementById("edit-save-btn").addEventListener("click", () => {
+  saveEditToMemory();
+  renderQuestionCards();
+  scheduleSave();
+  closeModal("edit-modal");
+  toast("Question saved");
+});
+
+// Close edit modal — discard changes
+document.getElementById("edit-cancel-btn")?.addEventListener("click", () => {
+  closeModal("edit-modal");
+});
 
 // ── Move / Delete question ────────────────────────────────────
 function moveQuestion(idx, dir) {
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= questions.length) return;
   [questions[idx], questions[newIdx]] = [questions[newIdx], questions[idx]];
-  selectQuestion(newIdx);
+  renderQuestionCards();
   scheduleSave();
 }
 
 function deleteQuestion(idx) {
+  if (!confirm("Delete this question?")) return;
   questions.splice(idx, 1);
-  const newIdx = Math.min(idx, questions.length - 1);
-  activeQIdx = newIdx >= 0 ? newIdx : null;
-  renderQList();
-  const center = document.getElementById("builder-center");
-  const old = center.querySelector(".q-editor-card");
-  if (old) old.remove();
-  if (activeQIdx !== null) renderQEditor(activeQIdx);
+  renderQuestionCards();
   scheduleSave();
+}
+
+// ── Add question buttons ──────────────────────────────────────
+document.getElementById("add-q-btn")?.addEventListener("click", () => openModal("qtype-modal"));
+document.getElementById("center-add-btn")?.addEventListener("click", () => openModal("qtype-modal"));
+
+// ── Submit placeholder dinamis ────────────────────────────────
+function getSubmitPlaceholder(target) {
+  if (target === "tg")   return "Send WateForm to Telegram";
+  if (target === "both") return "Send WateForm to WhatsApp & Telegram";
+  return "Send WateForm to WhatsApp";
 }
 
 // ── Settings panel ────────────────────────────────────────────
 function renderSettingsPanel() {
   const s = settings;
   const body = document.getElementById("settings-body");
-  const wsShortId = formData?.workspace_id ? "" : ""; // filled below
-  const formSlug  = s.slug || formData?.short_id || "";
+  const formSlug = s.slug || formData?.short_id || "";
 
   body.innerHTML = `
     <div class="field">
@@ -563,7 +735,7 @@ function renderSettingsPanel() {
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)"
           placeholder="auto">
       </div>
-      <div class="hint">Leave blank to use auto-generated ID.</div>
+      <!-- <div class="hint">Leave blank to use auto-generated ID.</div> -->
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -571,22 +743,20 @@ function renderSettingsPanel() {
       <select id="s-target">
         <option value="wa"   ${(s.target||"wa")==="wa"?"selected":""}>WhatsApp only</option>
         <option value="tg"   ${s.target==="tg"?"selected":""}>Telegram only</option>
-        <option value="both" ${s.target==="both"?"selected":""}>WhatsApp + Telegram</option>
+        <option value="both" ${s.target==="both"?"selected":""}>WhatsApp & Telegram</option>
       </select>
     </div>
-
-    <div id="s-wa-wrap" class="${(s.target||"wa")==="tg"?"":""}">
+    <div id="s-wa-wrap">
       <div class="field">
         <label>WhatsApp number</label>
         <div class="phone-wrap">
           <select id="s-wa-prefix" class="phone-prefix">
             ${COUNTRY_CODES.map(c=>`<option value="${c.code}" ${(s.waPrefix||"+62")===c.code?"selected":""}>${c.code} ${c.label.split(" ")[0]}</option>`).join("")}
           </select>
-          <input type="text" id="s-wa-number" value="${esc(s.waNumber||"")}" placeholder="8123456789">
+          <input type="text" id="s-wa-number" value="${esc(s.waNumber||"")}" >
         </div>
       </div>
     </div>
-
     <div id="s-tg-wrap">
       <div class="field">
         <label>Telegram username</label>
@@ -597,7 +767,6 @@ function renderSettingsPanel() {
         </div>
       </div>
     </div>
-
     <div class="settings-sep"></div>
     <div class="field">
       <label>Language</label>
@@ -605,27 +774,62 @@ function renderSettingsPanel() {
         ${LANGUAGES.map(l=>`<option value="${l.code}" ${(s.language||"en")===l.code?"selected":""}>${l.label}</option>`).join("")}
       </select>
     </div>
+    <div id="s-submit-wrap"></div>
+    <div class="settings-sep"></div>
     <div class="field">
-      <label>Submit button text</label>
-      <input type="text" id="s-submit-label" value="${esc(s.submitLabel||"")}" placeholder="Send WateForm to WhatsApp">
+      <label style="display:flex;align-items:center;gap:6px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Schedule
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:500">Opens at</div>
+          <input type="datetime-local" id="s-open-at" value="${esc(s.openAt||"")}"
+            style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:12px;font-family:inherit">
+          <!-- <div class="hint" style="margin-top:3px">Leave blank to open immediately.</div> -->
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;font-weight:500">Closes at</div>
+          <input type="datetime-local" id="s-close-at" value="${esc(s.closeAt||"")}"
+            style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:12px;font-family:inherit">
+          <!-- <div class="hint" style="margin-top:3px">Leave blank to never close.</div> -->
+        </div>
+      </div>
+      <div id="s-schedule-preview" style="margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
     </div>
   `;
 
   updateTargetVisibility();
-
-  // Wire events
   document.getElementById("s-target").addEventListener("change", () => {
     settings.target = document.getElementById("s-target").value;
     updateTargetVisibility();
     saveSetting();
   });
-
-  ["s-title","s-desc","s-slug","s-wa-number","s-tg-user","s-submit-label"].forEach(id => {
+  ["s-title","s-desc","s-slug","s-wa-number","s-tg-user"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", () => saveSetting());
   });
   ["s-wa-prefix","s-lang"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", () => saveSetting());
   });
+  ["s-open-at","s-close-at"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", () => { saveSetting(); updateSchedulePreview(); });
+  });
+  updateSchedulePreview();
+}
+
+function updateSchedulePreview() {
+  const el = document.getElementById("s-schedule-preview");
+  if (!el) return;
+  const openAt  = document.getElementById("s-open-at")?.value;
+  const closeAt = document.getElementById("s-close-at")?.value;
+  if (!openAt && !closeAt) { el.textContent = ""; return; }
+  const fmt = dt => new Date(dt).toLocaleString(undefined, { dateStyle:"medium", timeStyle:"short" });
+  const parts = [];
+  if (openAt)  parts.push("Opens " + fmt(openAt));
+  if (closeAt) parts.push("Closes " + fmt(closeAt));
+  el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" style="vertical-align:-1px"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ` + parts.join(" · ");
 }
 
 function updateTargetVisibility() {
@@ -634,6 +838,35 @@ function updateTargetVisibility() {
   const tgWrap = document.getElementById("s-tg-wrap");
   if (waWrap) waWrap.style.display = t === "tg" ? "none" : "block";
   if (tgWrap) tgWrap.style.display = t === "wa" ? "none" : "block";
+  renderSubmitFields(t);
+}
+
+function renderSubmitFields(target) {
+  const wrap = document.getElementById("s-submit-wrap");
+  if (!wrap) return;
+  const s = settings;
+  if (target === "both") {
+    wrap.innerHTML = `
+      <div class="field">
+        <label>Submit button for WhatsApp</label>
+        <input type="text" id="s-submit-label-wa" value="${esc(s.submitLabelWa||"")}" placeholder="Send WateForm to WhatsApp">
+      </div>
+      <div class="field">
+        <label>Submit button for Telegram</label>
+        <input type="text" id="s-submit-label-tg" value="${esc(s.submitLabelTg||"")}" placeholder="Send WateForm to Telegram">
+      </div>
+    `;
+    document.getElementById("s-submit-label-wa")?.addEventListener("input", () => saveSetting());
+    document.getElementById("s-submit-label-tg")?.addEventListener("input", () => saveSetting());
+  } else {
+    wrap.innerHTML = `
+      <div class="field">
+        <label>Submit button text</label>
+        <input type="text" id="s-submit-label" value="${esc(s.submitLabel||"")}" placeholder="${getSubmitPlaceholder(target)}">
+      </div>
+    `;
+    document.getElementById("s-submit-label")?.addEventListener("input", () => saveSetting());
+  }
 }
 
 async function saveSetting() {
@@ -641,7 +874,9 @@ async function saveSetting() {
   if (title) {
     formData.title = title;
     document.getElementById("topbar-form-title").textContent = title;
-    await _sb.from("forms").update({ title, description: document.getElementById("s-desc")?.value.trim() || null }).eq("id", formId);
+    const settingPayload = { title, description: document.getElementById("s-desc")?.value.trim() || null };
+    if (formData?.is_published) { settingPayload.is_published = false; formData.is_published = false; updatePublishBtn(); }
+    await _sb.from("forms").update(settingPayload).eq("id", formId);
   }
   settings.slug        = document.getElementById("s-slug")?.value.trim() || null;
   settings.target      = document.getElementById("s-target")?.value || "wa";
@@ -649,7 +884,18 @@ async function saveSetting() {
   settings.waNumber    = document.getElementById("s-wa-number")?.value.trim() || "";
   settings.tgUsername  = document.getElementById("s-tg-user")?.value.trim() || "";
   settings.language    = document.getElementById("s-lang")?.value || "en";
-  settings.submitLabel = document.getElementById("s-submit-label")?.value.trim() || "";
+  settings.openAt      = document.getElementById("s-open-at")?.value  || null;
+  settings.closeAt     = document.getElementById("s-close-at")?.value || null;
+  const tgt = document.getElementById("s-target")?.value || "wa";
+  if (tgt === "both") {
+    settings.submitLabelWa = document.getElementById("s-submit-label-wa")?.value.trim() || "";
+    settings.submitLabelTg = document.getElementById("s-submit-label-tg")?.value.trim() || "";
+    settings.submitLabel   = "";
+  } else {
+    settings.submitLabel   = document.getElementById("s-submit-label")?.value.trim() || "";
+    settings.submitLabelWa = "";
+    settings.submitLabelTg = "";
+  }
   scheduleSave();
 }
 
@@ -657,26 +903,94 @@ async function saveSetting() {
 function updatePublishBtn() {
   const btn = document.getElementById("publish-btn");
   const published = formData?.is_published;
+  const openAt  = settings.openAt;
+  const closeAt = settings.closeAt;
+  const now     = new Date();
+  let scheduleNote = "";
+  if (published && openAt && new Date(openAt) > now) {
+    scheduleNote = ` · Opens ${new Date(openAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
+  } else if (published && closeAt && new Date(closeAt) > now) {
+    scheduleNote = ` · Closes ${new Date(closeAt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}`;
+  }
   btn.innerHTML = published
-    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 6 9 17l-5-5"/></svg> Published`
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 6 9 17l-5-5"/></svg> Published${scheduleNote}`
     : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Publish`;
   btn.style.background = published ? "var(--teal-deep)" : "";
 }
 
 document.getElementById("publish-btn").addEventListener("click", async () => {
   const newState = !formData?.is_published;
+
+  // Validasi hanya saat akan publish (bukan unpublish)
+  if (newState) {
+    // Cek judul form
+    const titleVal = (document.getElementById("s-title")?.value || formData?.title || "").trim();
+    if (!titleVal) {
+      toast("Form title cannot be empty.", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-title")?.focus(), 150);
+      return;
+    }
+
+    // Cek nomor WA / username TG sesuai target
+    const target = settings.target || "wa";
+    const waNum  = (settings.waNumber || "").trim();
+    const tgUser = (settings.tgUsername || "").trim();
+
+    if (target === "wa" && !waNum) {
+      toast("Enter your WhatsApp number", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-wa-number")?.focus(), 150);
+      return;
+    }
+    if (target === "tg" && !tgUser) {
+      toast("Enter your Telegram username", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-tg-user")?.focus(), 150);
+      return;
+    }
+    if (target === "both" && !waNum && !tgUser) {
+      toast("Enter your WhatsApp number and/or Telegram username", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      return;
+    }
+    if (target === "both" && !waNum) {
+      toast("Enter your WhatsApp number", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-wa-number")?.focus(), 150);
+      return;
+    }
+    if (target === "both" && !tgUser) {
+      toast("Enter your Telegram username", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-tg-user")?.focus(), 150);
+      return;
+    }
+  }
+
   await saveNow();
   const { error } = await _sb.from("forms").update({ is_published: newState }).eq("id", formId);
   if (error) { toast("Failed to " + (newState ? "publish" : "unpublish"), "error"); return; }
   formData.is_published = newState;
   updatePublishBtn();
-  toast(newState ? "Form published!" : "Form unpublished");
+
+  if (newState) {
+    // Redirect ke workspace setelah publish
+    const wsId = formData?.workspace_id;
+    toast("Form published! Redirecting…");
+    setTimeout(() => {
+      window.location.href = wsId
+        ? `dashboard.html?ws=${wsId}`
+        : "dashboard.html";
+    }, 1200);
+  } else {
+    toast("Form unpublished");
+  }
 });
 
-// ── Settings toggle ───────────────────────────────────────────
+// ── Settings panel toggle ─────────────────────────────────────
 document.getElementById("settings-toggle-btn").addEventListener("click", () => {
-  const panel = document.getElementById("settings-panel");
-  panel.classList.toggle("open");
+  document.getElementById("settings-panel").classList.toggle("open");
 });
 document.getElementById("settings-close-btn").addEventListener("click", () => {
   document.getElementById("settings-panel").classList.remove("open");
@@ -687,31 +1001,21 @@ document.getElementById("preview-btn").addEventListener("click", () => {
   const body = document.getElementById("preview-body");
   const s = settings;
   const target = s.target || "wa";
-  const submitLabel = s.submitLabel ||
-    (target === "wa" ? "Send WateForm to WhatsApp" :
-     target === "tg" ? "Send WateForm to Telegram" :
-     "Send WateForm");
-
   let html = `<h2 style="font-size:18px;font-weight:800;margin:0 0 6px">${esc(formData?.title || "Form")}</h2>`;
   if (formData?.description) html += `<p style="font-size:13.5px;color:var(--text-soft);margin:0 0 20px">${esc(formData.description)}</p>`;
-
-  questions.forEach((q, i) => {
-    html += buildPreviewField(q, i);
-  });
-
+  questions.forEach((q, i) => { html += buildPreviewField(q, i); });
   html += `
-    <div style="margin-top:24px;display:flex;gap:8px;flex-wrap:wrap">
-      ${target !== "tg" ? `<button class="btn btn-solid" style="background:var(--wa);color:#fff;border-color:var(--wa);flex:1;min-width:160px">
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
+      ${target !== "tg" ? `<button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">
         <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>
-        Send to WhatsApp
+        ${s.submitLabelWa || s.submitLabel || "Send WateForm to WhatsApp"}
       </button>` : ""}
-      ${target !== "wa" ? `<button class="btn btn-solid" style="background:var(--tg);color:#fff;border-color:var(--tg);flex:1;min-width:160px">
+      ${target !== "wa" ? `<button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">
         <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>
-        Send to Telegram
+        ${s.submitLabelTg || s.submitLabel || "Send WateForm to Telegram"}
       </button>` : ""}
     </div>
   `;
-
   body.innerHTML = html;
   openModal("preview-modal");
 });
@@ -723,17 +1027,16 @@ function buildPreviewField(q, i) {
       ${q.subtitle ? `<div style="font-size:13px;color:var(--text-soft)">${q.subtitle}</div>` : ""}
     </div>`;
   }
-
   let control = "";
-  const ph = esc(q.placeholder || "Your answer…");
+  const ph = esc(q.placeholder || "");
   if (q.type === "short")    control = `<input type="text" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "long")     control = `<textarea placeholder="${ph}" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);resize:vertical"></textarea>`;
   if (q.type === "number")   control = `<input type="number" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "date")     control = `<input type="date" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "email")    control = `<input type="email" placeholder="${q.gmailOnly ? "you@gmail.com" : ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
-  if (q.type === "checkbox") control = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox"> <span style="font-size:14px">${esc(q.title)}</span></label>`;
+  if (q.type === "checkbox") { const cbOpts = q.checkboxOptions || q.options || []; control = `<div style="display:flex;flex-direction:column;gap:6px">${cbOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> ${esc(o)}</label>`).join("")}${q.checkboxAllowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }
   if (q.type === "phone")    control = `<div style="display:flex;gap:8px"><select style="width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg-raised);color:var(--text)"><option>${esc(q.phonePrefix||"+62")}</option></select><input type="tel" placeholder="${ph}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`;
-  if (q.type === "rating")   control = `<div style="display:flex;gap:6px">${"★".repeat(q.maxRating||5).split("").map(s=>`<span style="font-size:24px;cursor:pointer;color:var(--teal)">★</span>`).join("")}</div>`;
+  if (q.type === "rating")   control = `<div style="display:flex;gap:6px">${Array(q.maxRating||5).fill("★").map(s=>`<span style="font-size:24px;cursor:pointer;color:var(--teal)">★</span>`).join("")}</div>`;
   if (q.type === "dropdown") control = `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${(q.options||[]).map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
   if (q.type === "choice")   control = `<div style="display:flex;flex-direction:column;gap:6px">${(q.options||[]).map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o)}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`;
   if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="max-width:100%;border-radius:8px">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:32px;text-align:center;color:var(--text-muted);font-size:13px">Image will appear here</div>`;
@@ -748,6 +1051,29 @@ function buildPreviewField(q, i) {
     </div>
   `;
 }
+
+// ── Enter / Escape key support ────────────────────────────────
+document.addEventListener("keydown", e => {
+  // Escape: close topmost open modal
+  if (e.key === "Escape") {
+    const openBd = [...document.querySelectorAll(".modal-backdrop.open")].pop();
+    if (openBd) { openBd.classList.remove("open"); return; }
+  }
+
+  // Enter in edit modal body: save (unless inside textarea or contenteditable)
+  if (e.key === "Enter" && !e.shiftKey) {
+    const editModal = document.getElementById("edit-modal");
+    if (editModal?.classList.contains("open")) {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const ce  = document.activeElement?.contentEditable;
+      if (tag !== "textarea" && ce !== "true") {
+        e.preventDefault();
+        document.getElementById("edit-save-btn")?.click();
+        return;
+      }
+    }
+  }
+});
 
 // ── Boot ──────────────────────────────────────────────────────
 init();

@@ -61,10 +61,25 @@ function sb() {
   const panels = document.querySelectorAll("[data-panel]");
   if (!tabs.length) return;
 
+  // ── Jika sudah login, langsung ke dashboard ───────────────
+  (async () => {
+    const client = sb();
+    if (!client) return;
+    const { data: { session } } = await client.auth.getSession();
+    if (session) { window.location.replace("/dashboard/"); return; }
+    // Dengarkan kalau token di-refresh dari tab lain
+    client.auth.onAuthStateChange((event, s) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && s) {
+        window.location.replace("/dashboard/");
+      }
+    });
+  })();
+
   // State yang dibutuhkan saat verifikasi OTP
   let pendingEmail = null;
 
   // ── Tab switching ─────────────────────────────────────────
+  // Default: login. Hanya pindah ke register jika hash=#register
   function switchTab(name) {
     tabs.forEach((t)   => t.classList.toggle("active", t.dataset.tab === name));
     panels.forEach((p) => (p.style.display = p.dataset.panel === name ? "block" : "none"));
@@ -182,7 +197,7 @@ function sb() {
         return;
       }
 
-      window.location.href = "/dashboard.html";
+      window.location.href = "/dashboard/";
     });
   }
 
@@ -444,7 +459,7 @@ function sb() {
 
       // Verifikasi berhasil → langsung ke dashboard
       pendingEmail = null;
-      window.location.href = "/dashboard.html";
+      window.location.href = "/dashboard/";
     });
   }
 

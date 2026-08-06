@@ -333,7 +333,7 @@ const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       access_token:  params.get("access_token"),
       refresh_token: params.get("refresh_token"),
     });
-    window.location.href = error ? "login.html" : "dashboard.html";
+    window.location.href = error ? "login.html" : "dashboard/";
     return;
   }
 
@@ -342,7 +342,7 @@ const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   if (session) {
     ["nav-register-btn","hero-register-btn","cta-register-btn"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.href = "dashboard.html"; el.textContent = "Log in"; }
+      if (el) { el.href = "dashboard/"; el.textContent = "Log in"; }
     });
     document.querySelector('a[href="login.html"]')?.remove();
   }

@@ -363,6 +363,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .member-row:last-child { border-bottom: none; }
 .member-info { flex: 1; }
 .member-name { font-size: 13.5px; font-weight: 600; }
+.member-kebab-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; font-size: 13px; font-weight: 500; background: none; border: none; color: var(--text-soft); cursor: pointer; text-align: left; transition: background .12s; }
+.member-kebab-item:hover { background: var(--bg-mid); }
+.member-kebab-item.danger { color: var(--red); }
+.member-kebab-item.danger:hover { background: rgba(239,68,68,.08); }
 .member-username { font-size: 12px; color: var(--text-muted); }
 .role-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
 .role-owner { background: var(--teal-dim); color: var(--teal-deep); }

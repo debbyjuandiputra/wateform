@@ -64,10 +64,31 @@ function showError(id, msg) {
   el.textContent = msg; el.style.display = msg ? "block" : "none";
 }
 
+// ── Auth state listener — handle sesi expired & refresh ───────
+_sb.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+    window.location.replace("../login.html");
+  }
+  if (event === "TOKEN_REFRESHED" && session) {
+    currentUser = session.user; // update user jika token di-refresh
+  }
+});
+
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  const { data: { session } } = await _sb.auth.getSession();
-  if (!session) { window.location.href = "login.html"; return; }
+  // Coba ambil sesi; jika token expired, Supabase akan auto-refresh
+  let { data: { session } } = await _sb.auth.getSession();
+
+  // Jika tidak ada sesi sama sekali, coba refresh sekali lagi
+  if (!session) {
+    const { data: refreshed } = await _sb.auth.refreshSession();
+    session = refreshed?.session ?? null;
+  }
+
+  if (!session) {
+    window.location.replace("../login.html");
+    return;
+  }
   currentUser = session.user;
 
   const { data: profile } = await _sb.from("profiles").select("*").eq("id", currentUser.id).single();
@@ -262,15 +283,10 @@ async function openWorkspace(wsId) {
   const myRole = myMember?.role || (ws.owner_id === currentUser.id ? "owner" : "member");
   const isOwner = myRole === "owner" || ws.owner_id === currentUser.id;
 
-  // Permissions: owner always has full access; members respect their settings
-  const perms = isOwner ? {
+  // Permissions: all members have full access
+  const perms = {
     can_edit_questions: true, can_edit_settings: true,
     can_add_members: true, can_see_members: true
-  } : {
-    can_edit_questions: myMember?.permissions?.can_edit_questions !== false,
-    can_edit_settings:  myMember?.permissions?.can_edit_settings  !== false,
-    can_add_members:    myMember?.permissions?.can_add_members    === true,
-    can_see_members:    myMember?.permissions?.can_see_members    === true,
   };
   const createdDate = new Date(ws.created_at).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"});
 
@@ -416,7 +432,7 @@ function renderFormList(forms, wsId, isOwner) {
     row.style.cursor = "pointer";
     row.addEventListener("click", e => {
       if (e.target.closest("[data-action]") || e.target.closest(".dropdown")) return;
-      window.location.href = `builder.html?form=${form.id}`;
+      window.location.href = `../builder.html?form=${form.id}`;
     });
     list.appendChild(row);
   });
@@ -437,9 +453,9 @@ function renderFormList(forms, wsId, isOwner) {
       return;
     }
 
-    if (action === "open-builder") { window.location.href = `builder.html?form=${id}`; return; }
+    if (action === "open-builder") { window.location.href = `../builder.html?form=${id}`; return; }
     if (action === "preview")    { window.open(btn.dataset.url, "_blank"); return; }
-    if (action === "settings")   { window.location.href = `builder.html?form=${id}&panel=settings`; return; }
+    if (action === "settings")   { window.location.href = `../builder.html?form=${id}&panel=settings`; return; }
     if (action === "responses")  { openResponses(id); return; }
     if (action === "share")      { openShareModal(btn.dataset.url); return; }
     if (action === "duplicate")  { duplicateForm(id, btn.dataset.ws); return; }
@@ -470,20 +486,20 @@ function renderMemberList(members, wsId, isOwner, meId) {
     const canAddM   = p.can_add_members    === true;
     const canSeeM   = p.can_see_members    === true;
 
-    const actionsHtml = isOwner && m.role !== "owner" ? `
-      <div style="display:flex;gap:4px;align-items:center">
-        <button class="btn-icon" data-perms="${m.user_id}" data-name="${esc(m.profiles?.full_name || 'Member')}" title="Member permissions"
-          data-ceq="${canEditQ}" data-ces="${canEditS}" data-cam="${canAddM}" data-csm="${canSeeM}"
-          style="color:var(--text-muted)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    const kebabHtml = isOwner && m.role !== "owner" ? `
+        <button class="btn-icon member-kebab-btn" data-uid="${m.user_id}" title="More options" style="color:var(--text-muted)">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" data-transfer="${m.user_id}" data-name="${esc(m.profiles?.full_name || 'this member')}" title="Transfer ownership" style="font-size:11px;padding:4px 8px;white-space:nowrap">
-          Transfer
-        </button>
-        <button class="btn-icon danger-hover" data-remove="${m.user_id}" title="Remove member" style="color:var(--text-muted)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-      </div>` : "";
+        <div class="member-kebab-menu" style="display:none;position:absolute;right:0;top:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:100;min-width:160px;overflow:hidden">
+          <button class="member-kebab-item" data-transfer="${m.user_id}" data-name="${esc(m.profiles?.full_name || 'this member')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></svg>
+            Transfer ownership
+          </button>
+          <button class="member-kebab-item danger" data-remove="${m.user_id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            Remove member
+          </button>
+        </div>` : "";
 
     row.innerHTML = `
       <div class="avatar">${initials}</div>
@@ -495,12 +511,26 @@ function renderMemberList(members, wsId, isOwner, meId) {
         <div class="member-username">@${esc(m.profiles?.username || "")}</div>
       </div>
       <span class="role-badge ${m.role === "owner" ? "role-owner" : "role-member"}">${m.role}</span>
-      ${actionsHtml}
+      <div class="member-kebab-wrap" style="position:relative;width:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        ${kebabHtml}
+      </div>
     `;
     list.appendChild(row);
   });
 
+  // Kebab menu toggle
   list.addEventListener("click", async e => {
+    const kebabBtn = e.target.closest(".member-kebab-btn");
+    if (kebabBtn) {
+      // Close any other open menus
+      list.querySelectorAll(".member-kebab-menu").forEach(m => {
+        if (m !== kebabBtn.nextElementSibling) m.style.display = "none";
+      });
+      const menu = kebabBtn.nextElementSibling;
+      menu.style.display = menu.style.display === "none" ? "block" : "none";
+      return;
+    }
+
     // Remove
     const removeBtn = e.target.closest("[data-remove]");
     if (removeBtn) {
@@ -517,6 +547,8 @@ function renderMemberList(members, wsId, isOwner, meId) {
     if (transferBtn) {
       const uid = transferBtn.dataset.transfer;
       const name = transferBtn.dataset.name || "this member";
+      // Close menu
+      transferBtn.closest(".member-kebab-menu").style.display = "none";
       openConfirm(
         `Transfer ownership to ${name}?`,
         "You will become a regular member and they will become the owner. This cannot be undone.",
@@ -532,51 +564,22 @@ function renderMemberList(members, wsId, isOwner, meId) {
       );
       return;
     }
-    // Permissions
-    const permsBtn = e.target.closest("[data-perms]");
-    if (permsBtn) {
-      openMemberPermissionsModal(wsId, permsBtn.dataset.perms, permsBtn.dataset.name, {
-        can_edit_questions: permsBtn.dataset.ceq === "true",
-        can_edit_settings:  permsBtn.dataset.ces === "true",
-        can_add_members:    permsBtn.dataset.cam === "true",
-        can_see_members:    permsBtn.dataset.csm === "true",
-      });
-      return;
+
+    // Close menus when clicking elsewhere inside list
+    if (!e.target.closest(".member-kebab-wrap")) {
+      list.querySelectorAll(".member-kebab-menu").forEach(m => m.style.display = "none");
     }
   });
+
+  // Close kebab menus on outside click
+  document.addEventListener("click", function closeKebab(e) {
+    if (!e.target.closest(".member-kebab-wrap")) {
+      list.querySelectorAll(".member-kebab-menu").forEach(m => m.style.display = "none");
+    }
+  }, { once: false, capture: false });
 }
 
-// ── Member Permissions Modal ───────────────────────────────────
-function openMemberPermissionsModal(wsId, userId, memberName, currentPerms) {
-  const modal = document.getElementById("member-perms-modal");
-  document.getElementById("perms-member-name").textContent = memberName;
 
-  // Set toggle states
-  document.getElementById("perm-edit-questions").checked = currentPerms.can_edit_questions;
-  document.getElementById("perm-edit-settings").checked  = currentPerms.can_edit_settings;
-  document.getElementById("perm-add-members").checked    = currentPerms.can_add_members;
-  document.getElementById("perm-see-members").checked    = currentPerms.can_see_members;
-
-  document.getElementById("perms-save-btn").onclick = async () => {
-    const newPerms = {
-      can_edit_questions: document.getElementById("perm-edit-questions").checked,
-      can_edit_settings:  document.getElementById("perm-edit-settings").checked,
-      can_add_members:    document.getElementById("perm-add-members").checked,
-      can_see_members:    document.getElementById("perm-see-members").checked,
-    };
-    const btn = document.getElementById("perms-save-btn");
-    btn.disabled = true; btn.textContent = "Saving…";
-    const { error } = await _sb.from("workspace_members")
-      .update({ permissions: newPerms })
-      .eq("workspace_id", wsId).eq("user_id", userId);
-    btn.disabled = false; btn.textContent = "Save";
-    if (error) { toast("Failed to save permissions", "error"); return; }
-    closeModal("member-perms-modal");
-    toast("Permissions updated");
-    openWorkspace(wsId);
-  };
-  openModal("member-perms-modal");
-}
 
 // ── Workspace CRUD ────────────────────────────────────────────
 function openNewWsModal() {
@@ -707,7 +710,7 @@ async function createForm(wsId) {
   btn.disabled = false; btn.textContent = "Create form";
   if (error) { showError("form-modal-error", error.message); return; }
   closeModal("form-modal");
-  window.location.href = `builder.html?form=${data.id}`;
+  window.location.href = `../builder.html?form=${data.id}`;
 }
 
 async function duplicateForm(formId, wsId) {
@@ -813,7 +816,7 @@ document.addEventListener("click", () => {
 });
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await _sb.auth.signOut();
-  window.location.href = "login.html";
+  window.location.href = "../login.html";
 });
 
 // ── Delete Account ─────────────────────────────────────────────
@@ -882,7 +885,7 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
       if (!res.ok) throw new Error("Failed to delete account");
 
       await _sb.auth.signOut();
-      window.location.href = "login.html?deleted=1";
+      window.location.href = "../login.html?deleted=1";
     } catch (err) {
       if (errorEl) {
         errorEl.textContent = "Failed to delete account. Please try again or contact support.";

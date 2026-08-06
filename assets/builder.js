@@ -70,6 +70,13 @@ let settings  = {};
 let saveTimer = null;
 let editingIdx = null; // index of question being edited in modal
 
+// ── Member permissions (for invited users) ────────────────────
+let memberPerms = {
+  can_edit_questions: true,
+  can_edit_settings:  true,
+  is_owner: true,
+};
+
 // ── Theme ─────────────────────────────────────────────────────
 (function() {
   const root = document.documentElement;
@@ -125,6 +132,29 @@ async function init() {
   questions = Array.isArray(data.questions) ? data.questions : [];
   settings  = data.settings || {};
 
+  // ── Load member permissions ────────────────────────────────
+  // Check if current user is owner of this workspace, or a member with specific perms
+  const wsId = data.workspace_id;
+  if (wsId && session.user) {
+    const { data: ws } = await _sb.from("workspaces").select("owner_id").eq("id", wsId).single();
+    const isOwner = ws?.owner_id === session.user.id;
+    if (!isOwner) {
+      const { data: myMember } = await _sb.from("workspace_members")
+        .select("permissions")
+        .eq("workspace_id", wsId)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      const p = myMember?.permissions || {};
+      memberPerms = {
+        can_edit_questions: p.can_edit_questions !== false,
+        can_edit_settings:  p.can_edit_settings  !== false,
+        is_owner: false,
+      };
+    } else {
+      memberPerms = { can_edit_questions: true, can_edit_settings: true, is_owner: true };
+    }
+  }
+
   document.getElementById("topbar-form-title").textContent = data.title;
   document.title = `${data.title} — WateForm`;
 
@@ -132,11 +162,58 @@ async function init() {
   renderSettingsPanel();
   renderQuestionCards();
   updatePublishBtn();
+  applyPermissionUI(); // lock UI jika tidak punya akses
 
   // Auto-open settings panel if ?panel=settings
   if (params.get("panel") === "settings") {
     document.getElementById("settings-panel")?.classList.add("open");
   }
+}
+
+// ── Apply permission restrictions to builder UI ───────────────
+function applyPermissionUI() {
+  // can_edit_questions: false → sembunyikan add-question button dan disable semua q-card actions
+  if (!memberPerms.can_edit_questions) {
+    // Hide add question button and empty state CTA
+    document.querySelectorAll(".center-add-q-btn, #center-empty .btn").forEach(el => {
+      el.style.display = "none";
+    });
+    // Disable the "Add question" type-picker trigger
+    const addQBtn = document.getElementById("add-q-btn");
+    if (addQBtn) { addQBtn.disabled = true; addQBtn.title = "You don't have permission to edit questions"; }
+    // Show readonly banner
+    showReadonlyBanner("questions");
+  }
+
+  // can_edit_settings: false → disable settings panel inputs and publish button
+  if (!memberPerms.can_edit_settings) {
+    const settingsPanel = document.getElementById("settings-panel");
+    if (settingsPanel) {
+      settingsPanel.querySelectorAll("input, select, textarea, button:not(.panel-close)").forEach(el => {
+        el.disabled = true;
+      });
+    }
+    const publishBtn = document.getElementById("publish-btn");
+    if (publishBtn) {
+      publishBtn.disabled = true;
+      publishBtn.title = "You don't have permission to edit form settings";
+    }
+    showReadonlyBanner("settings");
+  }
+}
+
+function showReadonlyBanner(type) {
+  const center = document.getElementById("builder-center");
+  if (!center || center.querySelector(".perms-banner")) return;
+  const banner = document.createElement("div");
+  banner.className = "perms-banner";
+  banner.style.cssText = "background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:12px;display:flex;align-items:center;gap:8px";
+  const msgs = {
+    questions: "You have view-only access to questions in this workspace.",
+    settings:  "You have view-only access to form settings in this workspace.",
+  };
+  banner.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> ${msgs[type] || "Read-only access."}`;
+  center.insertAdjacentElement("afterbegin", banner);
 }
 
 // ── Auto-save ─────────────────────────────────────────────────
@@ -149,8 +226,16 @@ function scheduleSave() {
 async function saveNow() {
   // If the form is published, auto-revert to draft on any change
   const wasPublished = formData?.is_published;
-  const payload = { questions, settings };
-  if (wasPublished) payload.is_published = false;
+  // Only include fields the user has permission to save
+  const payload = {};
+  if (memberPerms.can_edit_questions) payload.questions = questions;
+  if (memberPerms.can_edit_settings)  payload.settings = settings;
+  if (!Object.keys(payload).length) {
+    document.getElementById("save-indicator").textContent = "Read-only";
+    setTimeout(() => { document.getElementById("save-indicator").textContent = ""; }, 2000);
+    return;
+  }
+  if (wasPublished && memberPerms.can_edit_settings) payload.is_published = false;
   await _sb.from("forms").update(payload).eq("id", formId);
   if (wasPublished) {
     formData.is_published = false;
@@ -177,6 +262,7 @@ function renderQTypePicker() {
 }
 
 function addQuestion(type) {
+  if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
   const q = {
     id: uid(), type,
     title: "", subtitle: "",
@@ -686,6 +772,7 @@ document.getElementById("edit-cancel-btn")?.addEventListener("click", () => {
 
 // ── Move / Delete question ────────────────────────────────────
 function moveQuestion(idx, dir) {
+  if (!memberPerms.can_edit_questions) return;
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= questions.length) return;
   [questions[idx], questions[newIdx]] = [questions[newIdx], questions[idx]];
@@ -694,6 +781,7 @@ function moveQuestion(idx, dir) {
 }
 
 function deleteQuestion(idx) {
+  if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
   if (!confirm("Delete this question?")) return;
   questions.splice(idx, 1);
   renderQuestionCards();
@@ -870,6 +958,7 @@ function renderSubmitFields(target) {
 }
 
 async function saveSetting() {
+  if (!memberPerms.can_edit_settings) return;
   const title = document.getElementById("s-title")?.value.trim();
   if (title) {
     formData.title = title;

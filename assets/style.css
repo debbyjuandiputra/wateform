@@ -411,10 +411,10 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .add-q-btn {
   display: flex; align-items: center; justify-content: center; gap: 7px;
   width: 100%; padding: 9px; border-radius: var(--radius);
-  background: none; border: 1px dashed var(--border); color: var(--text-soft);
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s;
+  background: none; border: 1px dashed var(--teal); color: var(--teal);
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s;
 }
-.add-q-btn:hover { border-color: var(--teal); color: var(--teal); }
+.add-q-btn:hover { background: var(--teal-dim); border-color: var(--teal-deep); color: var(--teal-deep); }
 
 /* Center — editor canvas */
 .builder-center {
@@ -652,3 +652,8 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 .perm-toggle:checked + .perm-toggle-track { background: var(--teal); border-color: var(--teal); }
 .perm-toggle:checked + .perm-toggle-track::after { transform: translateX(18px); background: #fff; }
+/* ── Avatar fix: solid teal background always visible ── */
+.topbar-user .avatar {
+  background: var(--teal);
+  color: #04231C;
+}

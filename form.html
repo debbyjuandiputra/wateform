@@ -285,8 +285,59 @@ function renderForm(form) {
     block.className = "q-block";
     const req = q.required ? `<span class="req">*</span>` : "";
 
-    let inputHtml = "";
+    // Title type: render as heading
+    if (q.type === "title") {
+      const titleBlock = document.createElement("div");
+      titleBlock.className = "q-block";
+      titleBlock.innerHTML = `
+        <div style="padding:4px 0 2px">
+          <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1.25">${esc(q.title)}</div>
+          ${q.subtitle ? `<div style="font-size:13.5px;color:var(--text-soft);margin-top:4px;line-height:1.55">${q.subtitle}</div>` : ""}
+        </div>`;
+      card.appendChild(titleBlock);
+      return;
+    }
+
+    // Image type
+    if (q.type === "image") {
+      const imgBlock = document.createElement("div");
+      imgBlock.className = "q-block";
+      const imgSrc = q.mediaUrl || q.imageUploadUrl || "";
+      imgBlock.innerHTML = imgSrc
+        ? `${q.title ? `<div class="q-label">${esc(q.title)}</div>` : ""}
+           ${q.subtitle ? `<div class="q-subtitle">${q.subtitle}</div>` : ""}
+           <img src="${esc(imgSrc)}" alt="" style="width:100%;max-height:420px;object-fit:cover;border-radius:10px;display:block">`
+        : `${q.title ? `<div class="q-label">${esc(q.title)}</div>` : ""}
+           <div style="background:var(--bg-mid);border:1px dashed var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px">No image set</div>`;
+      card.appendChild(imgBlock);
+      return;
+    }
+
+    // Video type
+    if (q.type === "video") {
+      const vidBlock = document.createElement("div");
+      vidBlock.className = "q-block";
+      const vidSrc = q.mediaUrl || q.imageUploadUrl || "";
+      if (vidSrc) {
+        const ytMatch = vidSrc.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+        const embedSrc = ytMatch ? "https://www.youtube.com/embed/" + ytMatch[1] : null;
+        vidBlock.innerHTML = `
+          ${q.title ? `<div class="q-label">${esc(q.title)}</div>` : ""}
+          ${q.subtitle ? `<div class="q-subtitle">${q.subtitle}</div>` : ""}
+          ${embedSrc
+            ? `<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden"><iframe src="${esc(embedSrc)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div>`
+            : `<video src="${esc(vidSrc)}" controls style="width:100%;border-radius:10px;display:block"></video>`}`;
+      } else {
+        vidBlock.innerHTML = `${q.title ? `<div class="q-label">${esc(q.title)}</div>` : ""}<div style="background:var(--bg-mid);border:1px dashed var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px">No video set</div>`;
+      }
+      card.appendChild(vidBlock);
+      return;
+    }
+
+        let inputHtml = "";
     switch (q.type) {
+      case "short":
+      case "short":
       case "text":
       case "url":
         inputHtml = `<input type="${q.type === "url" ? "url" : "text"}" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
@@ -322,8 +373,7 @@ function renderForm(form) {
           `</div>`;
         break;
       }
-      case "choice":
-      case "dropdown": {
+      case "choice": {
         const opts = Array.isArray(q.options) ? q.options : [];
         inputHtml = `<div class="choice-list" id="cl-${q.id}">` +
           opts.map(opt => `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt)}">
@@ -334,6 +384,17 @@ function renderForm(form) {
           </div>
           <input type="text" id="q-${q.id}-other" placeholder="Please specify" style="display:none;width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">` : "") +
           `</div>`;
+        break;
+      }
+      case "dropdown": {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        inputHtml = `<div style="position:relative">
+          <select id="q-${q.id}" class="q-input" style="width:100%;padding:9px 36px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit;appearance:none;cursor:pointer">
+            <option value="">— Pilih —</option>
+            ${opts.map(opt => `<option value="${esc(opt)}">${esc(opt)}</option>`).join("")}
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"><path d="m6 9 6 6 6-6"/></svg>
+        </div>`;
         break;
       }
       case "rating": {
@@ -354,8 +415,10 @@ function renderForm(form) {
     }
 
     block.innerHTML = `
-      <div class="q-label">${esc(q.title)}${req}</div>
+      ${q.image ? `<img src="${esc(q.image)}" alt="" style="max-width:100%;max-height:160px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px">` : ""}
+      ${q.type !== "checkbox" ? `<div class="q-label">${esc(q.title)}${req}</div>` : ""}
       ${q.subtitle ? `<div class="q-subtitle">${q.subtitle}</div>` : ""}
+      ${q.type === "checkbox" ? `<div class="q-label" style="margin-bottom:2px">${esc(q.title)}${req}</div>` : ""}
       ${inputHtml}
       <div class="q-err" style="font-size:12px;color:var(--red);display:none">This field is required.</div>`;
     card.appendChild(block);
@@ -403,7 +466,7 @@ function renderForm(form) {
     }
 
     // Bind choice events
-    if (q.type === "choice" || q.type === "dropdown") {
+    if (q.type === "choice") {
       block.querySelectorAll(".choice-opt").forEach(opt => {
         opt.addEventListener("click", () => {
           block.querySelectorAll(".choice-opt").forEach(o => o.classList.remove("selected"));
@@ -436,6 +499,22 @@ function renderForm(form) {
           });
         });
       });
+    }
+
+    // Bind dropdown select
+    if (q.type === "dropdown") {
+      const sel = block.querySelector(`#q-${q.id}`);
+      if (sel) {
+        sel.addEventListener("change", () => {
+          answers[q.id] = sel.value;
+        });
+      }
+    }
+
+    // Bind dropdown select
+    if (q.type === "dropdown") {
+      const sel = block.querySelector(`#q-${q.id}`);
+      if (sel) sel.addEventListener("change", () => { answers[q.id] = sel.value; });
     }
 
     // Bind text inputs

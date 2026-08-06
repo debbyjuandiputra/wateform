@@ -552,11 +552,11 @@ function renderMemberList(members, wsId, isOwner, meId) {
         `Transfer ownership to ${name}?`,
         "You will become a regular member and they will become the owner. This cannot be undone.",
         async () => {
-          const { error } = await _sb.rpc("transfer_workspace_ownership", {
+          const { data: rpcData, error } = await _sb.rpc("transfer_workspace_ownership", {
             p_workspace_id: wsId,
             p_new_owner_id: uid
           });
-          if (error) { toast("Transfer failed: " + error.message, "error"); return; }
+          console.error("Transfer error:", JSON.stringify(error)); if (error) { toast("Transfer failed: " + (error.message || error.details || error.hint || JSON.stringify(error)), "error"); return; }
           toast("Ownership transferred");
           await loadWorkspaces();
           openWorkspace(wsId);
@@ -805,9 +805,7 @@ function openConfirm(title, body, onOk, okLabel) {
   document.getElementById("confirm-body").textContent = body;
   const okBtn = document.getElementById("confirm-ok-btn");
   okBtn.textContent = okLabel || "Delete";
-  okBtn.className = (okLabel && okLabel !== "Delete")
-    ? "btn btn-solid btn-sm"
-    : "btn btn-danger btn-sm";
+  okBtn.className = "btn btn-danger btn-sm";
   okBtn.onclick = () => { closeModal("confirm-modal"); onOk(); };
   openModal("confirm-modal");
 }

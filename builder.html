@@ -81,6 +81,35 @@
 .edit-modal-body hr {
   border: none; border-top: 1px solid var(--border); margin: 4px 0;
 }
+
+/* ── Add question button (bottom of list) ───────────────────── */
+.center-add-q-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; max-width: 640px;
+  padding: 12px 20px;
+  margin-top: 4px;
+  font-size: 14px; font-weight: 600;
+  color: var(--teal-deep);
+  background: var(--teal-dim);
+  border: 2px dashed var(--teal);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.center-add-q-btn:hover {
+  background: rgba(43,189,164,.2);
+  color: var(--teal);
+}
+[data-theme="dark"] .center-add-q-btn {
+  color: var(--teal);
+}
+
+/* ── Question image small preview in modal ──────────────────── */
+.img-preview {
+  max-width: 120px; max-height: 80px;
+  border-radius: 6px; margin-top: 6px;
+  object-fit: cover; border: 1px solid var(--border);
+}
 </style>
 </head>
 <body>

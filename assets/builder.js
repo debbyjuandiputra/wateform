@@ -385,9 +385,10 @@ function openEditModal(idx) {
   body.appendChild(makeField(
     isTitle ? "Heading text" : "Title",
     "input",
-    { type:"text", id:"em-title", value: q.title, placeholder: isTitle ? "Section heading…" : "Question title…", maxlength:"200" }
+    { type:"text", id:"em-title", value: q.title, placeholder: isTitle ? "Section heading…" : "Question title…", maxlength:"200", style: isTitle ? "font-size:20px;font-weight:700;letter-spacing:-.3px" : "font-size:15px;font-weight:600" }
   ));
 
+  if (!isTitle) {
   // ── Common: Subtitle (rich)
   const subtitleWrap = document.createElement("div");
   subtitleWrap.className = "field";
@@ -416,6 +417,7 @@ function openEditModal(idx) {
   subtitleWrap.appendChild(toolbar);
   subtitleWrap.appendChild(editor);
   body.appendChild(subtitleWrap);
+  }
 
   // ── Type-specific fields
   if (["short","long","number","date"].includes(q.type)) {
@@ -426,7 +428,7 @@ function openEditModal(idx) {
 
   if (q.type === "email") {
     body.appendChild(makeField("Placeholder", "input",
-      { type:"text", id:"em-placeholder", value: q.placeholder, placeholder:"e.g. you@example.com", maxlength:"120" }
+      { type:"text", id:"em-placeholder", value: q.placeholder, maxlength:"120" }
     ));
     body.appendChild(makeToggleField("Require @gmail.com only", "em-gmail-only", q.gmailOnly));
   }
@@ -448,7 +450,7 @@ function openEditModal(idx) {
     wrap.appendChild(sel);
     body.appendChild(wrap);
     body.appendChild(makeField("Placeholder", "input",
-      { type:"text", id:"em-placeholder", value: q.placeholder, placeholder:"e.g. 812-3456-7890", maxlength:"60" }
+      { type:"text", id:"em-placeholder", value: q.placeholder, maxlength:"60" }
     ));
   }
 
@@ -624,6 +626,15 @@ function openEditModal(idx) {
         const objUrl = URL.createObjectURL(file);
         imgUrlInp.value = objUrl;
         imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' + file.name.slice(0,12) + (file.name.length>12?'…':'');
+        // Show small preview
+        let prevEl = imgWrap.querySelector(".img-preview");
+        if (!prevEl) {
+          prevEl = document.createElement("img");
+          prevEl.className = "img-preview";
+          prevEl.style.cssText = "max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;object-fit:cover;border:1px solid var(--border)";
+          imgWrap.appendChild(prevEl);
+        }
+        prevEl.src = objUrl;
       }
     });
 
@@ -631,9 +642,11 @@ function openEditModal(idx) {
     body.appendChild(imgWrap);
   }
 
-  // ── Required toggle
-  body.appendChild(document.createElement("hr"));
-  body.appendChild(makeToggleField("Required", "em-required", q.required));
+  // ── Required toggle (not for title type)
+  if (!isTitle) {
+    body.appendChild(document.createElement("hr"));
+    body.appendChild(makeToggleField("Required", "em-required", q.required));
+  }
 
   // ── Move up/down
   const moveRow = document.createElement("div");
@@ -979,7 +992,12 @@ async function saveSetting() {
     if (formData?.is_published) { settingPayload.is_published = false; formData.is_published = false; updatePublishBtn(); }
     await _sb.from("forms").update(settingPayload).eq("id", formId);
   }
-  settings.slug        = document.getElementById("s-slug")?.value.trim() || null;
+  const newSlug = document.getElementById("s-slug")?.value.trim() || null;
+  if (newSlug !== settings.slug) {
+    // Update short_id in forms table
+    await _sb.from("forms").update({ short_id: newSlug }).eq("id", formId);
+  }
+  settings.slug        = newSlug;
   settings.target      = document.getElementById("s-target")?.value || "wa";
   settings.waPrefix    = document.getElementById("s-wa-prefix")?.value || "+62";
   settings.waNumber    = document.getElementById("s-wa-number")?.value.trim() || "";
@@ -1140,8 +1158,8 @@ function buildPreviewField(q, i) {
   if (q.type === "rating")   control = `<div style="display:flex;gap:6px">${Array(q.maxRating||5).fill("★").map(s=>`<span style="font-size:24px;cursor:pointer;color:var(--teal)">★</span>`).join("")}</div>`;
   if (q.type === "dropdown") control = `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${(q.options||[]).map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
   if (q.type === "choice")   control = `<div style="display:flex;flex-direction:column;gap:6px">${(q.options||[]).map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o)}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`;
-  if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="max-width:100%;border-radius:8px">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:32px;text-align:center;color:var(--text-muted);font-size:13px">Image will appear here</div>`;
-  if (q.type === "video")    control = q.mediaUrl ? `<video src="${esc(q.mediaUrl)}" controls style="width:100%;border-radius:8px"></video>` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:32px;text-align:center;color:var(--text-muted);font-size:13px">Video will appear here</div>`;
+  if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;display:block">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5L5 21'/></svg>Image will appear here</div>`;
+  if (q.type === "video")    control = q.mediaUrl ? `<video src="${esc(q.mediaUrl)}" controls style="width:100%;border-radius:10px;display:block"></video>` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='2' y='4' width='20' height='16' rx='2'/><polygon points='10 9 15 12 10 15 10 9'/></svg>Video will appear here</div>`;
 
   return `
     <div style="margin-bottom:20px">

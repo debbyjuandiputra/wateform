@@ -159,11 +159,14 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Read ws_short and form_short from query string (?ws=X&f=Y)
-// These are set by 404.html which redirects here
-const params    = new URLSearchParams(window.location.search);
-const wsShort   = params.get("ws");
-const formShort = params.get("f");
+// Read params from query string — set by 404.html which redirects here.
+// Two shapes:
+//   ?ws=X&f=Y  — auto-generated two-segment URL
+//   ?slug=X    — custom single-segment URL
+const params     = new URLSearchParams(window.location.search);
+const wsShort    = params.get("ws");
+const formShort  = params.get("f");
+const customSlug = params.get("slug");
 
 // ── Theme ─────────────────────────────────────────────────────
 (function(){
@@ -649,33 +652,50 @@ function renderForm(form) {
 
 // ── Main: fetch form ──────────────────────────────────────────
 (async function() {
-  if (!wsShort || !formShort) {
+  let form = null;
+
+  if (customSlug) {
+    // ── Custom single-segment URL: wateform.my.id/{slug} ──────
+    const { data, error } = await sb
+      .from("forms")
+      .select("*")
+      .eq("slug", customSlug)
+      .maybeSingle();
+
+    if (error || !data) {
+      showError("This form link is invalid or has been deleted.");
+      return;
+    }
+    form = data;
+
+  } else if (wsShort && formShort) {
+    // ── Auto-generated two-segment URL: /ws_short/form_short ──
+    const { data: wsData, error: wsErr } = await sb
+      .from("workspaces")
+      .select("id")
+      .eq("short_id", wsShort)
+      .single();
+
+    if (wsErr || !wsData) {
+      showError("This form link is invalid or has been deleted.");
+      return;
+    }
+
+    const { data, error: formErr } = await sb
+      .from("forms")
+      .select("*")
+      .eq("short_id", formShort)
+      .eq("workspace_id", wsData.id)
+      .single();
+
+    if (formErr || !data) {
+      showError("This form link is invalid or has been deleted.");
+      return;
+    }
+    form = data;
+
+  } else {
     showError("No form ID found in the URL.");
-    return;
-  }
-
-  // Find workspace by short_id
-  const { data: wsData, error: wsErr } = await sb
-    .from("workspaces")
-    .select("id")
-    .eq("short_id", wsShort)
-    .single();
-
-  if (wsErr || !wsData) {
-    showError("This form link is invalid or has been deleted.");
-    return;
-  }
-
-  // Find form by short_id within workspace
-  const { data: form, error: formErr } = await sb
-    .from("forms")
-    .select("*")
-    .eq("short_id", formShort)
-    .eq("workspace_id", wsData.id)
-    .single();
-
-  if (formErr || !form) {
-    showError("This form link is invalid or has been deleted.");
     return;
   }
 

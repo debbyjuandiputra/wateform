@@ -119,13 +119,20 @@ function uid() { return Math.random().toString(36).slice(2,9); }
 
 // ── Media upload (Supabase Storage) ─────────────────────────────
 async function uploadFormMedia(file) {
-  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const ext  = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
   const path = `${formId || "misc"}/${Date.now()}-${uid()}${ext ? "." + ext : ""}`;
   const { error } = await _sb.storage.from("form-media").upload(path, file, {
     cacheControl: "3600",
     upsert: false,
   });
-  if (error) throw error;
+  if (error) {
+    // Give the user a clear message when the storage bucket hasn't been created yet
+    const msg = error.message || String(error);
+    if (msg.includes("Bucket not found") || msg.includes("not found") || error.statusCode === 404) {
+      throw new Error("Storage bucket not set up. Please run migration 20260806_009_form_media_bucket.sql in Supabase SQL Editor first.");
+    }
+    throw error;
+  }
   const { data } = _sb.storage.from("form-media").getPublicUrl(path);
   return data?.publicUrl || "";
 }
@@ -593,9 +600,10 @@ function openEditModal(idx) {
         toast("File uploaded");
       } catch (err) {
         console.error("Upload failed:", err);
-        uploadHint.textContent = "Upload failed. Please try again.";
+        const msg = err?.message || "Upload failed. Please try again.";
+        uploadHint.textContent = msg;
         uploadHint.style.color = "var(--red)";
-        toast("Upload failed", "error");
+        toast(msg.length > 80 ? "Upload failed — check console for details" : msg, "error");
       } finally {
         uploadBtn.disabled = false;
       }
@@ -691,8 +699,10 @@ function openEditModal(idx) {
         toast("Image uploaded");
       } catch (err) {
         console.error("Upload failed:", err);
-        toast("Upload failed", "error");
+        const msg = err?.message || "Upload failed";
+        toast(msg.length > 80 ? "Upload failed — check console for details" : msg, "error");
         imgUrlInp.value = "";
+        prevEl.src = "";
       } finally {
         imgUploadBtn.disabled = false;
         URL.revokeObjectURL(objUrl);
@@ -888,7 +898,8 @@ function getSubmitPlaceholder(target) {
 function renderSettingsPanel() {
   const s = settings;
   const body = document.getElementById("settings-body");
-  const formSlug = s.slug || formData?.short_id || "";
+  // formData.slug is the custom slug column; settings.slug is legacy — prefer the column
+  const formSlug = formData?.slug || "";
 
   body.innerHTML = `
     <div class="field">
@@ -902,13 +913,13 @@ function renderSettingsPanel() {
     <div class="settings-sep"></div>
     <div class="field">
       <label>Public URL</label>
-      <div style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
-        <span style="color:var(--text-muted);white-space:nowrap">${window.location.host}/${esc(wsShortId)}/</span>
-        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="20" minlength="4"
+      <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
+        <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
+        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4"
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)"
-          placeholder="auto">
+          placeholder="${esc(wsShortId)}/${esc(formData?.short_id || 'auto')}">
       </div>
-      <div class="hint" id="s-slug-hint">Leave blank to use auto-generated ID, or enter at least 4 characters.</div>
+      <div class="hint" id="s-slug-hint">Type a custom name (min 4 chars) for a short link like <strong>${window.location.host}/your-custom-name</strong>. Leave blank to use the default two-part link.</div>
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1059,13 +1070,14 @@ async function saveSetting() {
   if (newSlug && newSlug.length < 4) {
     if (slugHint) { slugHint.textContent = "Custom link must be at least 4 characters."; slugHint.style.color = "var(--red)"; }
     slugInput?.classList.add("input-error");
-    newSlug = settings.slug || null; // don't persist an invalid value
+    newSlug = formData?.slug || null; // don't persist an invalid value
   } else {
-    if (slugHint) { slugHint.textContent = "Leave blank to use auto-generated ID, or enter at least 4 characters."; slugHint.style.color = ""; }
+    if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
     slugInput?.classList.remove("input-error");
     if (newSlug !== settings.slug) {
-      // Update short_id in forms table
-      await _sb.from("forms").update({ short_id: newSlug }).eq("id", formId);
+      // Save into the dedicated `slug` column; short_id stays as the auto-generated ID
+      await _sb.from("forms").update({ slug: newSlug || null }).eq("id", formId);
+      if (formData) formData.slug = newSlug || null;
     }
   }
   settings.slug        = newSlug;

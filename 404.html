@@ -6,48 +6,63 @@
 <title>WateForm</title>
 <script>
 // GitHub Pages serves this file for any path that doesn't exist.
-// We use it to intercept /{ws_short_id}/{form_short_id} URLs
-// and redirect them to form.html?ws=...&f=...
+// Handles two URL shapes:
+//   /{ws_short}/{form_short}  →  form.html?ws=X&f=Y      (auto-generated links)
+//   /{custom_slug}            →  form.html?slug=X         (custom single-segment links)
 
 (function() {
-  // path e.g. "/EMvgBp/LqvH5n" or "/username.github.io/reponame/EMvgBp/LqvH5n"
-  var path = window.location.pathname;
-
-  // Strip leading slash and split
+  var path  = window.location.pathname;
   var parts = path.replace(/^\//, "").split("/").filter(Boolean);
 
-  // If repo is in a subdirectory (e.g. github.io/wateform/...), strip the first segment
-  // Detect by checking if we're NOT at the root of a custom domain
-  // We'll try both last-two-segments and all segments
-  // Strategy: the last two non-empty segments are ws_short and form_short (each 6 chars)
-  var wsShort, formShort;
+  // Compute the root path (handles GitHub Pages subdirectory deployments)
+  // For a custom domain at root, rootPath = "/"
+  // For github.io/repo/... the repo segment is stripped automatically by GH Pages 404 routing
 
-  // Walk from the end: find two consecutive 6-char alphanumeric segments
+  var rootPath = "/";
+
+  // ── Two-segment: /{ws_short}/{form_short} ──────────────────
+  // Both segments are 4-12 alphanumeric chars (auto-generated short_ids look like "AbCd12")
+  var wsShort, formShort;
   for (var i = parts.length - 1; i >= 1; i--) {
     if (/^[A-Za-z0-9]{4,12}$/.test(parts[i]) && /^[A-Za-z0-9]{4,12}$/.test(parts[i-1])) {
       wsShort   = parts[i-1];
       formShort = parts[i];
+      // Recalculate rootPath: strip the two matched segments
+      rootPath  = "/" + parts.slice(0, i - 1).join("/");
+      if (rootPath !== "/") rootPath += "/";
       break;
     }
   }
 
   if (wsShort && formShort) {
-    var base = window.location.origin + window.location.pathname
-      .split("/").slice(0, -2).join("/"); // go up two levels to find root
-    // Actually just use origin-relative root with repo prefix if any
-    // Simplest: redirect to /form.html?ws=X&f=Y from the same origin/base
-    var rootPath = window.location.pathname.replace(/\/[^/]+\/[^/]+\/?$/, "") || "/";
-    window.location.replace(rootPath + "form.html?ws=" + encodeURIComponent(wsShort) + "&f=" + encodeURIComponent(formShort));
-  } else {
-    // Not a form URL — show a proper 404 message
-    document.title = "Page not found — WateForm";
-    document.body.innerHTML = '<div style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:12px;text-align:center;padding:24px">'
-      + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7A9490" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
-      + '<h1 style="font-size:20px;font-weight:800;margin:0">Page not found</h1>'
-      + '<p style="color:#7A9490;margin:0">The link you followed doesn\'t exist.</p>'
-      + '<a href="/" style="color:#2BBDA4;font-weight:600;margin-top:8px">Go to WateForm</a>'
-      + '</div>';
+    window.location.replace(
+      rootPath + "form.html?ws=" + encodeURIComponent(wsShort) + "&f=" + encodeURIComponent(formShort)
+    );
+    return;
   }
+
+  // ── Single-segment: /{custom_slug} ────────────────────────
+  // A single segment that is 4–40 chars (URL-safe: letters, digits, hyphens, underscores)
+  var lastPart = parts[parts.length - 1] || "";
+  if (parts.length >= 1 && /^[A-Za-z0-9_-]{4,40}$/.test(lastPart)) {
+    // Could be a custom slug — pass to form.html which will query the DB
+    rootPath = "/" + parts.slice(0, parts.length - 1).join("/");
+    if (rootPath !== "/") rootPath += "/";
+    window.location.replace(
+      rootPath + "form.html?slug=" + encodeURIComponent(lastPart)
+    );
+    return;
+  }
+
+  // ── Not a form URL — proper 404 ───────────────────────────
+  document.title = "Page not found — WateForm";
+  document.body.innerHTML =
+    '<div style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:12px;text-align:center;padding:24px">'
+    + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7A9490" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
+    + '<h1 style="font-size:20px;font-weight:800;margin:0">Page not found</h1>'
+    + '<p style="color:#7A9490;margin:0">The link you followed doesn\'t exist.</p>'
+    + '<a href="/" style="color:#2BBDA4;font-weight:600;margin-top:8px">Go to WateForm</a>'
+    + '</div>';
 })();
 </script>
 </head>

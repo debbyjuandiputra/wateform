@@ -366,7 +366,10 @@ function renderFormList(forms, wsId, isOwner) {
   }
   list.innerHTML = "";
   forms.forEach(form => {
-    const url = `${BASE_URL}/${workspaces.find(w=>w.id===wsId)?.short_id}/${form.short_id}`;
+    const wsShortId = workspaces.find(w=>w.id===wsId)?.short_id || "";
+    const url = form.slug
+      ? `${BASE_URL}/${form.slug}`
+      : `${BASE_URL}/${wsShortId}/${form.short_id}`;
     const target = form.settings?.target;
 
     const row = document.createElement("div");

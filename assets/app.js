@@ -66,11 +66,11 @@ function sb() {
     const client = sb();
     if (!client) return;
     const { data: { session } } = await client.auth.getSession();
-    if (session) { window.location.replace("/dashboard/"); return; }
+    if (session) { window.location.replace("dashboard/"); return; }
     // Dengarkan kalau token di-refresh dari tab lain
     client.auth.onAuthStateChange((event, s) => {
       if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && s) {
-        window.location.replace("/dashboard/");
+        window.location.replace("dashboard/");
       }
     });
   })();
@@ -197,7 +197,7 @@ function sb() {
         return;
       }
 
-      window.location.href = "/dashboard/";
+      window.location.href = "dashboard/";
     });
   }
 
@@ -459,7 +459,7 @@ function sb() {
 
       // Verifikasi berhasil → langsung ke dashboard
       pendingEmail = null;
-      window.location.href = "/dashboard/";
+      window.location.href = "dashboard/";
     });
   }
 

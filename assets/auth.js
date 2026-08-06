@@ -180,7 +180,7 @@ function sb() {
         return;
       }
 
-      window.location.href = "dashboard.html";
+      window.location.href = "dashboard/";
     });
   }
 
@@ -293,7 +293,7 @@ function sb() {
         return;
       }
 
-      window.location.href = "dashboard.html";
+      window.location.href = "dashboard/";
     });
   }
 
@@ -452,7 +452,7 @@ function sb() {
 
       // Verifikasi berhasil → langsung ke dashboard
       pendingEmail = null;
-      window.location.href = "dashboard.html";
+      window.location.href = "dashboard/";
     });
   }
 

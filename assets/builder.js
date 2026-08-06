@@ -116,17 +116,28 @@ function esc(str) {
 }
 function uid() { return Math.random().toString(36).slice(2,9); }
 
+// ── Auth state listener ───────────────────────────────────────
+_sb.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+    window.location.replace("login.html");
+  }
+});
+
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  const { data: { session } } = await _sb.auth.getSession();
-  if (!session) { window.location.href = "login.html"; return; }
+  let { data: { session } } = await _sb.auth.getSession();
+  if (!session) {
+    const { data: refreshed } = await _sb.auth.refreshSession();
+    session = refreshed?.session ?? null;
+  }
+  if (!session) { window.location.replace("login.html"); return; }
 
   const params = new URLSearchParams(location.search);
   formId = params.get("form");
-  if (!formId) { window.location.href = "dashboard.html"; return; }
+  if (!formId) { window.location.href = "dashboard/"; return; }
 
   const { data, error } = await _sb.from("forms").select("*").eq("id", formId).single();
-  if (error || !data) { window.location.href = "dashboard.html"; return; }
+  if (error || !data) { window.location.href = "dashboard/"; return; }
 
   formData  = data;
   questions = Array.isArray(data.questions) ? data.questions : [];
@@ -865,9 +876,10 @@ function renderSettingsPanel() {
     <div id="s-submit-wrap"></div>
     <div class="settings-sep"></div>
     <div class="field">
+      <label>Description <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span></label>
       <label style="display:flex;align-items:center;gap:6px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        Schedule
+        Schedule <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
       </label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
         <div>
@@ -1069,8 +1081,8 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
     toast("Form published! Redirecting…");
     setTimeout(() => {
       window.location.href = wsId
-        ? `dashboard.html?ws=${wsId}`
-        : "dashboard.html";
+        ? `dashboard/?ws=${wsId}`
+        : "dashboard/";
     }, 1200);
   } else {
     toast("Form unpublished");

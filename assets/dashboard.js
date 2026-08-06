@@ -552,10 +552,11 @@ function renderMemberList(members, wsId, isOwner, meId) {
         `Transfer ownership to ${name}?`,
         "You will become a regular member and they will become the owner. This cannot be undone.",
         async () => {
-          const { error: e1 } = await _sb.from("workspace_members").update({ role: "owner" }).eq("workspace_id", wsId).eq("user_id", uid);
-          const { error: e2 } = await _sb.from("workspace_members").update({ role: "member" }).eq("workspace_id", wsId).eq("user_id", meId);
-          const { error: e3 } = await _sb.from("workspaces").update({ owner_id: uid }).eq("id", wsId);
-          if (e1 || e2 || e3) { toast("Transfer failed", "error"); return; }
+          const { error } = await _sb.rpc("transfer_workspace_ownership", {
+            p_workspace_id: wsId,
+            p_new_owner_id: uid
+          });
+          if (error) { toast("Transfer failed: " + error.message, "error"); return; }
           toast("Ownership transferred");
           await loadWorkspaces();
           openWorkspace(wsId);

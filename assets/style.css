@@ -103,6 +103,7 @@ input, textarea, select { font-family: inherit; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label { font-size: 13px; font-weight: 600; color: var(--text); }
 .field .hint  { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.input-error  { outline: 1px solid var(--red) !important; border-radius: var(--radius); }
 .field .error-text { font-size: 12px; color: var(--red); display: none; }
 .field.invalid .error-text { display: block; }
 .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--red) !important; }
@@ -211,7 +212,8 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 56px 24px; text-align: center; gap: 12px;
 }
-.empty-state svg { color: var(--text-muted); opacity: .5; }
+.empty-state > svg { color: var(--text-muted); opacity: .5; }
+.empty-state .btn svg { color: inherit; opacity: 1; }
 .empty-state h4 { font-size: 15px; font-weight: 600; margin: 0; }
 .empty-state p  { font-size: 13.5px; color: var(--text-soft); margin: 0; max-width: 280px; }
 

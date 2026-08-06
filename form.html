@@ -390,7 +390,7 @@ function renderForm(form) {
         const opts = Array.isArray(q.options) ? q.options : [];
         inputHtml = `<div style="position:relative">
           <select id="q-${q.id}" class="q-input" style="width:100%;padding:9px 36px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit;appearance:none;cursor:pointer">
-            <option value="">— Pilih —</option>
+            <option value="">— Select —</option>
             ${opts.map(opt => `<option value="${esc(opt)}">${esc(opt)}</option>`).join("")}
           </select>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"><path d="m6 9 6 6 6-6"/></svg>
@@ -593,10 +593,34 @@ function renderForm(form) {
   }
 
   // ── Submit ──────────────────────────────────────────────────
-  function doSubmit(targetOverride) {
+  let submitting = false;
+  async function doSubmit(targetOverride) {
+    if (submitting) return;
     if (!validateForm()) return;
+    submitting = true;
+    const btns = [
+      document.getElementById("submit-btn-wa"),
+      document.getElementById("submit-btn-tg"),
+      document.getElementById("submit-btn"),
+    ].filter(Boolean);
+    btns.forEach(b => b.disabled = true);
+
+    try {
+      // Record the response (who answered what, and when) before sending off.
+      await sb.from("responses").insert({
+        form_id: form.id,
+        answers: answers,
+        sent_to: targetOverride || target,
+      });
+    } catch (err) {
+      console.error("Failed to save response:", err);
+      // Non-blocking: still let the person send their answers even if the save failed.
+    }
+
     window.open(buildLink(settings, questions, answers, targetOverride), "_blank");
     showSuccess(settings, targetOverride);
+    btns.forEach(b => b.disabled = false);
+    submitting = false;
   }
 
   if (target === "both") {

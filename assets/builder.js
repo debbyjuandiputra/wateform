@@ -65,6 +65,7 @@ const LANGUAGES = [
 // ── State ─────────────────────────────────────────────────────
 let formId    = null;
 let formData  = null;
+let wsShortId = "";
 let questions = [];
 let settings  = {};
 let saveTimer = null;
@@ -116,6 +117,19 @@ function esc(str) {
 }
 function uid() { return Math.random().toString(36).slice(2,9); }
 
+// ── Media upload (Supabase Storage) ─────────────────────────────
+async function uploadFormMedia(file) {
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const path = `${formId || "misc"}/${Date.now()}-${uid()}${ext ? "." + ext : ""}`;
+  const { error } = await _sb.storage.from("form-media").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data } = _sb.storage.from("form-media").getPublicUrl(path);
+  return data?.publicUrl || "";
+}
+
 // ── Auth state listener ───────────────────────────────────────
 _sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
@@ -147,7 +161,8 @@ async function init() {
   // Check if current user is owner of this workspace, or a member with specific perms
   const wsId = data.workspace_id;
   if (wsId && session.user) {
-    const { data: ws } = await _sb.from("workspaces").select("owner_id").eq("id", wsId).single();
+    const { data: ws } = await _sb.from("workspaces").select("owner_id, short_id").eq("id", wsId).single();
+    wsShortId = ws?.short_id || "";
     const isOwner = ws?.owner_id === session.user.id;
     if (!isOwner) {
       const { data: myMember } = await _sb.from("workspace_members")
@@ -554,9 +569,36 @@ function openEditModal(idx) {
       link.textContent = q.imageUploadUrl;
       uploadPane.appendChild(link);
     }
-    fileInp.addEventListener("change", () => {
+    fileInp.addEventListener("change", async () => {
       const file = fileInp.files?.[0];
-      uploadHint.textContent = file ? file.name : "No file chosen";
+      if (!file) { uploadHint.textContent = "No file chosen"; return; }
+      const maxMb = 25;
+      if (file.size > maxMb * 1024 * 1024) {
+        uploadHint.textContent = `File too large (max ${maxMb}MB).`;
+        uploadHint.style.color = "var(--red)";
+        fileInp.value = "";
+        return;
+      }
+      uploadHint.style.color = "";
+      uploadHint.textContent = "Uploading…";
+      uploadBtn.disabled = true;
+      try {
+        const publicUrl = await uploadFormMedia(file);
+        q.imageUploadUrl = publicUrl;
+        urlInp.value = publicUrl;      // saveEditToMemory reads mediaUrl from this field
+        setMediaTab("url");
+        modeInp.value = "url";
+        q.imageInputMode = "url";
+        uploadHint.textContent = "Uploaded: " + file.name;
+        toast("File uploaded");
+      } catch (err) {
+        console.error("Upload failed:", err);
+        uploadHint.textContent = "Upload failed. Please try again.";
+        uploadHint.style.color = "var(--red)";
+        toast("Upload failed", "error");
+      } finally {
+        uploadBtn.disabled = false;
+      }
     });
     uploadPane.appendChild(fileInp);
     uploadPane.appendChild(uploadBtn);
@@ -620,21 +662,40 @@ function openEditModal(idx) {
     imgUrlRow.appendChild(imgFileInp);
     imgUrlRow.appendChild(imgUploadBtn);
 
-    imgFileInp.addEventListener("change", () => {
+    imgFileInp.addEventListener("change", async () => {
       const file = imgFileInp.files?.[0];
-      if (file) {
-        const objUrl = URL.createObjectURL(file);
-        imgUrlInp.value = objUrl;
+      if (!file) return;
+      const maxMb = 25;
+      if (file.size > maxMb * 1024 * 1024) {
+        toast(`File too large (max ${maxMb}MB)`, "error");
+        imgFileInp.value = "";
+        return;
+      }
+      const objUrl = URL.createObjectURL(file);
+      imgUrlInp.value = objUrl; // instant local preview while uploading
+      let prevEl = imgWrap.querySelector(".img-preview");
+      if (!prevEl) {
+        prevEl = document.createElement("img");
+        prevEl.className = "img-preview";
+        prevEl.style.cssText = "max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;object-fit:cover;border:1px solid var(--border)";
+        imgWrap.appendChild(prevEl);
+      }
+      prevEl.src = objUrl;
+      imgUploadBtn.disabled = true;
+      imgUploadBtn.textContent = "Uploading…";
+      try {
+        const publicUrl = await uploadFormMedia(file);
+        imgUrlInp.value = publicUrl; // replace blob url with the real hosted url
+        prevEl.src = publicUrl;
         imgUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' + file.name.slice(0,12) + (file.name.length>12?'…':'');
-        // Show small preview
-        let prevEl = imgWrap.querySelector(".img-preview");
-        if (!prevEl) {
-          prevEl = document.createElement("img");
-          prevEl.className = "img-preview";
-          prevEl.style.cssText = "max-width:120px;max-height:80px;border-radius:6px;margin-top:6px;object-fit:cover;border:1px solid var(--border)";
-          imgWrap.appendChild(prevEl);
-        }
-        prevEl.src = objUrl;
+        toast("Image uploaded");
+      } catch (err) {
+        console.error("Upload failed:", err);
+        toast("Upload failed", "error");
+        imgUrlInp.value = "";
+      } finally {
+        imgUploadBtn.disabled = false;
+        URL.revokeObjectURL(objUrl);
       }
     });
 
@@ -842,12 +903,12 @@ function renderSettingsPanel() {
     <div class="field">
       <label>Public URL</label>
       <div style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
-        <span style="color:var(--text-muted);white-space:nowrap">${window.location.host}/</span>
-        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="20"
+        <span style="color:var(--text-muted);white-space:nowrap">${window.location.host}/${esc(wsShortId)}/</span>
+        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="20" minlength="4"
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)"
           placeholder="auto">
       </div>
-      <!-- <div class="hint">Leave blank to use auto-generated ID.</div> -->
+      <div class="hint" id="s-slug-hint">Leave blank to use auto-generated ID, or enter at least 4 characters.</div>
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -992,10 +1053,20 @@ async function saveSetting() {
     if (formData?.is_published) { settingPayload.is_published = false; formData.is_published = false; updatePublishBtn(); }
     await _sb.from("forms").update(settingPayload).eq("id", formId);
   }
-  const newSlug = document.getElementById("s-slug")?.value.trim() || null;
-  if (newSlug !== settings.slug) {
-    // Update short_id in forms table
-    await _sb.from("forms").update({ short_id: newSlug }).eq("id", formId);
+  const slugInput = document.getElementById("s-slug");
+  const slugHint  = document.getElementById("s-slug-hint");
+  let newSlug = slugInput?.value.trim() || null;
+  if (newSlug && newSlug.length < 4) {
+    if (slugHint) { slugHint.textContent = "Custom link must be at least 4 characters."; slugHint.style.color = "var(--red)"; }
+    slugInput?.classList.add("input-error");
+    newSlug = settings.slug || null; // don't persist an invalid value
+  } else {
+    if (slugHint) { slugHint.textContent = "Leave blank to use auto-generated ID, or enter at least 4 characters."; slugHint.style.color = ""; }
+    slugInput?.classList.remove("input-error");
+    if (newSlug !== settings.slug) {
+      // Update short_id in forms table
+      await _sb.from("forms").update({ short_id: newSlug }).eq("id", formId);
+    }
   }
   settings.slug        = newSlug;
   settings.target      = document.getElementById("s-target")?.value || "wa";

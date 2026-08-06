@@ -780,9 +780,9 @@ async function openResponses(formId) {
         <div><h2>Responses · ${esc(form?.title || "Form")}</h2><p>${responses?.length || 0} submissions</p></div>
       </div>
     </div>
-    <div class="dash-body" style="overflow-x:auto">
+    <div class="dash-body">
       ${!responses?.length ? `<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h4>No responses yet</h4><p>Responses will appear here after someone submits the form.</p></div>` :
-      `<table class="resp-table">
+      `<div class="resp-table-wrap"><table class="resp-table">
         <thead><tr>
           <th>#</th>
           ${questions.map(q => `<th>${esc(q.title || q.type)}</th>`).join("")}
@@ -796,7 +796,7 @@ async function openResponses(formId) {
             <td style="color:var(--text-muted);white-space:nowrap">${new Date(r.submitted_at).toLocaleString()}</td>
           </tr>`).join("")}
         </tbody>
-      </table>`}
+      </table></div>`}
     </div>
   `;
   document.getElementById("back-from-resp").addEventListener("click", () => openWorkspace(activeWsId));

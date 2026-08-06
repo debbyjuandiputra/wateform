@@ -843,10 +843,9 @@ function renderSettingsPanel() {
       <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
         <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
         <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4"
-          style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)"
-          placeholder="${esc(wsShortId)}/${esc(formData?.short_id || 'auto')}">
+          style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)">
       </div>
-      <div class="hint" id="s-slug-hint">Type a custom name (min 4 chars) for a short link like <strong>${window.location.host}/your-custom-name</strong>. Leave blank to use the default two-part link.</div>
+      <!-- <div class="hint" id="s-slug-hint">Type a custom name (min 4 chars) for a short link like <strong>${window.location.host}/your-custom-name</strong>. Leave blank to use the default two-part link.</div> -->
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -888,7 +887,6 @@ function renderSettingsPanel() {
     <div id="s-submit-wrap"></div>
     <div class="settings-sep"></div>
     <div class="field">
-      <label>Description <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span></label>
       <label style="display:flex;align-items:center;gap:6px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         Schedule <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
@@ -911,6 +909,14 @@ function renderSettingsPanel() {
       </div>
       <div id="s-schedule-preview" style="margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
     </div>
+    <div class="field" id="s-closed-msg-wrap" style="display:${s.closeAt ? '' : 'none'}">
+      <label style="display:flex;align-items:center;gap:6px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Pesan saat form ditutup <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
+      </label>
+      <textarea id="s-closed-msg" rows="3" placeholder="Contoh: Pendaftaran telah ditutup. Terima kasih atas minat Anda." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5">${esc(s.closedMessage||"")}</textarea>
+      <div class="hint">Pesan ini ditampilkan di halaman form setelah form ditutup.</div>
+    </div>
   `;
 
   updateTargetVisibility();
@@ -926,8 +932,16 @@ function renderSettingsPanel() {
     document.getElementById(id)?.addEventListener("change", () => saveSetting());
   });
   ["s-open-at","s-close-at"].forEach(id => {
-    document.getElementById(id)?.addEventListener("change", () => { saveSetting(); updateSchedulePreview(); });
+    document.getElementById(id)?.addEventListener("change", () => {
+      saveSetting();
+      updateSchedulePreview();
+      // Show closed-message field only when closeAt is set
+      const closeAtVal = document.getElementById("s-close-at")?.value;
+      const wrap = document.getElementById("s-closed-msg-wrap");
+      if (wrap) wrap.style.display = closeAtVal ? "" : "none";
+    });
   });
+  document.getElementById("s-closed-msg")?.addEventListener("input", () => saveSetting());
   updateSchedulePreview();
 }
 
@@ -1013,8 +1027,9 @@ async function saveSetting() {
   settings.waNumber    = document.getElementById("s-wa-number")?.value.trim() || "";
   settings.tgUsername  = document.getElementById("s-tg-user")?.value.trim() || "";
   settings.language    = document.getElementById("s-lang")?.value || "en";
-  settings.openAt      = document.getElementById("s-open-at")?.value  || null;
-  settings.closeAt     = document.getElementById("s-close-at")?.value || null;
+  settings.openAt        = document.getElementById("s-open-at")?.value  || null;
+  settings.closeAt       = document.getElementById("s-close-at")?.value || null;
+  settings.closedMessage = document.getElementById("s-closed-msg")?.value.trim() || null;
   const tgt = document.getElementById("s-target")?.value || "wa";
   if (tgt === "both") {
     settings.submitLabelWa = document.getElementById("s-submit-label-wa")?.value.trim() || "";

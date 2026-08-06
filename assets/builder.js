@@ -27,6 +27,15 @@ const Q_TYPES = [
   { type:"title",     label:"Title / Heading",icon:'<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',                                                 desc:"Section heading" },
   { type:"image",     label:"Image",          icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>', desc:"Display an image" },
   { type:"video",     label:"Video",          icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/>',desc:"Embed a video" },
+  { type:"file_upload", label:"File Upload",    icon:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',   desc:"User uploads a file" },
+  { type:"url_input",   label:"URL",            icon:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',  desc:"Website URL input" },
+  { type:"color",       label:"Color Picker",   icon:'<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',   desc:"Hex, RGB, HSL picker" },
+  { type:"password",    label:"Password Gate",  icon:'<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',  desc:"Owner sets a password" },
+  { type:"toggle",      label:"Toggle Switch",   icon:'<rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none"/>', desc:"On / Off toggle" },
+  { type:"multiselect", label:"Multi-select Dropdown", icon:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', desc:"Select multiple from dropdown" },
+  { type:"likert",      label:"Likert Scale",    icon:'<circle cx="4" cy="12" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="22" cy="12" r="2"/><line x1="4" y1="12" x2="22" y2="12"/>', desc:"Agreement scale" },
+  { type:"matrix",      label:"Matrix / Grid",   icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>', desc:"Table-style grid" },
+  { type:"multi_input", label:"Multiple Inputs",  icon:'<path d="M8 6h13M8 12h13"/><path d="M3 6h.01M3 12h.01"/><path d="M3 18h.01M8 18h13"/>', desc:"Multiple labeled fields" },
 ];
 
 // Phone country codes
@@ -312,6 +321,35 @@ function addQuestion(type) {
     imageUploadUrl: "",
     imageInputMode: "url",
     checked: false,
+    // file_upload
+    allowedFileTypes: "",
+    maxFileSizeMb: 10,
+    // url_input
+    urlPlaceholder: "https://",
+    // color
+    colorDefault: "#2BBDA4",
+    // password
+    passwordValue: "",
+    // toggle
+    toggleDefault: false,
+    toggleOnLabel: "Yes",
+    toggleOffLabel: "No",
+    // multiselect
+    multiselectOptions: ["Option 1","Option 2","Option 3"],
+    multiselectPlaceholder: "Select options…",
+    multiselectMax: 0,
+    // likert
+    likertStatement: "",
+    likertScale: 5,
+    likertStartLabel: "Strongly Disagree",
+    likertEndLabel: "Strongly Agree",
+    likertRows: [""],
+    // matrix
+    matrixRows: ["Row 1","Row 2"],
+    matrixCols: ["Column 1","Column 2","Column 3"],
+    matrixType: "radio",
+    // multi_input
+    multiInputFields: [{label:"Field 1", placeholder:"", type:"text"}, {label:"Field 2", placeholder:"", type:"text"}],
   };
   questions.push(q);
   renderQuestionCards();
@@ -639,8 +677,200 @@ function openEditModal(idx) {
     setMediaTab(initMode);
   }
 
+  // ── File Upload fields
+  if (q.type === "file_upload") {
+    body.appendChild(makeField("Label / Title", "input",
+      { type:"text", id:"em-file-label", value: q.placeholder || "Upload your file", maxlength:"120" }
+    ));
+    const ftWrap = document.createElement("div");
+    ftWrap.className = "field";
+    const ftLbl = document.createElement("label"); ftLbl.textContent = "Allowed file types";
+    ftWrap.appendChild(ftLbl);
+    const ftSel = document.createElement("select"); ftSel.id = "em-file-types"; ftSel.multiple = true;
+    ftSel.style.cssText = "height:130px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px";
+    const ftOptions = [
+      {v:"image/*",l:"Images (jpg, png, gif, webp…)"},
+      {v:"application/pdf",l:"PDF"},
+      {v:".doc,.docx",l:"Word Documents"},
+      {v:".xls,.xlsx",l:"Spreadsheets"},
+      {v:".ppt,.pptx",l:"Presentations"},
+      {v:"video/*",l:"Videos"},
+      {v:"audio/*",l:"Audio"},
+      {v:".zip,.rar,.7z",l:"Archives (zip, rar)"},
+      {v:"text/*",l:"Text files"},
+    ];
+    const curFt = (q.allowedFileTypes || "").split(",").map(s=>s.trim()).filter(Boolean);
+    ftOptions.forEach(o => {
+      const opt = document.createElement("option"); opt.value = o.v; opt.textContent = o.l;
+      if (curFt.includes(o.v)) opt.selected = true;
+      ftSel.appendChild(opt);
+    });
+    ftWrap.appendChild(ftSel);
+    const ftHint = document.createElement("div");
+    ftHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:4px";
+    ftHint.textContent = "Hold Ctrl/Cmd to select multiple. Leave blank to allow any.";
+    ftWrap.appendChild(ftHint);
+    body.appendChild(ftWrap);
+    body.appendChild(makeField("Max file size (MB)", "input",
+      { type:"number", id:"em-file-maxmb", value: q.maxFileSizeMb || 10, min:"1", max:"100", step:"1" }
+    ));
+  }
+
+  // ── URL Input fields
+  if (q.type === "url_input") {
+    body.appendChild(makeField("Placeholder", "input",
+      { type:"text", id:"em-url-placeholder", value: q.urlPlaceholder || "https://", maxlength:"120" }
+    ));
+  }
+
+  // ── Color Picker fields
+  if (q.type === "color") {
+    const colorWrap = document.createElement("div");
+    colorWrap.className = "field";
+    const colorLbl = document.createElement("label"); colorLbl.textContent = "Default color";
+    colorWrap.appendChild(colorLbl);
+    const colorInp = document.createElement("input");
+    colorInp.type = "color"; colorInp.id = "em-color-default";
+    colorInp.value = q.colorDefault || "#2BBDA4";
+    colorInp.style.cssText = "width:64px;height:40px;border:1px solid var(--border);border-radius:var(--radius);padding:2px;cursor:pointer;background:var(--bg-mid)";
+    colorWrap.appendChild(colorInp);
+    body.appendChild(colorWrap);
+  }
+
+  // ── Password Gate fields
+  if (q.type === "password") {
+    const pwWrap = document.createElement("div");
+    pwWrap.className = "field";
+    const pwLbl = document.createElement("label"); pwLbl.textContent = "Password (set by you, users must enter this)";
+    pwWrap.appendChild(pwLbl);
+    const pwInp = document.createElement("input");
+    pwInp.type = "text"; pwInp.id = "em-password-value";
+    pwInp.value = q.passwordValue || "";
+    pwInp.placeholder = "Enter the password users must type…";
+    pwInp.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:14px;font-family:inherit";
+    pwWrap.appendChild(pwInp);
+    const pwHint = document.createElement("div");
+    pwHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:4px";
+    pwHint.textContent = "Users will not be able to submit unless they enter this exact password.";
+    pwWrap.appendChild(pwHint);
+    body.appendChild(pwWrap);
+  }
+
+  // ── Toggle Switch fields
+  if (q.type === "toggle") {
+    const twrap = document.createElement("div"); twrap.className = "field";
+    twrap.innerHTML = `<label>Labels</label><div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="em-toggle-off" value="${esc(q.toggleOffLabel||"No")}" placeholder="Off label" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit">
+      <span style="color:var(--text-muted);font-size:12px">Off / On</span>
+      <input type="text" id="em-toggle-on" value="${esc(q.toggleOnLabel||"Yes")}" placeholder="On label" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit">
+    </div>`;
+    body.appendChild(twrap);
+    body.appendChild(makeToggleField("Default state (On)", "em-toggle-default", q.toggleDefault));
+  }
+
+  // ── Multi-select Dropdown fields
+  if (q.type === "multiselect") {
+    body.appendChild(makeField("Placeholder", "input",
+      { type:"text", id:"em-ms-placeholder", value: q.multiselectPlaceholder||"Select options…", maxlength:"100" }
+    ));
+    const msWrap = document.createElement("div"); msWrap.className = "field";
+    const msLbl = document.createElement("label"); msLbl.textContent = "Options";
+    msWrap.appendChild(msLbl);
+    const msOpts = document.createElement("div"); msOpts.className = "choice-options"; msOpts.id = "em-ms-options";
+    msWrap.appendChild(msOpts);
+    const msAddBtn = document.createElement("button"); msAddBtn.className = "add-option-btn"; msAddBtn.type = "button"; msAddBtn.textContent = "+ Add option";
+    msAddBtn.addEventListener("click", () => {
+      const opts = collectMsOptions(); opts.push("Option "+(opts.length+1)); renderMsOptions(opts, msOpts);
+    });
+    msWrap.appendChild(msAddBtn);
+    body.appendChild(msWrap);
+    renderMsOptions(q.multiselectOptions||[], msOpts);
+    body.appendChild(makeField("Max selections (0 = unlimited)", "input",
+      { type:"number", id:"em-ms-max", value: q.multiselectMax||0, min:"0", max:"99", step:"1" }
+    ));
+  }
+
+  // ── Likert Scale fields
+  if (q.type === "likert") {
+    const scaleWrap = document.createElement("div"); scaleWrap.className = "field";
+    const scLbl = document.createElement("label"); scLbl.textContent = "Scale size";
+    scaleWrap.appendChild(scLbl);
+    const scSel = document.createElement("select"); scSel.id = "em-likert-scale";
+    [3,4,5,6,7,10].forEach(n => {
+      const opt = document.createElement("option"); opt.value = n; opt.textContent = `${n} points`;
+      if ((q.likertScale||5) === n) opt.selected = true;
+      scSel.appendChild(opt);
+    });
+    scaleWrap.appendChild(scSel);
+    body.appendChild(scaleWrap);
+    body.appendChild(makeField("Start label (left)", "input",
+      { type:"text", id:"em-likert-start", value: q.likertStartLabel||"Strongly Disagree", maxlength:"60" }
+    ));
+    body.appendChild(makeField("End label (right)", "input",
+      { type:"text", id:"em-likert-end", value: q.likertEndLabel||"Strongly Agree", maxlength:"60" }
+    ));
+    // Rows (statements)
+    const lrWrap = document.createElement("div"); lrWrap.className = "field";
+    const lrLbl = document.createElement("label"); lrLbl.textContent = "Statements / Rows (one per line)";
+    lrWrap.appendChild(lrLbl);
+    const lrTA = document.createElement("textarea"); lrTA.id = "em-likert-rows";
+    lrTA.rows = 4; lrTA.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical";
+    lrTA.placeholder = "Statement 1\nStatement 2\nStatement 3";
+    lrTA.value = (q.likertRows||[""]).filter(Boolean).join("\n");
+    lrWrap.appendChild(lrTA);
+    body.appendChild(lrWrap);
+  }
+
+  // ── Matrix / Grid fields
+  if (q.type === "matrix") {
+    const mtWrap = document.createElement("div"); mtWrap.className = "field";
+    const mtLbl = document.createElement("label"); mtLbl.textContent = "Rows (one per line)";
+    mtWrap.appendChild(mtLbl);
+    const mtRowTA = document.createElement("textarea"); mtRowTA.id = "em-matrix-rows";
+    mtRowTA.rows = 4; mtRowTA.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical";
+    mtRowTA.value = (q.matrixRows||["Row 1","Row 2"]).join("\n");
+    mtWrap.appendChild(mtRowTA);
+    body.appendChild(mtWrap);
+    const mtColWrap = document.createElement("div"); mtColWrap.className = "field";
+    const mtColLbl = document.createElement("label"); mtColLbl.textContent = "Columns (one per line)";
+    mtColWrap.appendChild(mtColLbl);
+    const mtColTA = document.createElement("textarea"); mtColTA.id = "em-matrix-cols";
+    mtColTA.rows = 4; mtColTA.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical";
+    mtColTA.value = (q.matrixCols||["Column 1","Column 2","Column 3"]).join("\n");
+    mtColWrap.appendChild(mtColTA);
+    body.appendChild(mtColWrap);
+    const mtTypeWrap = document.createElement("div"); mtTypeWrap.className = "field";
+    const mtTypeLbl = document.createElement("label"); mtTypeLbl.textContent = "Selection type per row";
+    mtTypeWrap.appendChild(mtTypeLbl);
+    const mtTypeSel = document.createElement("select"); mtTypeSel.id = "em-matrix-type";
+    [{v:"radio",l:"Single choice (radio)"},{v:"checkbox",l:"Multiple choice (checkbox)"}].forEach(({v,l})=>{
+      const o = document.createElement("option"); o.value=v; o.textContent=l;
+      if ((q.matrixType||"radio")===v) o.selected=true;
+      mtTypeSel.appendChild(o);
+    });
+    mtTypeWrap.appendChild(mtTypeSel);
+    body.appendChild(mtTypeWrap);
+  }
+
+  // ── Multiple Inputs fields
+  if (q.type === "multi_input") {
+    const miWrap = document.createElement("div"); miWrap.className = "field";
+    const miLbl = document.createElement("label"); miLbl.textContent = "Sub-fields";
+    miWrap.appendChild(miLbl);
+    const miList = document.createElement("div"); miList.id = "em-mi-list";
+    miList.style.cssText = "display:flex;flex-direction:column;gap:8px";
+    miWrap.appendChild(miList);
+    const miAddBtn = document.createElement("button"); miAddBtn.className = "add-option-btn"; miAddBtn.type = "button"; miAddBtn.textContent = "+ Add field";
+    miAddBtn.addEventListener("click", () => {
+      const fields = collectMiFields(); fields.push({label:"Field "+(fields.length+1),placeholder:"",type:"text"}); renderMiFields(fields, miList);
+    });
+    miWrap.appendChild(miAddBtn);
+    body.appendChild(miWrap);
+    renderMiFields(q.multiInputFields||[{label:"Field 1",placeholder:"",type:"text"}], miList);
+  }
+
   // ── Required toggle (not for title/image/video types)
-  if (!isTitle && q.type !== "image" && q.type !== "video") {
+  if (!isTitle && q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input") {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -706,6 +936,58 @@ function renderOptions(opts, container) {
   });
 }
 
+// ── Multi-select option helpers ──────────────────────────────
+function renderMsOptions(opts, container) {
+  container.innerHTML = "";
+  opts.forEach((opt, oi) => {
+    const row = document.createElement("div"); row.className = "choice-opt-row";
+    const inp = document.createElement("input"); inp.type = "text"; inp.value = opt; inp.placeholder = `Option ${oi+1}`; inp.dataset.oi = oi;
+    const rmBtn = document.createElement("button"); rmBtn.className = "choice-remove"; rmBtn.type = "button";
+    rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+    rmBtn.addEventListener("click", () => { const cur = collectMsOptions(); cur.splice(oi,1); renderMsOptions(cur, container); });
+    row.appendChild(inp); row.appendChild(rmBtn); container.appendChild(row);
+  });
+}
+function collectMsOptions() {
+  const div = document.getElementById("em-ms-options");
+  if (!div) return [];
+  return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+}
+
+// ── Multi-input field helpers ─────────────────────────────────
+function renderMiFields(fields, container) {
+  container.innerHTML = "";
+  fields.forEach((f, fi) => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:6px;align-items:center";
+    const lblInp = document.createElement("input"); lblInp.type = "text"; lblInp.value = f.label||""; lblInp.placeholder = "Label"; lblInp.dataset.fi = fi; lblInp.dataset.key = "label";
+    lblInp.style.cssText = "flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit";
+    const phInp = document.createElement("input"); phInp.type = "text"; phInp.value = f.placeholder||""; phInp.placeholder = "Placeholder"; phInp.dataset.fi = fi; phInp.dataset.key = "placeholder";
+    phInp.style.cssText = "flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit";
+    const typSel = document.createElement("select"); typSel.dataset.fi = fi; typSel.dataset.key = "type";
+    typSel.style.cssText = "padding:7px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:12px;font-family:inherit";
+    [{v:"text",l:"Text"},{v:"number",l:"Number"},{v:"email",l:"Email"},{v:"date",l:"Date"},{v:"tel",l:"Phone"},{v:"url",l:"URL"}].forEach(({v,l})=>{
+      const o = document.createElement("option"); o.value=v; o.textContent=l; if(f.type===v) o.selected=true; typSel.appendChild(o);
+    });
+    const rmBtn = document.createElement("button"); rmBtn.type = "button"; rmBtn.className = "choice-remove";
+    rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+    rmBtn.addEventListener("click", () => { const cur = collectMiFields(); cur.splice(fi,1); renderMiFields(cur, container); });
+    row.appendChild(lblInp); row.appendChild(phInp); row.appendChild(typSel); row.appendChild(rmBtn);
+    container.appendChild(row);
+  });
+}
+function collectMiFields() {
+  const div = document.getElementById("em-mi-list");
+  if (!div) return [];
+  const rows = div.querySelectorAll("div");
+  return Array.from(rows).map(row => {
+    const inps = row.querySelectorAll("input,select");
+    const f = {label:"",placeholder:"",type:"text"};
+    inps.forEach(i => { if(i.dataset.key) f[i.dataset.key] = i.value; });
+    return f;
+  });
+}
+
 function collectOptions() {
   const div = document.getElementById("em-options");
   if (!div) return [];
@@ -754,7 +1036,7 @@ function saveEditToMemory() {
   q.title       = get("em-title")?.value || "";
   q.subtitle    = get("em-subtitle")?.innerHTML || "";
   q.placeholder = get("em-placeholder")?.value || "";
-  if (q.type !== "image" && q.type !== "video") {
+  if (q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input") {
     q.required  = get("em-required")?.checked || false;
   }
   q.gmailOnly   = get("em-gmail-only")?.checked || false;
@@ -769,6 +1051,58 @@ function saveEditToMemory() {
   q.mediaType   = get("em-media-type")?.value || q.mediaType;
   q.imageInputMode = get("em-media-type")?.value || q.imageInputMode;
   q.mediaUrl    = get("em-media-url")?.value || "";
+  // toggle
+  if (q.type === "toggle") {
+    q.toggleOnLabel  = get("em-toggle-on")?.value  || "Yes";
+    q.toggleOffLabel = get("em-toggle-off")?.value || "No";
+    q.toggleDefault  = get("em-toggle-default")?.checked || false;
+  }
+  // multiselect
+  if (q.type === "multiselect") {
+    q.multiselectOptions     = collectMsOptions();
+    q.multiselectPlaceholder = get("em-ms-placeholder")?.value || "Select options…";
+    q.multiselectMax         = Number(get("em-ms-max")?.value) || 0;
+  }
+  // likert
+  if (q.type === "likert") {
+    q.likertScale      = Number(get("em-likert-scale")?.value) || 5;
+    q.likertStartLabel = get("em-likert-start")?.value || "Strongly Disagree";
+    q.likertEndLabel   = get("em-likert-end")?.value   || "Strongly Agree";
+    q.likertRows = (get("em-likert-rows")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
+    if (!q.likertRows.length) q.likertRows = [""];
+  }
+  // matrix
+  if (q.type === "matrix") {
+    q.matrixRows = (get("em-matrix-rows")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
+    q.matrixCols = (get("em-matrix-cols")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
+    q.matrixType = get("em-matrix-type")?.value || "radio";
+  }
+  // multi_input
+  if (q.type === "multi_input") {
+    q.multiInputFields = collectMiFields();
+  }
+  // file_upload
+  if (q.type === "file_upload") {
+    q.placeholder = get("em-file-label")?.value || "Upload your file";
+    const ftSel = document.getElementById("em-file-types");
+    if (ftSel) {
+      q.allowedFileTypes = Array.from(ftSel.selectedOptions).map(o=>o.value).join(",");
+    }
+    q.maxFileSizeMb = Number(get("em-file-maxmb")?.value) || 10;
+  }
+  // url_input
+  if (q.type === "url_input") {
+    q.urlPlaceholder = get("em-url-placeholder")?.value || "https://";
+    q.placeholder = q.urlPlaceholder;
+  }
+  // color
+  if (q.type === "color") {
+    q.colorDefault = get("em-color-default")?.value || "#2BBDA4";
+  }
+  // password
+  if (q.type === "password") {
+    q.passwordValue = get("em-password-value")?.value || "";
+  }
   if (document.getElementById("em-options")) {
     if (q.type === "checkbox") {
       q.checkboxOptions = collectOptions();
@@ -880,11 +1214,11 @@ function renderSettingsPanel() {
     <div id="s-wa-wrap">
       <div class="field">
         <label>WhatsApp number</label>
-        <div class="phone-wrap">
+        <div class="phone-wrap" style="max-width:340px">
           <select id="s-wa-prefix" class="phone-prefix">
             ${COUNTRY_CODES.map(c=>`<option value="${c.code}" ${(s.waPrefix||"+62")===c.code?"selected":""}>${c.code} ${c.label.split(" ")[0]}</option>`).join("")}
           </select>
-          <input type="tel" id="s-wa-number" inputmode="numeric" pattern="[0-9]*" value="${esc(s.waNumber||"")}" >
+          <input type="tel" id="s-wa-number" inputmode="numeric" pattern="[0-9]*" value="${esc(s.waNumber||"")}" style="min-width:0;flex:1">
         </div>
       </div>
     </div>
@@ -1219,10 +1553,24 @@ function buildPreviewField(q, i) {
   if (q.type === "checkbox") { const cbOpts = q.checkboxOptions || q.options || []; control = `<div style="display:flex;flex-direction:column;gap:6px">${cbOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> ${esc(o)}</label>`).join("")}${q.checkboxAllowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }
   if (q.type === "phone")    control = `<div style="display:flex;gap:8px"><select style="width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg-raised);color:var(--text)"><option>${esc(q.phonePrefix||"+62")}</option></select><input type="tel" placeholder="${ph}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`;
   if (q.type === "rating")   control = `<div style="display:flex;gap:6px">${Array(q.maxRating||5).fill("★").map(s=>`<span style="font-size:24px;cursor:pointer;color:var(--teal)">★</span>`).join("")}</div>`;
-  if (q.type === "dropdown") control = `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${(q.options||[]).map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
+  if (q.type === "dropdown") {
+    const ddOpts = q.options || [];
+    control = ddOpts.length > 10
+      ? `<div style="position:relative"><input type="text" placeholder="— Select (searchable) —" readonly style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);cursor:pointer"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' width='16' height='16' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)'><path d='m6 9 6 6 6-6'/></svg><div style='font-size:11px;color:var(--text-muted);margin-top:4px'>🔍 Searchable dropdown (${ddOpts.length} options)</div></div>`
+      : `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${ddOpts.map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
+  }
   if (q.type === "choice")   control = `<div style="display:flex;flex-direction:column;gap:6px">${(q.options||[]).map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o)}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`;
   if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;display:block">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5L5 21'/></svg>Image will appear here</div>`;
   if (q.type === "video")    control = q.mediaUrl ? `<video src="${esc(q.mediaUrl)}" controls style="width:100%;border-radius:10px;display:block"></video>` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='2' y='4' width='20' height='16' rx='2'/><polygon points='10 9 15 12 10 15 10 9'/></svg>Video will appear here</div>`;
+  if (q.type === "file_upload") control = `<div style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='28' height='28' style='opacity:.5;margin:0 auto 8px;display:block'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/></svg>${esc(q.placeholder || "Upload your file")}<br><span style='font-size:11px'>${q.allowedFileTypes ? q.allowedFileTypes.replace(/,/g,", ") : "Any file"} · Max ${q.maxFileSizeMb||10}MB</span></div>`;
+  if (q.type === "url_input")   control = `<input type="url" placeholder="${esc(q.urlPlaceholder||"https://")}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
+  if (q.type === "color")       control = `<div style="display:flex;align-items:center;gap:12px"><input type="color" value="${esc(q.colorDefault||"#2BBDA4")}" style="width:48px;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer"><span style="font-size:13px;color:var(--text-muted)">HEX · RGB · HSL will be shown</span></div>`;
+  if (q.type === "password")    control = `<div style="position:relative"><input type="password" placeholder="Enter password…" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);letter-spacing:.1em"><div style="font-size:11px;color:var(--text-muted);margin-top:4px">🔒 Users must enter the correct password to submit</div></div>`;
+  if (q.type === "toggle") control = `<div style="display:flex;align-items:center;gap:12px"><div style="width:50px;height:26px;border-radius:13px;background:var(--border);position:relative;cursor:pointer"><div style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${q.toggleDefault?"24px":"2px"};box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:14px">${esc(q.toggleDefault?q.toggleOnLabel||"Yes":q.toggleOffLabel||"No")}</span></div>`;
+  if (q.type === "multiselect") { const mso = (q.multiselectOptions||[]).slice(0,5); control = `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 12px 8px;background:var(--bg-raised)"><div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${esc(q.multiselectPlaceholder||"Select options…")}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${mso.map(o=>`<span style="padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer">${esc(o)}</span>`).join("")}${(q.multiselectOptions||[]).length>5?`<span style="font-size:12px;color:var(--text-muted);padding:3px 6px">+${(q.multiselectOptions||[]).length-5} more</span>`:""}</div></div>`; }
+  if (q.type === "likert") { const scale = q.likertScale||5; const rows = (q.likertRows||[""]).filter(Boolean); control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--text-muted)">${esc(q.likertStartLabel||"Strongly Disagree")}</th>${Array.from({length:scale},(_,i)=>`<th style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text-muted)">${i+1}</th>`).join("")}<th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--text-muted)">${esc(q.likertEndLabel||"Strongly Agree")}</th></tr></thead><tbody>${(rows.length?rows:["Statement 1","Statement 2"]).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:8px;font-size:13px">${esc(r)}</td>${Array.from({length:scale},(_,i)=>`<td style="padding:8px 4px;text-align:center"><input type="radio" name="l${i}" style="accent-color:var(--teal)"></td>`).join("")}<td></td></tr>`).join("")}</tbody></table></div>`; }
+  if (q.type === "matrix") { const rows = q.matrixRows||["Row 1","Row 2"]; const cols = q.matrixCols||["Col 1","Col 2"]; control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)"></th>${cols.map(c=>`<th style="padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);font-weight:600">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--border-soft)"><td style="padding:9px 8px;font-size:13px">${esc(r)}</td>${cols.map((_,ci)=>`<td style="padding:9px 12px;text-align:center"><input type="${q.matrixType||"radio"}" name="mx-${r}-${ci}" style="accent-color:var(--teal)"></td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+  if (q.type === "multi_input") { const mif = q.multiInputFields||[]; control = `<div style="display:flex;flex-direction:column;gap:10px">${mif.map(f=>`<div><div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)">${esc(f.label||"")}</div><input type="${f.type||"text"}" placeholder="${esc(f.placeholder||"")}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`).join("")}</div>`; }
 
   return `
     <div style="margin-bottom:20px">

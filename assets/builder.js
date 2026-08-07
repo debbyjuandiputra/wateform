@@ -1081,7 +1081,7 @@ function openEditModal(idx) {
   }
 
   // ── Required toggle (not for title/image/video/toggle types)
-  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link"].includes(q.type)) {
+  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link","ranking"].includes(q.type)) {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -1301,6 +1301,7 @@ function saveEditToMemory() {
   if (q.type === "ranking") {
     q.rankingOptions = (get("em-ranking-opts")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     if (!q.rankingOptions.length) q.rankingOptions = ["Option 1","Option 2","Option 3"];
+    q.required = false; // ranking never required
   }
   // emoji_rating
   if (q.type === "emoji_rating") {
@@ -1436,7 +1437,7 @@ function renderSettingsPanel() {
       <label class="toggle-row" style="cursor:pointer">
         <span class="toggle-label" style="font-weight:600;color:var(--text)">Remove watermark</span>
         <label class="toggle">
-          <input type="checkbox" id="s-watermark" ${s.removeWatermark === false ? "" : "checked"}>
+          <input type="checkbox" id="s-watermark" ${s.removeWatermark === true ? "checked" : ""}>
           <span class="toggle-track"></span>
         </label>
       </label>
@@ -1644,7 +1645,7 @@ async function saveSetting() {
   }
   settings.slug        = newSlug;
   settings.isActive    = document.getElementById("s-active")?.checked !== false;
-  settings.removeWatermark = document.getElementById("s-watermark")?.checked !== false;
+  settings.removeWatermark = document.getElementById("s-watermark")?.checked === true;
   settings.target      = document.getElementById("s-target")?.value || "wa";
   settings.waPrefix    = document.getElementById("s-wa-prefix")?.value || "+62";
   settings.waNumber    = (document.getElementById("s-wa-number")?.value || "").replace(/[^0-9]/g, "");

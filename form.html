@@ -310,13 +310,18 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
   border:none; padding:0;
 }
 .toggle-track.on { background:var(--teal); }
-.toggle-knob {
+/* Override global .toggle-track::after for form toggle */
+.toggle-switch-wrap .toggle-track::after {
+  content:''; position:absolute;
   width:20px; height:20px; border-radius:50%; background:#fff;
-  position:absolute; top:4px; left:4px;
-  box-shadow:0 1px 4px rgba(0,0,0,.22); transition:left .2s, transform .2s;
-  pointer-events:none;
+  top:4px; left:4px;
+  box-shadow:0 1px 4px rgba(0,0,0,.22);
+  transition:transform .2s;
+  transform:translateX(0);
 }
-.toggle-track.on .toggle-knob { left:28px; }
+.toggle-switch-wrap .toggle-track.on::after {
+  transform:translateX(24px);
+}
 .toggle-label-text { font-size:14px; color:var(--text); min-width:32px; }
 
 /* ── Multi-select Dropdown ─────────────────────── */
@@ -396,8 +401,26 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .likert-table th.lk-label-r { text-align:right; font-size:12px; max-width:120px; }
 .likert-table td { padding:10px 4px; text-align:center; border-top:1px solid var(--border-soft); }
 .likert-table td.lk-row-label { text-align:left; padding:10px 8px; font-size:13px; color:var(--text); }
-.likert-radio { width:18px; height:18px; accent-color:var(--teal); cursor:pointer; }
+.likert-radio {
+  /* Reset semua override dari global style.css */
+  width:18px !important; height:18px !important;
+  min-width:18px !important; max-width:18px !important;
+  padding:0 !important; margin:0 !important;
+  border:none !important; border-radius:0 !important;
+  background:none !important; outline:revert !important;
+  accent-color:var(--teal); cursor:pointer;
+  display:inline-block !important; appearance:auto !important;
+  -webkit-appearance:radio !important;
+  position:static !important; opacity:1 !important;
+  pointer-events:auto !important;
+  box-sizing:content-box !important;
+}
 .likert-scroll { overflow-x:auto; }
+/* Label wrapper di dalam td likert */
+.likert-table td label {
+  cursor:pointer; display:flex; align-items:center;
+  justify-content:center; padding:6px; width:100%;
+}
 
 /* ── Matrix / Grid ─────────────────────────────── */
 .matrix-scroll { overflow-x:auto; }
@@ -938,7 +961,6 @@ function renderForm(form) {
         const def    = !!q.toggleDefault;
         inputHtml = `<div class="toggle-switch-wrap">
           <button type="button" class="toggle-track${def?" on":""}" id="q-${q.id}" aria-pressed="${def}">
-            <div class="toggle-knob"></div>
           </button>
           <span class="toggle-label-text" id="qtl-${q.id}">${esc(def?onLbl:offLbl)}</span>
         </div>`;

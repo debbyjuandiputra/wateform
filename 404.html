@@ -20,6 +20,17 @@
 
   var rootPath = "/";
 
+  // ── Storage viewer: /storage/{code} ───────────────────────
+  if (parts.length >= 2 && parts[parts.length - 2] === "storage") {
+    var fileCode = parts[parts.length - 1];
+    if (/^[A-Za-z0-9]{6,16}$/.test(fileCode)) {
+      rootPath = "/" + parts.slice(0, parts.length - 2).join("/");
+      if (rootPath !== "/") rootPath += "/";
+      window.location.replace(rootPath + "storage.html?code=" + encodeURIComponent(fileCode));
+      return;
+    }
+  }
+
   // ── Two-segment: /{ws_short}/{form_short} ──────────────────
   // Both segments are 4-12 alphanumeric chars (auto-generated short_ids look like "AbCd12")
   var wsShort, formShort;

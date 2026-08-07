@@ -627,11 +627,20 @@ function showScheduled(state, openTime, closeTime, closedMessage) {
   }
 }
 
+// ── Generate short code for file viewer links ─────────────────
+function genShortCode(len = 8) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => chars[b % chars.length]).join("");
+}
+
 // ── Render form ───────────────────────────────────────────────
 function renderForm(form) {
   const questions = Array.isArray(form.questions) ? form.questions : [];
   const settings  = form.settings || {};
   const answers   = {};
+  const fileMap   = {};   // qId → File object (for Supabase Storage upload)
   const starState = {};
 
   document.title = `${form.title} — WateForm`;
@@ -1314,6 +1323,7 @@ function renderForm(form) {
         nameDiv.style.color = "var(--teal)";
         nameDiv.textContent = "\u{1F4CE} " + file.name + " (" + (file.size/1024/1024).toFixed(2) + "MB)";
         nameDiv.style.display = "";
+        fileMap[q.id] = file;
         answers[q.id] = "[Attached: " + file.name + "]";
       };
       area.addEventListener("click", () => fileInput.click());
@@ -1921,6 +1931,47 @@ function renderForm(form) {
     btns.forEach(b => b.disabled = true);
 
     try {
+      // ── Upload any file_upload fields to Supabase Storage ──
+      const fileQuestions = questions.filter(q => q.type === "file_upload" && fileMap[q.id]);
+      for (const q of fileQuestions) {
+        const file = fileMap[q.id];
+        try {
+          const shortCode = genShortCode();
+          const ext       = file.name.includes(".") ? "." + file.name.split(".").pop() : "";
+          const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const filePath  = `${form.id}/${shortCode}/${safeName}`;
+
+          const { error: uploadErr } = await sb.storage
+            .from("response-uploads")
+            .upload(filePath, file, { contentType: file.type, upsert: false });
+
+          if (!uploadErr) {
+            // Save metadata + short viewer link
+            await sb.from("form_uploads").insert({
+              short_code: shortCode,
+              form_id:    form.id,
+              owner_id:   form.created_by,
+              file_name:  file.name,
+              file_path:  filePath,
+              file_size:  file.size,
+              mime_type:  file.type || "application/octet-stream",
+            });
+
+            // Increment form owner's storage usage
+            await sb.rpc("increment_storage_usage", {
+              p_owner_id: form.created_by,
+              p_bytes:    file.size,
+            });
+
+            // Replace the placeholder answer with the viewer URL (format: "filename||url")
+            answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
+          }
+        } catch (fileErr) {
+          console.error("File upload failed for question", q.id, fileErr);
+          // Keep the "[Attached: filename]" placeholder if upload fails
+        }
+      }
+
       // Record the response (who answered what, and when) before sending off.
       await sb.from("responses").insert({
         form_id: form.id,

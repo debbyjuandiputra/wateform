@@ -864,7 +864,7 @@ async function openResponses(formId) {
           ${responses.map((r, i) => `<tr>
             <td><input type="checkbox" class="resp-select-row" data-idx="${i}" /></td>
             <td style="color:var(--text-muted)">${i+1}</td>
-            ${questions.map(q => `<td>${esc(String(r.answers?.[q.id] ?? ""))}</td>`).join("")}
+            ${questions.map(q => `<td>${renderAnswerCell(q, r.answers?.[q.id])}</td>`).join("")}
             <td>${r.sent_to === "wa" ? '<span class="pill pill-wa">WA</span>' : r.sent_to === "tg" ? '<span class="pill pill-tg">TG</span>' : r.sent_to === "both" ? '<span class="pill pill-wa">WA</span><span class="pill pill-tg">TG</span>' : "-"}</td>
             <td style="color:var(--text-muted);white-space:nowrap">${new Date(r.submitted_at).toLocaleString()}</td>
           </tr>`).join("")}
@@ -987,6 +987,33 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {
   return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+}
+
+// Render a response cell: file_upload answers become anchor links with the original filename
+function renderAnswerCell(q, val) {
+  const s = String(val ?? "");
+  if (q.type === "file_upload" && s.includes("||https://wateform.my.id/storage/")) {
+    const sep      = s.indexOf("||");
+    const fileName = s.slice(0, sep);
+    const fileUrl  = s.slice(sep + 2);
+    const safeName = esc(fileName);
+    const safeUrl  = esc(fileUrl);
+    return '<a href="' + safeUrl + '" target="_blank" rel="noopener" '
+         + 'style="color:var(--teal);text-decoration:underline;white-space:nowrap;display:inline-flex;align-items:center;gap:4px" '
+         + 'title="' + safeName + '">'
+         + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+         + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>'
+         + '<polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'
+         + '</svg>' + safeName + '</a>';
+  }
+  // Fallback: plain old storage URL (legacy) or non-file answer
+  if (q.type === "file_upload" && s.startsWith("https://wateform.my.id/storage/")) {
+    const safeUrl = esc(s);
+    return '<a href="' + safeUrl + '" target="_blank" rel="noopener" '
+         + 'style="color:var(--teal);text-decoration:underline">'
+         + 'Download file</a>';
+  }
+  return esc(s);
 }
 
 

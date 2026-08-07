@@ -449,7 +449,8 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
     <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
   </a>
   <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+    <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
   </button>
 </div>
 
@@ -478,14 +479,16 @@ const formShort  = params.get("f");
 const customSlug = params.get("slug");
 
 // ── Theme ─────────────────────────────────────────────────────
-(function(){
-  const saved = localStorage.getItem("theme");
-  if (saved) document.documentElement.setAttribute("data-theme", saved);
+(function initTheme(){
+  const root = document.documentElement;
+  function setTheme(t) {
+    t === "dark" ? root.setAttribute("data-theme","dark") : root.removeAttribute("data-theme");
+    try { localStorage.setItem("wf-theme", t); } catch(_){}
+  }
+  let saved; try { saved = localStorage.getItem("wf-theme"); } catch(_){}
+  setTheme(saved === "dark" ? "dark" : "light");
   document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
-    const cur  = document.documentElement.getAttribute("data-theme");
-    const next = cur === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("theme", next);
+    setTheme(root.getAttribute("data-theme")==="dark" ? "light" : "dark");
   });
 })();
 

@@ -23,16 +23,65 @@ let pendingAction  = null; // for confirm modal
 (function initTheme() {
   const root = document.documentElement;
   const btns = document.querySelectorAll("[data-theme-toggle]");
+
+  function updateHamThemeLabel(isDark) {
+    const label = document.getElementById("ham-theme-label");
+    if (label) label.textContent = isDark ? "Light mode" : "Dark mode";
+  }
+
   function set(t) {
-    t === "dark" ? root.setAttribute("data-theme","dark") : root.removeAttribute("data-theme");
-    btns.forEach(b => b.setAttribute("aria-pressed", String(t==="dark")));
+    const isDark = t === "dark";
+    isDark ? root.setAttribute("data-theme","dark") : root.removeAttribute("data-theme");
+    btns.forEach(b => b.setAttribute("aria-pressed", String(isDark)));
+    updateHamThemeLabel(isDark);
     try { localStorage.setItem("wf-theme", t); } catch(_){}
   }
+
   let saved; try { saved = localStorage.getItem("wf-theme"); } catch(_){}
   set(saved === "dark" ? "dark" : "light");
+
   btns.forEach(b => b.addEventListener("click", () =>
     set(root.getAttribute("data-theme")==="dark" ? "light" : "dark")
   ));
+
+  // Hamburger theme toggle
+  const hamTheme = document.getElementById("ham-theme");
+  if (hamTheme) {
+    hamTheme.addEventListener("click", () => {
+      set(root.getAttribute("data-theme")==="dark" ? "light" : "dark");
+    });
+  }
+})();
+
+// ── Hamburger menu ────────────────────────────────────────────
+(function initHamburger() {
+  const btn  = document.getElementById("ham-btn");
+  const menu = document.getElementById("ham-menu");
+  if (!btn || !menu) return;
+
+  function open()  { menu.classList.add("open");  btn.classList.add("open");  btn.setAttribute("aria-expanded","true"); }
+  function close() { menu.classList.remove("open"); btn.classList.remove("open"); btn.setAttribute("aria-expanded","false"); }
+  function toggle(){ menu.classList.contains("open") ? close() : open(); }
+
+  btn.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+  document.addEventListener("click", (e) => {
+    if (!btn.contains(e.target) && !menu.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+
+  // Subscription & Leaderboard placeholders
+  document.getElementById("ham-subscription")?.addEventListener("click", () => {
+    close();
+    // TODO: open subscription panel
+  });
+  document.getElementById("ham-leaderboard")?.addEventListener("click", () => {
+    close();
+    // TODO: open leaderboard panel
+  });
+  document.getElementById("ham-storage")?.addEventListener("click", () => {
+    close();
+    // TODO: open storage panel
+  });
 })();
 
 // ── Toast ─────────────────────────────────────────────────────

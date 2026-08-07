@@ -21,9 +21,6 @@
     <div class="topbar-sep"></div>
     <span class="topbar-title" id="topbar-ws-name">Dashboard</span>
     <div class="topbar-right">
-      <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
-      </button>
       <div class="dropdown">
         <button class="topbar-user" id="user-btn">
           <div class="avatar" id="user-avatar">?</div>
@@ -42,6 +39,36 @@
           <button class="dropdown-item danger" id="logout-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             Sign out
+          </button>
+        </div>
+      </div>
+      <!-- Hamburger menu — far right -->
+      <div class="dropdown ham-wrap">
+        <button class="ham-btn" id="ham-btn" aria-label="Menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="dropdown-menu ham-menu" id="ham-menu">
+          <button class="dropdown-item" id="ham-subscription">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Subscription
+          </button>
+          <button class="dropdown-item" id="ham-leaderboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+            Leaderboard
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="ham-theme">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <span id="ham-theme-label">Dark mode</span>
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="ham-storage">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3S3 13.66 3 12"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></svg>
+            Storage
+            <span class="ham-storage-bar-wrap" style="flex:1;margin-left:8px">
+              <span class="ham-storage-bar"><span class="ham-storage-fill" id="ham-storage-fill" style="width:0%"></span></span>
+            </span>
           </button>
         </div>
       </div>

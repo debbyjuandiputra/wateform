@@ -323,7 +323,16 @@
 <script>
 const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
-const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession:     true,
+    storageKey:         "wf-session",
+    autoRefreshToken:   true,
+    detectSessionInUrl: false,
+  },
+});
+
+const DASH_URL = "https://dash.wateform.my.id";
 
 (async function() {
   // Handle magic link / email confirmation redirect (hash from Supabase)
@@ -334,18 +343,19 @@ const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       access_token:  params.get("access_token"),
       refresh_token: params.get("refresh_token"),
     });
-    window.location.href = error ? "login.html" : "dashboard/";
+    window.location.href = error ? "login.html" : DASH_URL;
     return;
   }
 
-  // If already logged in, redirect register/login buttons to dashboard
+  // If already logged in, redirect register/login buttons to dash subdomain
   const { data: { session } } = await client.auth.getSession();
   if (session) {
     ["nav-register-btn","hero-register-btn","cta-register-btn"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.href = "dashboard/"; el.textContent = "Log in"; }
+      if (el) { el.href = DASH_URL; el.textContent = "Try Now"; }
     });
-    document.querySelector('a[href="login.html"]')?.remove();
+    const loginBtn = document.querySelector('a[href="login.html"]');
+    if (loginBtn) { loginBtn.href = DASH_URL; /* keep SVG icon, only change href */ }
   }
 })();
 

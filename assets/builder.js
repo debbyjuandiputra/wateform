@@ -28,7 +28,7 @@ const Q_TYPES = [
   { type:"image",     label:"Image",          icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>', desc:"Display an image" },
   { type:"video",     label:"Video",          icon:'<rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/>',desc:"Embed a video" },
   { type:"file_upload", label:"File Upload",    icon:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',   desc:"User uploads a file" },
-  { type:"url_input",   label:"URL",            icon:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',  desc:"Website URL input" },
+  { type:"url_input",   label:"URL",            icon:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',  desc:"Clickable link set by owner" },
   { type:"color",       label:"Color Picker",   icon:'<circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',   desc:"Hex, RGB, HSL picker" },
   { type:"password",    label:"Password Gate",  icon:'<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',  desc:"Owner sets a password" },
   { type:"toggle",      label:"Toggle Switch",   icon:'<rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="16" cy="12" r="4" fill="currentColor" stroke="none"/>', desc:"On / Off toggle" },
@@ -336,7 +336,7 @@ function addQuestion(type) {
     allowedFileTypes: "",
     maxFileSizeMb: 10,
     // url_input
-    urlPlaceholder: "https://",
+    urlHref: "", urlLabel: "",
     // color
     colorDefault: "#2BBDA4",
     // password
@@ -795,8 +795,11 @@ function openEditModal(idx) {
 
   // ── URL Input fields
   if (q.type === "url_input") {
-    body.appendChild(makeField("Placeholder", "input",
-      { type:"text", id:"em-url-placeholder", value: q.urlPlaceholder || "https://", maxlength:"120" }
+    body.appendChild(makeField("URL", "input",
+      { type:"url", id:"em-url-href", value: q.urlHref || "", placeholder:"https://…", maxlength:"500" }
+    ));
+    body.appendChild(makeField("Teks link (opsional)", "input",
+      { type:"text", id:"em-url-label", value: q.urlLabel || "", placeholder:"Kosongkan untuk tampilkan URL-nya", maxlength:"200" }
     ));
   }
 
@@ -831,6 +834,11 @@ function openEditModal(idx) {
     pwHint.textContent = "Users will not be able to submit unless they enter this exact password.";
     pwWrap.appendChild(pwHint);
     body.appendChild(pwWrap);
+    // Clear error state on input
+    pwInp.addEventListener("input", () => {
+      pwInp.style.borderColor = "";
+      pwWrap.querySelector(".pw-required-hint")?.remove();
+    });
   }
 
   // ── Toggle Switch fields
@@ -1353,8 +1361,8 @@ function saveEditToMemory() {
   }
   // url_input
   if (q.type === "url_input") {
-    q.urlPlaceholder = get("em-url-placeholder")?.value || "https://";
-    q.placeholder = q.urlPlaceholder;
+    q.urlHref  = get("em-url-href")?.value.trim()  || "";
+    q.urlLabel = get("em-url-label")?.value.trim() || "";
   }
   // color
   if (q.type === "color") {
@@ -1362,7 +1370,29 @@ function saveEditToMemory() {
   }
   // password
   if (q.type === "password") {
-    q.passwordValue = get("em-password-value")?.value || "";
+    const pwVal = get("em-password-value")?.value || "";
+    if (!pwVal.trim()) {
+      // Show error on the password input
+      const pwInpEl = get("em-password-value");
+      if (pwInpEl) {
+        pwInpEl.style.borderColor = "var(--red)";
+        pwInpEl.focus();
+        // Show hint
+        const pwHintEl = pwInpEl.parentElement?.querySelector(".pw-required-hint");
+        if (!pwHintEl) {
+          const h = document.createElement("div");
+          h.className = "pw-required-hint";
+          h.style.cssText = "font-size:12px;color:var(--red);margin-top:4px";
+          h.textContent = "Password wajib diisi sebelum disimpan.";
+          pwInpEl.parentElement?.appendChild(h);
+        }
+      }
+      return; // abort save
+    }
+    q.passwordValue = pwVal;
+    const pwInpEl = get("em-password-value");
+    if (pwInpEl) { pwInpEl.style.borderColor = ""; }
+    document.querySelector(".pw-required-hint")?.remove();
   }
   if (document.getElementById("em-options")) {
     if (q.type === "checkbox") {
@@ -1887,7 +1917,7 @@ function buildPreviewField(q, i) {
   if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;display:block">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5L5 21'/></svg>Image will appear here</div>`;
   if (q.type === "video")    control = q.mediaUrl ? `<video src="${esc(q.mediaUrl)}" controls style="width:100%;border-radius:10px;display:block"></video>` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='2' y='4' width='20' height='16' rx='2'/><polygon points='10 9 15 12 10 15 10 9'/></svg>Video will appear here</div>`;
   if (q.type === "file_upload") control = `<div style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='28' height='28' style='opacity:.5;margin:0 auto 8px;display:block'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/></svg>${esc(q.placeholder || "Upload your file")}<br><span style='font-size:11px'>${q.allowedFileTypes ? q.allowedFileTypes.replace(/,/g,", ") : "Any file"} · Max ${q.maxFileSizeMb||10}MB</span></div>`;
-  if (q.type === "url_input")   control = `<input type="url" placeholder="${esc(q.urlPlaceholder||"https://")}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
+  if (q.type === "url_input") { const _href=esc(q.urlHref||""); const _lbl=esc(q.urlLabel||q.urlHref||""); control = _href ? `<a href="${_href}" target="_blank" rel="noopener noreferrer" style="color:#6366f1;text-decoration:underline;font-size:14px;word-break:break-all">${_lbl||_href}</a>` : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Belum ada URL yang diset</span>`; }
   if (q.type === "color")       control = `<div style="display:flex;align-items:center;gap:12px"><input type="color" value="${esc(q.colorDefault||"#2BBDA4")}" style="width:48px;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer"><span style="font-size:13px;color:var(--text-muted)">HEX · RGB · HSL will be shown</span></div>`;
   if (q.type === "password")    control = `<div style="position:relative"><input type="password" placeholder="Enter password…" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);letter-spacing:.1em"><div style="font-size:11px;color:var(--text-muted);margin-top:4px">🔒 Users must enter the correct password to submit</div></div>`;
   if (q.type === "toggle") control = `<div style="display:flex;align-items:center;gap:12px"><div style="width:50px;height:26px;border-radius:13px;background:var(--border);position:relative;cursor:pointer"><div style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${q.toggleDefault?"24px":"2px"};box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:14px">${esc(q.toggleDefault?q.toggleOnLabel||"Yes":q.toggleOffLabel||"No")}</span></div>`;

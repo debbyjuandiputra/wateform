@@ -1034,10 +1034,18 @@ function renderForm(form) {
         break;
       }
       case "url_input": {
-        inputHtml = `<div class="url-input-wrap">
-          <svg class="url-prefix-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <input type="url" id="q-${q.id}" class="q-input" placeholder="${esc(q.urlPlaceholder||"https://")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">
-        </div>`;
+        const _uHref = q.urlHref || q.urlPlaceholder || "";
+        const _uLabel = q.urlLabel || _uHref;
+        inputHtml = _uHref
+          ? `<a href="${esc(_uHref)}" target="_blank" rel="noopener noreferrer"
+               id="q-${q.id}"
+               style="display:inline-flex;align-items:center;gap:6px;font-size:14px;
+                      color:#6366f1;text-decoration:underline;word-break:break-all;
+                      cursor:pointer;line-height:1.5;">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+               ${esc(_uLabel)}
+             </a>`
+          : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Link belum diset oleh pemilik form.</span>`;
         break;
       }
       case "file_upload": {
@@ -1568,11 +1576,7 @@ function renderForm(form) {
       });
     }
 
-    // Bind url_input
-    if (q.type === "url_input") {
-      const el = block.querySelector(`#q-${q.id}`);
-      if (el) el.addEventListener("input", () => { answers[q.id] = el.value.trim(); });
-    }
+    // url_input: static link, no user input needed — no answer to capture
 
     // Bind text inputs
     // Bind ranking drag-and-drop
@@ -1821,7 +1825,7 @@ function renderForm(form) {
         return;
       }
 
-      if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return;
+      if (["divider","spacer","button_link","title","image","video","page_break","url_input"].includes(q.type)) return;
 
       const ans = answers[q.id];
       let isEmpty;
@@ -1872,7 +1876,7 @@ function renderForm(form) {
       }
 
       // Skip display-only fields
-      if (["divider","spacer","button_link","page_break"].includes(q.type)) return;
+      if (["divider","spacer","button_link","page_break","url_input"].includes(q.type)) return;
 
       const ans = answers[q.id];
       let isEmpty;

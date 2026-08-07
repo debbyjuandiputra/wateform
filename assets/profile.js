@@ -45,13 +45,13 @@ function toast(msg, type = "success") {
 // ── Auth state listener ─────────────────────────────────────────
 _sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
-    window.location.replace("/login.html");
+    window.location.replace("../login.html");
   }
 });
 
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await _sb.auth.signOut();
-  window.location.href = "/login.html";
+  window.location.href = "../login.html";
 });
 
 // ── Init ──────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ async function init() {
     session = refreshed?.session ?? null;
   }
   if (!session) {
-    window.location.replace("/login.html");
+    window.location.replace("../login.html");
     return;
   }
   const currentUser = session.user;
@@ -136,7 +136,7 @@ init();
       if (!res.ok) throw new Error("Failed to delete account");
 
       await _sb.auth.signOut();
-      window.location.href = "/login.html?deleted=1";
+      window.location.href = "../login.html?deleted=1";
     } catch (err) {
       if (errorEl) {
         errorEl.textContent = "Failed to delete account. Please try again or contact support.";

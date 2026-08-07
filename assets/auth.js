@@ -11,7 +11,7 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 
 const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
-const DASH_URL  = "https://dash.wateform.my.id/dashboard/";
+const DASH_URL  = "https://wateform.my.id/dashboard/";
 
 // ── Supabase client ───────────────────────────────────────────
 let _sb = null;

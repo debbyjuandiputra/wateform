@@ -116,7 +116,7 @@ function showError(id, msg) {
 // ── Auth state listener — handle sesi expired & refresh ───────
 _sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
-    window.location.replace("/login.html");
+    window.location.replace("../login.html");
   }
   if (event === "TOKEN_REFRESHED" && session) {
     currentUser = session.user; // update user jika token di-refresh
@@ -135,7 +135,7 @@ async function init() {
   }
 
   if (!session) {
-    window.location.replace("/login.html");
+    window.location.replace("../login.html");
     return;
   }
   currentUser = session.user;
@@ -981,7 +981,7 @@ document.addEventListener("click", () => {
 });
 document.getElementById("logout-btn").addEventListener("click", async () => {
   await _sb.auth.signOut();
-  window.location.href = "/login.html";
+  window.location.href = "../login.html";
 });
 
 // ── Helpers ───────────────────────────────────────────────────

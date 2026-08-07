@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Profile — WateForm</title>
+<link rel="icon" href="../assets/logo.webp" type="image/webp">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.profile-wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.profile-card {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+}
+.profile-card h3 { font-size: 14.5px; font-weight: 700; margin: 0 0 16px; }
+.profile-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.avatar-lg {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--teal-dim); color: var(--teal-deep);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 700; flex-shrink: 0;
+}
+.profile-head .full-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.profile-head .handle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.profile-fields { display: flex; flex-direction: column; gap: 14px; }
+.profile-fields .field input[readonly] { background: var(--bg-mid); cursor: default; }
+.danger-zone { border-color: rgba(239,68,68,.35); }
+.danger-zone h3 { color: var(--red); }
+.danger-zone p { font-size: 13px; color: var(--text-soft); margin: 0 0 16px; line-height: 1.6; }
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-soft); font-weight: 600;
+}
+.back-link:hover { color: var(--text); }
+.back-link svg { width: 15px; height: 15px; }
+</style>
+</head>
+
+<body>
+<div class="app-shell" id="app">
+
+  <!-- Top bar -->
+  <header class="app-topbar">
+    <a href="./" class="brand topbar-brand">
+      <img src="../assets/logo.webp" alt="WateForm">
+      <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+    </a>
+    <div class="topbar-sep"></div>
+    <span class="topbar-title">Profile</span>
+    <div class="topbar-right">
+      <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+        <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+    <main class="app-main" id="main-content" style="padding:24px 32px">
+      <div class="profile-wrap">
+
+        <a href="./" class="back-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back to dashboard
+        </a>
+
+        <div class="profile-card">
+          <div class="profile-head">
+            <div class="avatar-lg" id="profile-avatar">?</div>
+            <div>
+              <div class="full-name" id="profile-name">…</div>
+              <div class="handle" id="profile-handle">@…</div>
+            </div>
+          </div>
+          <div class="profile-fields">
+            <div class="field">
+              <label for="profile-email">Email</label>
+              <input type="text" id="profile-email" readonly>
+            </div>
+            <div class="field">
+              <label for="profile-username">Username</label>
+              <input type="text" id="profile-username-input" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-card danger-zone">
+          <h3>Danger zone</h3>
+          <p>Deleting your account permanently removes all your workspaces, forms, and data. This cannot be undone.</p>
+          <button class="btn btn-danger btn-sm" id="delete-account-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Delete account
+          </button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ── Delete Account Modal ── -->
+<div class="modal-backdrop hidden" id="delete-account-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header" style="border-bottom:1px solid var(--border)">
+      <h2 class="modal-title" id="delete-modal-title" style="color:var(--red);display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Delete account
+      </h2>
+      <button class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <p style="color:var(--text-soft);margin:0 0 16px;line-height:1.6">
+        This action is <strong style="color:var(--text)">permanent and cannot be undone.</strong>
+        All your workspaces, forms, and data will be deleted immediately.
+      </p>
+      <p style="color:var(--text-soft);margin:0 0 20px;line-height:1.6;font-size:14px">
+        Type <strong style="color:var(--text);font-family:monospace">DELETE</strong> to confirm:
+      </p>
+      <input
+        type="text"
+        id="delete-confirm-input"
+        placeholder="Type DELETE here"
+        autocomplete="off"
+        spellcheck="false"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-mid);color:var(--text);font-size:14px;font-family:monospace;letter-spacing:.05em;outline:none;transition:border-color .2s"
+      />
+      <div id="delete-modal-error" style="display:none;margin-top:10px;font-size:13px;color:var(--red)"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" id="delete-modal-cancel">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn" disabled>Delete my account</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="../assets/profile.js"></script>
+</body>
+</html>

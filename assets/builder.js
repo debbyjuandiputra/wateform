@@ -1383,7 +1383,7 @@ function saveEditToMemory() {
           const h = document.createElement("div");
           h.className = "pw-required-hint";
           h.style.cssText = "font-size:12px;color:var(--red);margin-top:4px";
-          h.textContent = "Password wajib diisi sebelum disimpan.";
+          h.textContent = "Password is required before saving.";
           pwInpEl.parentElement?.appendChild(h);
         }
       }

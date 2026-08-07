@@ -31,11 +31,11 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="dropdown-menu" id="user-menu">
+          <a href="./profile.html" class="dropdown-item" id="view-profile-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            View profile
+          </a>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item danger" id="delete-account-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            Delete account
-          </button>
           <button class="dropdown-item danger" id="logout-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
             Sign out
@@ -59,7 +59,7 @@
           <div class="dropdown-divider"></div>
           <button class="dropdown-item" id="ham-theme">
             <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
-            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             <span id="ham-theme-label">Dark mode</span>
           </button>
           <div class="dropdown-divider"></div>
@@ -221,42 +221,6 @@
 
 <div id="toast-container"></div>
 
-
-
-<!-- ── Delete Account Modal ── -->
-<div class="modal-backdrop hidden" id="delete-account-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header" style="border-bottom:1px solid var(--border)">
-      <h2 class="modal-title" id="delete-modal-title" style="color:var(--red);display:flex;align-items:center;gap:8px">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        Delete account
-      </h2>
-      <button class="modal-close" id="delete-modal-close" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-body" style="padding:20px 24px">
-      <p style="color:var(--text-soft);margin:0 0 16px;line-height:1.6">
-        This action is <strong style="color:var(--text)">permanent and cannot be undone.</strong>
-        All your workspaces, forms, and data will be deleted immediately.
-      </p>
-      <p style="color:var(--text-soft);margin:0 0 20px;line-height:1.6;font-size:14px">
-        Type <strong style="color:var(--text);font-family:monospace">DELETE</strong> to confirm:
-      </p>
-      <input
-        type="text"
-        id="delete-confirm-input"
-        placeholder="Type DELETE here"
-        autocomplete="off"
-        spellcheck="false"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-mid);color:var(--text);font-size:14px;font-family:monospace;letter-spacing:.05em;outline:none;transition:border-color .2s"
-      />
-      <div id="delete-modal-error" style="display:none;margin-top:10px;font-size:13px;color:var(--red)"></div>
-    </div>
-    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)">
-      <button class="btn btn-ghost" id="delete-modal-cancel">Cancel</button>
-      <button class="btn btn-danger" id="delete-confirm-btn" disabled>Delete my account</button>
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="../assets/dashboard.js"></script>

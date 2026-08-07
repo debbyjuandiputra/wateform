@@ -358,9 +358,21 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 .form-row-icon svg { width: 17px; height: 17px; }
 .form-row-info { flex: 1; min-width: 0; }
-.form-row-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.form-row-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+.form-row-name { font-size: 14px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 5px; }
+.form-row-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+.form-row-url { font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .form-row-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+/* Copy-link icon — desktop: next to the URL; mobile: next to the title */
+.copy-link-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex-shrink: 0; padding: 0;
+  border: none; border-radius: 5px; background: none;
+  color: var(--text-muted); cursor: pointer; transition: background .15s, color .15s;
+}
+.copy-link-btn:hover { background: var(--bg-mid); color: var(--teal-deep); }
+.copy-link-btn svg { width: 12.5px; height: 12.5px; }
+.copy-link-mobile { display: none; }
 
 /* Member chip */
 .member-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
@@ -563,14 +575,14 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 .ham-btn:hover { background: var(--bg-mid); }
 .ham-btn span {
-  display: block; width: 14px; height: 1.5px;
+  display: block; width: 14px; height: 2px;
   background: currentColor; border-radius: 2px;
   transition: transform .2s, opacity .2s;
 }
 /* open state: morph into X */
-.ham-btn.open span:nth-child(1) { transform: translateY(5.5px) rotate(45deg); }
+.ham-btn.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 .ham-btn.open span:nth-child(2) { opacity: 0; }
-.ham-btn.open span:nth-child(3) { transform: translateY(-5.5px) rotate(-45deg); }
+.ham-btn.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
 .ham-menu { min-width: 210px; right: 0; }
 
@@ -673,6 +685,8 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   .form-row-info { width: 100%; }
   .form-row-meta { display: none; }
   .dash-header h2 { font-size: 17px; }
+  .copy-link-mobile { display: inline-flex; }
+  .btn-label { display: none; }
 }
 
 /* Util */

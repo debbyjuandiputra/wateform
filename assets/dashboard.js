@@ -354,11 +354,11 @@ async function openWorkspace(wsId) {
         ${isOwner ? `
         <button class="btn btn-ghost btn-sm" id="ws-delete-btn" style="color:var(--red)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          Delete
+          <span class="btn-label">Delete</span>
         </button>
         <button class="btn btn-ghost btn-sm" id="ws-settings-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-          Edit
+          <span class="btn-label">Edit</span>
         </button>` : ""}
         <button class="btn btn-solid btn-sm" data-i18n="form" id="new-form-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
@@ -425,8 +425,18 @@ function renderFormList(forms, wsId, isOwner) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
       </div>
       <div class="form-row-info">
-        <div class="form-row-name">${esc(form.title)}</div>
-        <div class="form-row-meta">${url}</div>
+        <div class="form-row-name">
+          ${esc(form.title)}
+          <button class="copy-link-btn copy-link-mobile" data-action="copy-link" data-url="${url}" title="Copy link" aria-label="Copy link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
+        <div class="form-row-meta">
+          <span class="form-row-url">${url}</span>
+          <button class="copy-link-btn copy-link-desktop" data-action="copy-link" data-url="${url}" title="Copy link" aria-label="Copy link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${form.is_published ? `<span class="pill" style="background:rgba(43,189,164,.12);color:var(--teal-deep)">Published</span>` : `<span class="pill" style="background:var(--bg-mid);color:var(--text-muted)">Draft</span>`}
@@ -491,6 +501,13 @@ function renderFormList(forms, wsId, isOwner) {
     if (!btn) return;
     const action = btn.dataset.action;
     const id     = btn.dataset.id;
+
+    if (action === "copy-link") {
+      navigator.clipboard.writeText(btn.dataset.url);
+      toast("Link copied");
+      e.stopPropagation();
+      return;
+    }
 
     // Toggle dropdown menu
     if (action === "menu-toggle") {
@@ -825,9 +842,13 @@ async function openResponses(formId) {
         </button>
         <div style="min-width:0"><h2 style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Responses · ${esc(form?.title || "Form")}</h2><p>${responses?.length || 0} submissions</p></div>
       </div>
-      ${responses?.length ? `<div id="resp-actions" style="display:none;gap:8px;flex-shrink:0">
-        <button class="btn btn-ghost btn-sm" id="copy-csv-btn">Copy as CSV</button>
-        <button class="btn btn-sm" id="export-csv-btn">Export CSV</button>
+      ${responses?.length ? `<div id="resp-actions" style="display:none;gap:6px;flex-shrink:0;align-items:center">
+        <button class="btn-icon resp-delete-btn" id="delete-resp-btn" title="Delete selected responses" style="color:var(--red);width:32px;height:32px;border:1px solid var(--red);border-radius:var(--radius);flex-shrink:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+        <button class="btn-icon" id="export-csv-btn" title="Download CSV" style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--radius);flex-shrink:0;color:var(--text-soft)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
       </div>` : ""}
     </div>
     <div class="dash-body">
@@ -854,29 +875,27 @@ async function openResponses(formId) {
   document.getElementById("back-from-resp").addEventListener("click", () => openWorkspace(activeWsId));
 
   if (responses?.length) {
-    const selectAll  = document.getElementById("resp-select-all");
-    const actions    = document.getElementById("resp-actions");
-    const exportBtn  = document.getElementById("export-csv-btn");
-    const copyBtn    = document.getElementById("copy-csv-btn");
-    const rowChecks  = () => Array.from(document.querySelectorAll(".resp-select-row"));
+    const selectAll = document.getElementById("resp-select-all");
+    const actions   = document.getElementById("resp-actions");
+    const exportBtn = document.getElementById("export-csv-btn");
+    const deleteBtn = document.getElementById("delete-resp-btn");
+    const rowChecks = () => Array.from(document.querySelectorAll(".resp-select-row"));
 
-    function refreshExportState() {
+    function refreshActionState() {
       const checked = rowChecks().filter(c => c.checked);
       actions.style.display = checked.length ? "flex" : "none";
-      exportBtn.textContent = checked.length ? `Export CSV (${checked.length})` : "Export CSV";
-      copyBtn.textContent = checked.length ? `Copy as CSV (${checked.length})` : "Copy as CSV";
     }
 
     selectAll.addEventListener("change", () => {
       rowChecks().forEach(c => c.checked = selectAll.checked);
-      refreshExportState();
+      refreshActionState();
     });
 
     rowChecks().forEach(c => c.addEventListener("change", () => {
       const all = rowChecks();
       selectAll.checked = all.length > 0 && all.every(x => x.checked);
       selectAll.indeterminate = all.some(x => x.checked) && !selectAll.checked;
-      refreshExportState();
+      refreshActionState();
     }));
 
     exportBtn.addEventListener("click", () => {
@@ -885,16 +904,22 @@ async function openResponses(formId) {
       exportResponsesToCsv(rows, questions, form?.title || "responses");
     });
 
-    copyBtn.addEventListener("click", async () => {
+    deleteBtn.addEventListener("click", () => {
       const selectedIdx = rowChecks().filter(c => c.checked).map(c => Number(c.dataset.idx));
-      const rows = selectedIdx.map(i => responses[i]);
-      const csv = buildCsv(rows, questions);
-      try {
-        await navigator.clipboard.writeText(csv);
-        toast("Copied as CSV");
-      } catch {
-        toast("Failed to copy", "error");
-      }
+      const count = selectedIdx.length;
+      if (!count) return;
+      openConfirm(
+        "Delete responses",
+        `Delete ${count} selected response${count > 1 ? "s" : ""}? This cannot be undone.`,
+        async () => {
+          const ids = selectedIdx.map(i => responses[i].id);
+          const { error } = await _sb.from("responses").delete().in("id", ids);
+          if (error) { toast("Failed to delete", "error"); return; }
+          toast(`${count} response${count > 1 ? "s" : ""} deleted`);
+          openResponses(formId);
+        },
+        "Delete"
+      );
     });
   }
 }
@@ -958,84 +983,6 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   await _sb.auth.signOut();
   window.location.href = "../login.html";
 });
-
-// ── Delete Account ─────────────────────────────────────────────
-(function initDeleteAccount() {
-  const modal       = document.getElementById("delete-account-modal");
-  const input       = document.getElementById("delete-confirm-input");
-  const confirmBtn  = document.getElementById("delete-confirm-btn");
-  const errorEl     = document.getElementById("delete-modal-error");
-
-  function openModal() {
-    input.value = "";
-    confirmBtn.disabled = true;
-    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
-    modal.classList.remove("hidden");
-    setTimeout(() => input.focus(), 50);
-    document.getElementById("user-menu").classList.remove("open");
-  }
-
-  function closeModal() {
-    modal.classList.add("hidden");
-    input.value = "";
-    confirmBtn.disabled = true;
-  }
-
-  document.getElementById("delete-account-btn").addEventListener("click", openModal);
-  document.getElementById("delete-modal-close").addEventListener("click", closeModal);
-  document.getElementById("delete-modal-cancel").addEventListener("click", closeModal);
-
-  // Close on backdrop click
-  modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-
-  // Enable confirm button only when user types "DELETE"
-  input.addEventListener("input", () => {
-    confirmBtn.disabled = input.value.trim() !== "DELETE";
-    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
-  });
-
-  // Keyboard: Enter to confirm, Escape to close
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !confirmBtn.disabled) confirmBtn.click();
-    if (e.key === "Escape") closeModal();
-  });
-
-  confirmBtn.addEventListener("click", async () => {
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = "Deleting…";
-    if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
-
-    try {
-      // Hapus data user dari tabel profiles dulu (RLS harus mengizinkan)
-      const { data: { user } } = await _sb.auth.getUser();
-      if (user) {
-        await _sb.from("profiles").delete().eq("id", user.id);
-      }
-
-      // Hapus auth user via Supabase Admin (perlu Edge Function)
-      // Fallback: sign out saja jika tidak ada edge function delete-user
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
-        method:  "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization:  `Bearer ${(await _sb.auth.getSession()).data.session?.access_token}`,
-        },
-      });
-
-      if (!res.ok) throw new Error("Failed to delete account");
-
-      await _sb.auth.signOut();
-      window.location.href = "../login.html?deleted=1";
-    } catch (err) {
-      if (errorEl) {
-        errorEl.textContent = "Failed to delete account. Please try again or contact support.";
-        errorEl.style.display = "block";
-      }
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = "Delete my account";
-    }
-  });
-})();
 
 // ── Helpers ───────────────────────────────────────────────────
 function esc(str) {

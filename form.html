@@ -117,6 +117,48 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .btn-submit-tg { background: #229ED9; color: #fff; }
 .btn-submit-tg:hover { background: #1a7fad; color: #fff; }
 
+/* ── Page navigation ──────────────────────────────────────── */
+.form-nav { margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }
+.page-progress {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.page-label {
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  white-space: nowrap;
+}
+.page-dots { display: flex; gap: 6px; align-items: center; }
+.page-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border); transition: background .2s, transform .2s;
+}
+.page-dot.done { background: var(--teal); opacity: .5; }
+.page-dot.active {
+  background: var(--teal); transform: scale(1.35);
+}
+.page-nav-btns {
+  display: flex; align-items: stretch; gap: 8px;
+}
+.btn-page-prev, .btn-page-next {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 11px 18px; font-size: 14px; font-weight: 600;
+  border-radius: var(--radius); cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--bg-mid);
+  color: var(--text); transition: background .15s, border-color .15s;
+  white-space: nowrap; flex-shrink: 0;
+}
+.btn-page-prev:hover { border-color: var(--text-muted); background: var(--bg-raised); }
+.btn-page-next {
+  border-color: var(--teal); background: var(--teal-dim);
+  color: var(--teal-deep); margin-left: auto;
+}
+[data-theme="dark"] .btn-page-next { color: var(--teal); }
+.btn-page-next:hover { background: var(--teal); color: #04231C; }
+.page-nav-btns .form-submit { margin-top: 0; flex: 1; }
+
+/* q-block hidden between pages */
+.q-block[style*="display: none"] { display: none !important; }
+
 /* States */
 .state-screen {
   flex: 1; display: flex; align-items: center; justify-content: center;
@@ -359,6 +401,9 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .mi-field-wrap { display:flex; flex-direction:column; gap:4px; }
 .mi-field-label { font-size:12px; font-weight:600; color:var(--text); }
 </style>
+  <!-- Leaflet for Map field -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
 <body>
 
@@ -382,7 +427,7 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script>
+<script type="text/javascript">
 const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -455,8 +500,17 @@ function esc(s) {
 // ── Build WhatsApp / Telegram link ────────────────────────────
 function buildLink(settings, questions, answers, targetOverride) {
   const lines = questions.map(q => {
+    if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return null;
     const ans = answers[q.id];
     if (ans === undefined || ans === null || ans === "") return null;
+    // Map: format as readable text
+    if (q.type === "map" && typeof ans === "object") {
+      const parts = [];
+      if (ans.address) parts.push(ans.address);
+      if (ans.lat != null && ans.lng != null) parts.push(`${Number(ans.lat).toFixed(6)}, ${Number(ans.lng).toFixed(6)}`);
+      const ansStr = parts.join("\n");
+      return ansStr ? `*${q.title}*\n${ansStr}` : null;
+    }
     return `*${q.title}*\n${ans}`;
   }).filter(Boolean);
 
@@ -559,6 +613,15 @@ function renderForm(form) {
 
   // Questions
   questions.forEach(q => {
+    // Page break: insert a sentinel marker div (hidden) to let pagination logic split by page
+    if (q.type === "page_break") {
+      const pb = document.createElement("div");
+      pb.className = "q-page-break-marker";
+      pb.style.display = "none";
+      card.appendChild(pb);
+      return;
+    }
+
     const block = document.createElement("div");
     block.className = "q-block";
     const req = q.required ? `<span class="req">*</span>` : "";
@@ -609,6 +672,156 @@ function renderForm(form) {
         vidBlock.innerHTML = `${q.title ? `<div class="q-label">${esc(q.title)}</div>` : ""}<div style="background:var(--bg-mid);border:1px dashed var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px">No video set</div>`;
       }
       card.appendChild(vidBlock);
+      return;
+    }
+
+    // Divider type
+    if (q.type === "divider") {
+      const dBlock = document.createElement("div");
+      dBlock.className = "q-block";
+      dBlock.style.cssText = "padding:4px 0";
+      const ds = q.dividerStyle || "solid";
+      dBlock.innerHTML = `<hr style="border:none;border-top:2px ${ds} var(--border);margin:0">`;
+      card.appendChild(dBlock);
+      return;
+    }
+
+    // Spacer type
+    if (q.type === "spacer") {
+      const sBlock = document.createElement("div");
+      sBlock.className = "q-block";
+      sBlock.style.cssText = `padding:0;height:${q.spacerHeight||32}px;min-height:${q.spacerHeight||32}px;background:transparent;box-shadow:none;border:none`;
+      card.appendChild(sBlock);
+      return;
+    }
+
+    // Button (link) type
+    if (q.type === "button_link") {
+      const bBlock = document.createElement("div");
+      bBlock.className = "q-block";
+      const bStyle = q.buttonStyle || "primary";
+      const bLabel = esc(q.buttonLabel || "Open link");
+      const bAlign = q.buttonAlign || "left";
+      const alignMap = {left:"flex-start",center:"center",right:"flex-end"};
+      let btnCss = "padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:opacity .15s;";
+      if (bStyle === "primary")  btnCss += "background:var(--teal);color:#fff;border:2px solid var(--teal)";
+      if (bStyle === "outline")  btnCss += "background:transparent;color:var(--teal);border:2px solid var(--teal)";
+      if (bStyle === "ghost")    btnCss += "background:transparent;color:var(--teal);border:2px solid transparent";
+      bBlock.innerHTML = `
+        ${q.title ? `<div class="q-label" style="margin-bottom:8px">${esc(q.title)}</div>` : ""}
+        ${q.subtitle ? `<div class="q-subtitle" style="margin-bottom:8px">${q.subtitle}</div>` : ""}
+        <div style="display:flex;justify-content:${alignMap[bAlign]||"flex-start"}">
+          <a href="${esc(q.buttonUrl||"#")}" target="_blank" rel="noopener noreferrer" style="${btnCss}"
+             onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            ${bLabel}
+            <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' width='13' height='13'>
+              <path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/>
+              <polyline points='15 3 21 3 21 9'/><line x1='10' y1='14' x2='21' y2='3'/>
+            </svg>
+          </a>
+        </div>`;
+      card.appendChild(bBlock);
+      return;
+    }
+
+    // Map / Location type
+    if (q.type === "map") {
+      const mBlock = document.createElement("div");
+      mBlock.className = "q-block";
+      const mapId = "map-" + q.id;
+      const mapData = { lat: q.mapLat, lng: q.mapLng };
+      mBlock.innerHTML = `
+        <div class="q-label">${esc(q.title)}${req}</div>
+        ${q.subtitle ? `<div class="q-subtitle">${q.subtitle}</div>` : ""}
+        <div id="${mapId}" style="height:220px;border-radius:10px;border:1px solid var(--border);overflow:hidden;position:relative;background:#e8f4f0;margin-bottom:8px">
+          <div id="${mapId}-inner" style="width:100%;height:100%"></div>
+          ${q.mapAllowGps !== false ? `
+          <button type="button" id="${mapId}-gps"
+            style="position:absolute;bottom:10px;right:10px;z-index:1000;background:var(--bg-raised);border:1px solid var(--border);border-radius:8px;padding:7px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--teal);box-shadow:0 2px 6px rgba(0,0,0,.1)">
+            <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' width='14' height='14'><circle cx='12' cy='12' r='3'/><path d='M12 1v4M12 19v4M1 12h4M19 12h4'/></svg>
+            Use my location
+          </button>` : ""}
+        </div>
+        ${q.mapShowAddress !== false ? `
+        <input type="text" id="${mapId}-addr" placeholder="Address…"
+          style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:4px">` : ""}
+        <div style="font-size:11px;color:var(--text-muted)" id="${mapId}-coords"></div>
+        <div class="q-err" style="font-size:12px;color:var(--red);display:none">Please pick a location on the map.</div>`;
+      card.appendChild(mBlock);
+
+      // Init Leaflet map after DOM is ready
+      setTimeout(() => {
+        if (typeof L === "undefined") return;
+        const defaultLat = q.mapLat || -6.2088;
+        const defaultLng = q.mapLng || 106.8456;
+        const zoom = q.mapZoom || 13;
+        const map = L.map(mapId + "-inner").setView([defaultLat, defaultLng], zoom);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(map);
+
+        let marker = null;
+        function setPin(lat, lng) {
+          if (marker) map.removeLayer(marker);
+          marker = L.marker([lat, lng]).addTo(map);
+          answers[q.id] = { lat, lng, address: document.getElementById(mapId + "-addr")?.value || "" };
+          const coordsEl = document.getElementById(mapId + "-coords");
+          if (coordsEl) coordsEl.textContent = `(pin) ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+
+        map.on("click", e => {
+          setPin(e.latlng.lat, e.latlng.lng);
+          // Reverse geocode
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+            .then(r => r.json()).then(d => {
+              const addr = d.display_name || "";
+              const addrEl = document.getElementById(mapId + "-addr");
+              if (addrEl) addrEl.value = addr;
+              if (answers[q.id]) answers[q.id].address = addr;
+            }).catch(() => {});
+        });
+
+        const addrEl = document.getElementById(mapId + "-addr");
+        if (addrEl) {
+          addrEl.addEventListener("change", () => {
+            if (answers[q.id]) answers[q.id].address = addrEl.value;
+            // Forward geocode
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addrEl.value)}&limit=1`)
+              .then(r => r.json()).then(d => {
+                if (d[0]) {
+                  const lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
+                  map.setView([lat, lng], zoom);
+                  setPin(lat, lng);
+                  addrEl.value = d[0].display_name || addrEl.value;
+                  if (answers[q.id]) answers[q.id].address = addrEl.value;
+                }
+              }).catch(() => {});
+          });
+        }
+
+        const gpsBtn = document.getElementById(mapId + "-gps");
+        if (gpsBtn) {
+          gpsBtn.addEventListener("click", () => {
+            if (!navigator.geolocation) return;
+            gpsBtn.textContent = "Locating…"; gpsBtn.disabled = true;
+            navigator.geolocation.getCurrentPosition(pos => {
+              const lat = pos.coords.latitude, lng = pos.coords.longitude;
+              map.setView([lat, lng], zoom);
+              setPin(lat, lng);
+              fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(r => r.json()).then(d => {
+                  const addr = d.display_name || "";
+                  const ae = document.getElementById(mapId + "-addr");
+                  if (ae) ae.value = addr;
+                  if (answers[q.id]) answers[q.id].address = addr;
+                }).catch(() => {});
+              gpsBtn.innerHTML = '<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' width=\'14\' height=\'14\'><circle cx=\'12\' cy=\'12\' r=\'3\'/><path d=\'M12 1v4M12 19v4M1 12h4M19 12h4\'/></svg> Use my location';
+              gpsBtn.disabled = false;
+            }, () => { gpsBtn.innerHTML = 'GPS error'; setTimeout(()=>{ gpsBtn.innerHTML = '<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' width=\'14\' height=\'14\'><circle cx=\'12\' cy=\'12\' r=\'3\'/><path d=\'M12 1v4M12 19v4M1 12h4M19 12h4\'/></svg> Use my location'; gpsBtn.disabled = false; },2000); });
+          });
+        }
+      }, 100);
       return;
     }
 
@@ -854,7 +1067,7 @@ function renderForm(form) {
       }
       case "emoji_rating": {
         const eset = q.emojiSet || "5";
-        const emojis = eset==="2" ? ["👎","👍"] : eset==="3" ? ["😞","😐","😊"] : ["😢","😠","😐","😊","😁"];
+        const emojis = eset==="2" ? ["\u{1F44E}","\u{1F44D}"] : eset==="3" ? ["\u{1F61E}","\u{1F610}","\u{1F60A}"] : ["\u{1F622}","\u{1F620}","\u{1F610}","\u{1F60A}","\u{1F601}"];
         inputHtml = `<div class="emoji-row" id="er-${q.id}">` +
           emojis.map((e,i) => `<button type="button" class="emoji-btn" data-qid="${q.id}" data-val="${i+1}" data-emoji="${e}">${e}</button>`).join("") +
           `</div>`;
@@ -1043,7 +1256,7 @@ function renderForm(form) {
           return;
         }
         nameDiv.style.color = "var(--teal)";
-        nameDiv.textContent = "📎 " + file.name + " (" + (file.size/1024/1024).toFixed(2) + "MB)";
+        nameDiv.textContent = "\u{1F4CE} " + file.name + " (" + (file.size/1024/1024).toFixed(2) + "MB)";
         nameDiv.style.display = "";
         answers[q.id] = "[Attached: " + file.name + "]";
       };
@@ -1346,32 +1559,107 @@ function renderForm(form) {
     }
   });
 
-  // Submit button(s)
+  // ── Multi-page navigation setup ──────────────────────────────
   const target = settings.target || "wa";
-  const submitDiv = document.createElement("div");
-  submitDiv.className = "form-submit";
 
-  if (target === "both") {
-    const labelWa = settings.submitLabelWa || "Send WateForm to WhatsApp";
-    const labelTg = settings.submitLabelTg || "Send WateForm to Telegram";
-    submitDiv.innerHTML = `
-      <button class="btn-submit btn-submit-wa" id="submit-btn-wa">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>
-        ${esc(labelWa)}
-      </button>
-      <button class="btn-submit btn-submit-tg" id="submit-btn-tg">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>
-        ${esc(labelTg)}
-      </button>
-    `;
-  } else {
-    const submitLabel = settings.submitLabel || (
-      target === "tg" ? "Send WateForm to Telegram" : "Send WateForm to WhatsApp"
-    );
-    submitDiv.innerHTML = `<button class="btn-submit" id="submit-btn">${esc(submitLabel)}</button>`;
+  // Split card children into pages based on .q-page-break-marker sentinels
+  const allChildren = Array.from(card.children).filter(el => !el.classList.contains("form-header"));
+  const pages = [[]];
+  allChildren.forEach(el => {
+    if (el.classList.contains("q-page-break-marker")) {
+      pages.push([]);
+    } else {
+      pages[pages.length - 1].push(el);
+    }
+  });
+  // Remove markers from DOM
+  card.querySelectorAll(".q-page-break-marker").forEach(el => el.remove());
+
+  const totalPages = pages.length;
+  let currentPage = 0;
+
+  // Build the submit buttons HTML
+  const submitBtnsHtml = (() => {
+    if (target === "both") {
+      const labelWa = settings.submitLabelWa || "Send WateForm to WhatsApp";
+      const labelTg = settings.submitLabelTg || "Send WateForm to Telegram";
+      return `
+        <button class="btn-submit btn-submit-wa" id="submit-btn-wa">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>
+          ${esc(labelWa)}
+        </button>
+        <button class="btn-submit btn-submit-tg" id="submit-btn-tg">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>
+          ${esc(labelTg)}
+        </button>`;
+    } else {
+      const submitLabel = settings.submitLabel || (
+        target === "tg" ? "Send WateForm to Telegram" : "Send WateForm to WhatsApp"
+      );
+      return `<button class="btn-submit" id="submit-btn">${esc(submitLabel)}</button>`;
+    }
+  })();
+
+  // Navigation footer element
+  const navDiv = document.createElement("div");
+  navDiv.className = "form-nav";
+
+  function buildNavHtml(pg) {
+    const isFirst = pg === 0;
+    const isLast  = pg === totalPages - 1;
+    if (totalPages <= 1) {
+      // No pages — just show submit
+      return `<div class="form-submit" style="margin-top:0">${submitBtnsHtml}</div>`;
+    }
+    // Progress dots
+    const dots = Array.from({length: totalPages}, (_, i) =>
+      `<span class="page-dot ${i === pg ? 'active' : i < pg ? 'done' : ''}"></span>`
+    ).join("");
+    return `
+      <div class="page-progress">
+        <span class="page-label">Page ${pg + 1} of ${totalPages}</span>
+        <div class="page-dots">${dots}</div>
+      </div>
+      <div class="page-nav-btns">
+        ${!isFirst ? `<button class="btn-page-prev" id="nav-prev">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Previous
+        </button>` : `<span></span>`}
+        ${isLast
+          ? `<div class="form-submit" style="margin-top:0;flex:1">${submitBtnsHtml}</div>`
+          : `<button class="btn-page-next" id="nav-next">
+              Next
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>`
+        }
+      </div>`;
   }
 
-  card.appendChild(submitDiv);
+  function showPage(pg) {
+    // Hide all q-blocks
+    pages.forEach((pageBlocks, pi) => {
+      pageBlocks.forEach(el => { el.style.display = pi === pg ? "" : "none"; });
+    });
+    currentPage = pg;
+    navDiv.innerHTML = buildNavHtml(pg);
+    navDiv.querySelector("#nav-prev")?.addEventListener("click", () => {
+      window.scrollTo({top: 0, behavior: "smooth"});
+      showPage(currentPage - 1);
+    });
+    navDiv.querySelector("#nav-next")?.addEventListener("click", () => {
+      if (!validatePage(currentPage)) return;
+      window.scrollTo({top: 0, behavior: "smooth"});
+      showPage(currentPage + 1);
+    });
+    if (target === "both") {
+      navDiv.querySelector("#submit-btn-wa")?.addEventListener("click", () => doSubmit("wa"));
+      navDiv.querySelector("#submit-btn-tg")?.addEventListener("click", () => doSubmit("tg"));
+    } else {
+      navDiv.querySelector("#submit-btn")?.addEventListener("click", () => doSubmit());
+    }
+  }
+
+  card.appendChild(navDiv);
   root.appendChild(card);
 
   // ── Branding footer & navbar ───────────────────────────────────
@@ -1386,11 +1674,65 @@ function renderForm(form) {
     root.appendChild(branding);
   }
 
+  // ── Validate a single page (for Next button) ────────────────
+  function validatePage(pg) {
+    let valid = true;
+    const pageBlocks = pages[pg] || [];
+    // Get questions that belong to this page by matching their rendered blocks
+    const allBlocks = Array.from(card.querySelectorAll(".q-block"));
+    // Filter questions that appear in the blocks of this page
+    questions.forEach(q => {
+      if (q.type === "page_break") return;
+      const block = allBlocks.find(b => b.querySelector(`#q-${q.id}`) || b.querySelector(`#perr-${q.id}`));
+      if (!block || !pageBlocks.includes(block)) return;
+      const errEl = block?.querySelector(".q-err");
+
+      if (q.type === "password") {
+        const pwInp = block?.querySelector(`#q-${q.id}`);
+        const perrEl = block?.querySelector(`#perr-${q.id}`);
+        const entered = (pwInp?.value || "").trim();
+        const expected = (q.passwordValue || "").trim();
+        if (expected && entered !== expected) {
+          if (perrEl) perrEl.style.display = "";
+          if (pwInp) pwInp.style.borderColor = "var(--red)";
+          valid = false;
+        } else {
+          if (perrEl) perrEl.style.display = "none";
+          if (pwInp) pwInp.style.borderColor = "";
+        }
+        return;
+      }
+
+      if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return;
+
+      const ans = answers[q.id];
+      let isEmpty;
+      if (q.type === "map") {
+        isEmpty = !ans || (!ans.lat && !ans.lng);
+      } else {
+        isEmpty = !ans || (typeof ans === 'string' && ans.trim() === '');
+      }
+      if (q.required && isEmpty) {
+        if (errEl) errEl.style.display = "";
+        valid = false;
+      } else {
+        if (errEl) errEl.style.display = "none";
+      }
+    });
+    if (!valid) {
+      // Scroll to first error on this page
+      const firstErr = pageBlocks.find(b => b.querySelector(".q-err:not([style*='none'])"));
+      firstErr?.scrollIntoView({behavior:"smooth", block:"center"});
+    }
+    return valid;
+  }
+
   // ── Validate helper ─────────────────────────────────────────
   function validateForm() {
     let valid = true;
     questions.forEach(q => {
-      const block = card.querySelectorAll(".q-block")[questions.indexOf(q)];
+      if (q.type === "page_break") return;
+      const block = card.querySelectorAll(".q-block")[questions.filter(x => x.type !== "page_break").indexOf(q)];
       const errEl = block?.querySelector(".q-err");
 
       // Password gate: always validate regardless of required flag
@@ -1410,8 +1752,16 @@ function renderForm(form) {
         return;
       }
 
+      // Skip display-only fields
+      if (["divider","spacer","button_link","page_break"].includes(q.type)) return;
+
       const ans = answers[q.id];
-      const isEmpty = !ans || (typeof ans === 'string' && ans.trim() === '');
+      let isEmpty;
+      if (q.type === "map") {
+        isEmpty = !ans || (!ans.lat && !ans.lng);
+      } else {
+        isEmpty = !ans || (typeof ans === 'string' && ans.trim() === '');
+      }
       if (q.required && isEmpty) {
         if (errEl) errEl.style.display = "";
         if (q.type === "file_upload") {
@@ -1461,28 +1811,27 @@ function renderForm(form) {
     submitting = false;
   }
 
-  if (target === "both") {
-    document.getElementById("submit-btn-wa")?.addEventListener("click", () => doSubmit("wa"));
-    document.getElementById("submit-btn-tg")?.addEventListener("click", () => doSubmit("tg"));
-  } else {
-    document.getElementById("submit-btn")?.addEventListener("click", () => doSubmit());
-  }
-
-  // Enter key on single-line inputs triggers submit (not textarea)
+  // Enter key on single-line inputs: go next or submit
   root.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       const tag = e.target?.tagName?.toLowerCase();
-      if (tag === "textarea") return; // allow newline in textarea
+      if (tag === "textarea") return;
       if (tag === "input" || tag === "select") {
         e.preventDefault();
-        if (target === "both") {
-          document.getElementById("submit-btn-wa")?.click();
+        const isLast = currentPage === totalPages - 1;
+        if (!isLast) {
+          navDiv.querySelector("#nav-next")?.click();
+        } else if (target === "both") {
+          navDiv.querySelector("#submit-btn-wa")?.click();
         } else {
-          document.getElementById("submit-btn")?.click();
+          navDiv.querySelector("#submit-btn")?.click();
         }
       }
     }
   });
+
+  // Initialize: show first page
+  showPage(0);
 }
 
 // ── Main: fetch form ──────────────────────────────────────────

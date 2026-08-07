@@ -41,6 +41,11 @@ const Q_TYPES = [
   { type:"emoji_rating",label:"Emoji Rating",     icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',  desc:"Rate with emoji faces" },
   { type:"slider",      label:"Slider",           icon:'<line x1="3" y1="12" x2="21" y2="12"/><circle cx="9" cy="12" r="3" fill="currentColor" stroke="none"/>',  desc:"Drag slider (0–100)" },
   { type:"nps_score",   label:"NPS Score",        icon:'<rect x="2" y="7" width="4" height="14" rx="1"/><rect x="9" y="4" width="4" height="17" rx="1"/><rect x="16" y="2" width="4" height="19" rx="1"/>',  desc:"Net Promoter Score (0–10)" },
+  { type:"map",         label:"Map / Location",   icon:'<path d="M21 10c0 6-9 13-9 13S3 16 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',                                                              desc:"Map picker + GPS + address" },
+  { type:"divider",     label:"Divider",          icon:'<line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/><line x1="3" y1="7" x2="21" y2="7" opacity=".3"/><line x1="3" y1="17" x2="21" y2="17" opacity=".3"/>',  desc:"Horizontal rule / separator" },
+  { type:"spacer",      label:"Spacer",           icon:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M8 21H5a2 2 0 0 0-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/>',                                              desc:"Blank vertical space" },
+  { type:"button_link", label:"Button (link)",    icon:'<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M9 12h6M13 10l2 2-2 2"/>',                                                                          desc:"Button that opens a URL" },
+  { type:"page_break",  label:"Page Break",       icon:'<path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/>',                                                                                     desc:"Split form into pages (Next/Prev)" },
 ];
 
 // Phone country codes
@@ -297,6 +302,7 @@ function renderQTypePicker() {
   const grid = document.getElementById("qtype-grid");
   grid.innerHTML = "";
   Q_TYPES.forEach(def => {
+    if (def.type === "page_break") return; // Added via dedicated button, not the picker
     const btn = document.createElement("button");
     btn.className = "qtype-btn";
     btn.innerHTML = `
@@ -366,12 +372,21 @@ function addQuestion(type) {
     sliderMinLabel: "", sliderMaxLabel: "",
     // nps_score
     npsMinLabel: "Not likely", npsMaxLabel: "Very likely",
+    // map
+    mapLat: null, mapLng: null, mapAddress: "", mapZoom: 13,
+    mapAllowGps: true, mapShowAddress: true,
+    // divider
+    dividerStyle: "solid", dividerColor: "",
+    // spacer
+    spacerHeight: 32,
+    // button_link
+    buttonLabel: "Open link", buttonUrl: "", buttonStyle: "primary", buttonAlign: "left",
   };
   questions.push(q);
   renderQuestionCards();
   scheduleSave();
-  // open edit modal for the new question
-  openEditModal(questions.length - 1);
+  // open edit modal for the new question (skip for page_break — no settings)
+  if (type !== "page_break") openEditModal(questions.length - 1);
 }
 
 // ── Compact question card list ─────────────────────────────────
@@ -380,7 +395,7 @@ function renderQuestionCards() {
   const empty  = document.getElementById("center-empty");
 
   // Remove existing cards and add-btn (but keep center-empty)
-  center.querySelectorAll(".qcard, .center-add-q-btn").forEach(el => el.remove());
+  center.querySelectorAll(".qcard, .center-add-q-btn, .page-break-card, .center-bottom-btns").forEach(el => el.remove());
 
   if (questions.length === 0) {
     if (empty) empty.style.display = "flex";
@@ -388,7 +403,32 @@ function renderQuestionCards() {
   }
   if (empty) empty.style.display = "none";
 
+  // Count page numbers for labeling
+  let pageNum = 1;
   questions.forEach((q, idx) => {
+    if (q.type === "page_break") {
+      // ── Page break divider ───────────────────────────────────
+      const pb = document.createElement("div");
+      pb.className = "page-break-card";
+      pb.dataset.idx = idx;
+      pb.innerHTML = `
+        <div class="page-break-line"></div>
+        <div class="page-break-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/></svg>
+          Page ${pageNum} ends here — Page ${pageNum + 1} starts below
+        </div>
+        <div class="page-break-line"></div>
+        <button class="page-break-del" title="Remove page break" data-idx="${idx}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>`;
+      pb.querySelector(".page-break-del").addEventListener("click", (e) => {
+        e.stopPropagation(); deleteQuestion(idx);
+      });
+      center.appendChild(pb);
+      pageNum++;
+      return;
+    }
+
     const def = Q_TYPES.find(t => t.type === q.type) || Q_TYPES[0];
     const card = document.createElement("div");
     card.className = "qcard";
@@ -434,18 +474,33 @@ function renderQuestionCards() {
     center.appendChild(card);
   });
 
-  // Add question button at the bottom
+  // Add question + Add page break buttons at the bottom
+  const btnsRow = document.createElement("div");
+  btnsRow.className = "center-bottom-btns";
+
   const addBtn = document.createElement("button");
   addBtn.className = "add-q-btn center-add-q-btn";
   addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14M5 12h14"/></svg> Add question`;
   addBtn.addEventListener("click", () => openModal("qtype-modal"));
-  center.appendChild(addBtn);
+
+  const addPbBtn = document.createElement("button");
+  addPbBtn.className = "add-q-btn center-add-pb-btn";
+  addPbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/></svg> Add page break`;
+  addPbBtn.addEventListener("click", () => {
+    if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
+    addQuestion("page_break");
+  });
+
+  btnsRow.appendChild(addBtn);
+  btnsRow.appendChild(addPbBtn);
+  center.appendChild(btnsRow);
 }
 
 // ── Edit modal ─────────────────────────────────────────────────
 function openEditModal(idx) {
-  editingIdx = idx;
   const q = questions[idx];
+  if (q.type === "page_break") return; // No edit modal for page breaks
+  editingIdx = idx;
   const def = Q_TYPES.find(t => t.type === q.type) || Q_TYPES[0];
 
   // Set modal header
@@ -950,8 +1005,83 @@ function openEditModal(idx) {
     body.appendChild(makeField("Label for 10 (right)", "input", { type:"text", id:"em-nps-max-label", value: q.npsMaxLabel||"Very likely", maxlength:"40" }));
   }
 
+  // ── Map / Location fields
+  if (q.type === "map") {
+    body.appendChild(makeToggleField("Allow GPS / current location", "em-map-allow-gps", q.mapAllowGps !== false));
+    body.appendChild(makeToggleField("Show address text field", "em-map-show-address", q.mapShowAddress !== false));
+    const zWrap = document.createElement("div"); zWrap.className = "field";
+    const zLbl = document.createElement("label"); zLbl.textContent = "Default zoom level (1–20)";
+    zWrap.appendChild(zLbl);
+    const zInp = document.createElement("input"); zInp.type = "number"; zInp.id = "em-map-zoom";
+    zInp.value = q.mapZoom || 13; zInp.min = 1; zInp.max = 20; zInp.step = 1;
+    zInp.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:14px;font-family:inherit";
+    zWrap.appendChild(zInp);
+    body.appendChild(zWrap);
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size:12px;color:var(--text-muted);padding:8px 12px;background:var(--bg-mid);border-radius:var(--radius);border:1px solid var(--border)";
+    hint.innerHTML = "📍 Respondents can drag a pin on the map, use GPS to auto-fill their location, and type an address. Coordinates + address are saved.";
+    body.appendChild(hint);
+  }
+
+  // ── Divider fields
+  if (q.type === "divider") {
+    const dWrap = document.createElement("div"); dWrap.className = "field";
+    const dLbl = document.createElement("label"); dLbl.textContent = "Line style";
+    dWrap.appendChild(dLbl);
+    const dSel = document.createElement("select"); dSel.id = "em-divider-style";
+    [{v:"solid",l:"Solid"},{v:"dashed",l:"Dashed"},{v:"dotted",l:"Dotted"},{v:"double",l:"Double"}].forEach(({v,l}) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((q.dividerStyle||"solid") === v) o.selected = true;
+      dSel.appendChild(o);
+    });
+    dWrap.appendChild(dSel); body.appendChild(dWrap);
+    const hint2 = document.createElement("div");
+    hint2.style.cssText = "font-size:12px;color:var(--text-muted);margin-top:4px";
+    hint2.textContent = "Divider is a display-only separator — respondents don't fill it in.";
+    body.appendChild(hint2);
+  }
+
+  // ── Spacer fields
+  if (q.type === "spacer") {
+    body.appendChild(makeField("Height (px)", "input", { type:"number", id:"em-spacer-height", value: q.spacerHeight || 32, min:"8", max:"300", step:"4" }));
+    const hint3 = document.createElement("div");
+    hint3.style.cssText = "font-size:12px;color:var(--text-muted);margin-top:4px";
+    hint3.textContent = "Spacer adds blank vertical space — respondents don't fill it in.";
+    body.appendChild(hint3);
+  }
+
+  // ── Button (link) fields
+  if (q.type === "button_link") {
+    body.appendChild(makeField("Button label", "input", { type:"text", id:"em-btn-label", value: q.buttonLabel || "Open link", maxlength:"80" }));
+    body.appendChild(makeField("URL / Link", "input", { type:"url", id:"em-btn-url", value: q.buttonUrl || "", placeholder:"https://…" }));
+    const bStyleWrap = document.createElement("div"); bStyleWrap.className = "field";
+    const bStyleLbl = document.createElement("label"); bStyleLbl.textContent = "Style";
+    bStyleWrap.appendChild(bStyleLbl);
+    const bStyleSel = document.createElement("select"); bStyleSel.id = "em-btn-style";
+    [{v:"primary",l:"Primary (filled)"},{v:"outline",l:"Outline"},{v:"ghost",l:"Ghost / text"}].forEach(({v,l}) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((q.buttonStyle||"primary") === v) o.selected = true;
+      bStyleSel.appendChild(o);
+    });
+    bStyleWrap.appendChild(bStyleSel); body.appendChild(bStyleWrap);
+    const bAlignWrap = document.createElement("div"); bAlignWrap.className = "field";
+    const bAlignLbl = document.createElement("label"); bAlignLbl.textContent = "Alignment";
+    bAlignWrap.appendChild(bAlignLbl);
+    const bAlignSel = document.createElement("select"); bAlignSel.id = "em-btn-align";
+    [{v:"left",l:"Left"},{v:"center",l:"Center"},{v:"right",l:"Right"}].forEach(({v,l}) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((q.buttonAlign||"left") === v) o.selected = true;
+      bAlignSel.appendChild(o);
+    });
+    bAlignWrap.appendChild(bAlignSel); body.appendChild(bAlignWrap);
+    const hint4 = document.createElement("div");
+    hint4.style.cssText = "font-size:12px;color:var(--text-muted);margin-top:4px";
+    hint4.textContent = "Button opens the URL in a new tab. Respondents don't type anything.";
+    body.appendChild(hint4);
+  }
+
   // ── Required toggle (not for title/image/video/toggle types)
-  if (!isTitle && q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input" && q.type !== "toggle") {
+  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link"].includes(q.type)) {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -1117,7 +1247,7 @@ function saveEditToMemory() {
   q.title       = get("em-title")?.value || "";
   q.subtitle    = get("em-subtitle")?.innerHTML || "";
   q.placeholder = get("em-placeholder")?.value || "";
-  if (q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input" && q.type !== "toggle") {
+  if (!["image","video","password","url_input","toggle","divider","spacer","button_link"].includes(q.type)) {
     q.required  = get("em-required")?.checked || false;
   }
   q.gmailOnly   = get("em-gmail-only")?.checked || false;
@@ -1189,6 +1319,27 @@ function saveEditToMemory() {
   if (q.type === "nps_score") {
     q.npsMinLabel = get("em-nps-min-label")?.value || "Not likely";
     q.npsMaxLabel = get("em-nps-max-label")?.value || "Very likely";
+  }
+  // map
+  if (q.type === "map") {
+    q.mapAllowGps   = get("em-map-allow-gps")?.checked !== false;
+    q.mapShowAddress = get("em-map-show-address")?.checked !== false;
+    q.mapZoom       = Number(get("em-map-zoom")?.value) || 13;
+  }
+  // divider
+  if (q.type === "divider") {
+    q.dividerStyle = get("em-divider-style")?.value || "solid";
+  }
+  // spacer
+  if (q.type === "spacer") {
+    q.spacerHeight = Number(get("em-spacer-height")?.value) || 32;
+  }
+  // button_link
+  if (q.type === "button_link") {
+    q.buttonLabel = get("em-btn-label")?.value || "Open link";
+    q.buttonUrl   = get("em-btn-url")?.value   || "";
+    q.buttonStyle = get("em-btn-style")?.value || "primary";
+    q.buttonAlign = get("em-btn-align")?.value || "left";
   }
   // file_upload
   if (q.type === "file_upload") {
@@ -1685,6 +1836,35 @@ function buildPreviewField(q, i) {
   if (q.type === "emoji_rating") { const eset = q.emojiSet||"5"; const emojis = eset==="2"?["👎","👍"]:eset==="3"?["😞","😐","😊"]:["😢","😠","😐","😊","😁"]; control = `<div style="display:flex;gap:10px;flex-wrap:wrap">${emojis.map(e=>`<button type="button" style="font-size:28px;background:none;border:2px solid var(--border);border-radius:50%;width:52px;height:52px;cursor:pointer;transition:border-color .15s">${e}</button>`).join("")}</div>`; }
   if (q.type === "slider") { const mn=q.sliderMin||0,mx=q.sliderMax||100,df=q.sliderDefault!=null?q.sliderDefault:50,mnL=q.sliderMinLabel||"",mxL=q.sliderMaxLabel||""; control = `<div style="padding:4px 0"><input type="range" value="${df}" min="${mn}" max="${mx}" step="${q.sliderStep||1}" style="width:100%;accent-color:var(--teal)"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:2px"><span>${esc(mnL)||mn}</span><span style="font-weight:600;color:var(--text)">${df}</span><span>${esc(mxL)||mx}</span></div></div>`; }
   if (q.type === "nps_score") { const mnL=q.npsMinLabel||"Not likely",mxL=q.npsMaxLabel||"Very likely"; control = `<div><div style="display:flex;gap:4px;margin-bottom:6px">${Array.from({length:11},(_,i)=>`<button type="button" style="flex:1;padding:6px 2px;font-size:13px;font-weight:600;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg-raised);color:var(--text);min-width:28px">${i}</button>`).join("")}</div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span>${esc(mnL)}</span><span>${esc(mxL)}</span></div></div>`; }
+  if (q.type === "divider") {
+    const ds = q.dividerStyle || "solid";
+    return `<div style="margin:16px 0"><hr style="border:none;border-top:2px ${ds} var(--border)"></div>`;
+  }
+  if (q.type === "spacer") {
+    const sh = q.spacerHeight || 32;
+    return `<div style="height:${sh}px"></div>`;
+  }
+  if (q.type === "map") {
+    control = `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <div style="background:var(--bg-mid);height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-muted)">
+        <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='36' height='36' style='opacity:.5'><path d='M21 10c0 6-9 13-9 13S3 16 3 10a9 9 0 0 1 18 0z'/><circle cx='12' cy='10' r='3'/></svg>
+        <span style='font-size:13px'>Interactive map will appear here</span>
+      </div>
+      ${q.mapAllowGps !== false ? `<div style='padding:8px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)'>📍 GPS button available</div>` : ''}
+      ${q.mapShowAddress !== false ? `<input type='text' placeholder='Address will be auto-filled…' style='display:block;width:100%;padding:9px 12px;border:none;border-top:1px solid var(--border);font-size:13px;background:var(--bg-raised);color:var(--text);box-sizing:border-box'>` : ''}
+    </div>`;
+  }
+  if (q.type === "button_link") {
+    const bStyle = q.buttonStyle || "primary";
+    const bLabel = esc(q.buttonLabel || "Open link");
+    const bAlign = q.buttonAlign || "left";
+    const alignMap = {left:"flex-start",center:"center",right:"flex-end"};
+    let btnCss = "padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;";
+    if (bStyle === "primary")  btnCss += "background:var(--teal);color:#fff;border:2px solid var(--teal)";
+    if (bStyle === "outline")  btnCss += "background:transparent;color:var(--teal);border:2px solid var(--teal)";
+    if (bStyle === "ghost")    btnCss += "background:transparent;color:var(--teal);border:2px solid transparent";
+    control = `<div style='display:flex;justify-content:${alignMap[bAlign]||"flex-start"}'><a href="${esc(q.buttonUrl||"#")}" target="_blank" style="${btnCss}">${bLabel} <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' width='13' height='13'><path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/><polyline points='15 3 21 3 21 9'/><line x1='10' y1='14' x2='21' y2='3'/></svg></a></div>`;
+  }
 
   return `
     <div style="margin-bottom:20px">

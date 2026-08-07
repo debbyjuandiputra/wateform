@@ -36,6 +36,11 @@ const Q_TYPES = [
   { type:"likert",      label:"Likert Scale",    icon:'<circle cx="4" cy="12" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="22" cy="12" r="2"/><line x1="4" y1="12" x2="22" y2="12"/>', desc:"Agreement scale" },
   { type:"matrix",      label:"Matrix / Grid",   icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>', desc:"Table-style grid" },
   { type:"multi_input", label:"Multiple Inputs",  icon:'<path d="M8 6h13M8 12h13"/><path d="M3 6h.01M3 12h.01"/><path d="M3 18h.01M8 18h13"/>', desc:"Multiple labeled fields" },
+  { type:"datetime",    label:"Date & Time",      icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',  desc:"Date, time, week, month, year" },
+  { type:"ranking",     label:"Ranking",          icon:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',   desc:"Drag to rank options" },
+  { type:"emoji_rating",label:"Emoji Rating",     icon:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',  desc:"Rate with emoji faces" },
+  { type:"slider",      label:"Slider",           icon:'<line x1="3" y1="12" x2="21" y2="12"/><circle cx="9" cy="12" r="3" fill="currentColor" stroke="none"/>',  desc:"Drag slider (0–100)" },
+  { type:"nps_score",   label:"NPS Score",        icon:'<rect x="2" y="7" width="4" height="14" rx="1"/><rect x="9" y="4" width="4" height="17" rx="1"/><rect x="16" y="2" width="4" height="19" rx="1"/>',  desc:"Net Promoter Score (0–10)" },
 ];
 
 // Phone country codes
@@ -350,6 +355,17 @@ function addQuestion(type) {
     matrixType: "radio",
     // multi_input
     multiInputFields: [{label:"Field 1", placeholder:"", type:"text"}, {label:"Field 2", placeholder:"", type:"text"}],
+    // datetime
+    datetimeMode: "date",
+    // ranking
+    rankingOptions: ["Option 1","Option 2","Option 3"],
+    // emoji_rating
+    emojiSet: "5",
+    // slider
+    sliderMin: 0, sliderMax: 100, sliderStep: 1, sliderDefault: 50,
+    sliderMinLabel: "", sliderMaxLabel: "",
+    // nps_score
+    npsMinLabel: "Not likely", npsMaxLabel: "Very likely",
   };
   questions.push(q);
   renderQuestionCards();
@@ -558,6 +574,12 @@ function openEditModal(idx) {
     }
     body.appendChild(wrap);
     renderOptions(q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || []), optsDiv);
+    // Max selections for checkbox (like multiselect)
+    if (q.type === "checkbox") {
+      body.appendChild(makeField("Max selections (0 = unlimited)", "input",
+        { type:"number", id:"em-cb-max", value: q.checkboxMax||0, min:"0", max:"99", step:"1" }
+      ));
+    }
   }
 
   if (q.type === "image" || q.type === "video") {
@@ -869,8 +891,67 @@ function openEditModal(idx) {
     renderMiFields(q.multiInputFields||[{label:"Field 1",placeholder:"",type:"text"}], miList);
   }
 
-  // ── Required toggle (not for title/image/video types)
-  if (!isTitle && q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input") {
+  // ── Date & Time fields
+  if (q.type === "datetime") {
+    const dtWrap = document.createElement("div"); dtWrap.className = "field";
+    const dtLbl = document.createElement("label"); dtLbl.textContent = "Date/Time mode";
+    dtWrap.appendChild(dtLbl);
+    const dtSel = document.createElement("select"); dtSel.id = "em-dt-mode";
+    [{v:"date",l:"Date"},{v:"time",l:"Time"},{v:"datetime-local",l:"Date & Time"},{v:"week",l:"Week"},{v:"month",l:"Month"},{v:"year",l:"Year (number input)"}].forEach(({v,l}) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((q.datetimeMode||"date") === v) o.selected = true;
+      dtSel.appendChild(o);
+    });
+    dtWrap.appendChild(dtSel);
+    body.appendChild(dtWrap);
+  }
+
+  // ── Ranking fields
+  if (q.type === "ranking") {
+    const rkWrap = document.createElement("div"); rkWrap.className = "field";
+    const rkLbl = document.createElement("label"); rkLbl.textContent = "Options to rank (one per line)";
+    rkWrap.appendChild(rkLbl);
+    const rkTA = document.createElement("textarea"); rkTA.id = "em-ranking-opts";
+    rkTA.rows = 5; rkTA.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical";
+    rkTA.placeholder = "Option 1\nOption 2\nOption 3";
+    rkTA.value = (q.rankingOptions||["Option 1","Option 2","Option 3"]).join("\n");
+    rkWrap.appendChild(rkTA);
+    body.appendChild(rkWrap);
+  }
+
+  // ── Emoji Rating fields
+  if (q.type === "emoji_rating") {
+    const erWrap = document.createElement("div"); erWrap.className = "field";
+    const erLbl = document.createElement("label"); erLbl.textContent = "Emoji set";
+    erWrap.appendChild(erLbl);
+    const erSel = document.createElement("select"); erSel.id = "em-emoji-set";
+    [{v:"2",l:"2 emoji (\u{1F44E} / \u{1F44D})"},{v:"3",l:"3 emoji (\u{1F61E} / \u{1F610} / \u{1F60A})"},{v:"5",l:"5 emoji (\u{1F622} \u{1F641} \u{1F610} \u{1F60A} \u{1F601})"}].forEach(({v,l}) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((q.emojiSet||"5") === v) o.selected = true;
+      erSel.appendChild(o);
+    });
+    erWrap.appendChild(erSel);
+    body.appendChild(erWrap);
+  }
+
+  // ── Slider fields
+  if (q.type === "slider") {
+    body.appendChild(makeField("Min value", "input", { type:"number", id:"em-slider-min", value: q.sliderMin!=null?q.sliderMin:0, step:"1" }));
+    body.appendChild(makeField("Max value", "input", { type:"number", id:"em-slider-max", value: q.sliderMax!=null?q.sliderMax:100, step:"1" }));
+    body.appendChild(makeField("Step", "input", { type:"number", id:"em-slider-step", value: q.sliderStep||1, min:"1" }));
+    body.appendChild(makeField("Default value", "input", { type:"number", id:"em-slider-default", value: q.sliderDefault!=null?q.sliderDefault:50, step:"1" }));
+    body.appendChild(makeField("Min label (left)", "input", { type:"text", id:"em-slider-min-label", value: q.sliderMinLabel||"", maxlength:"40" }));
+    body.appendChild(makeField("Max label (right)", "input", { type:"text", id:"em-slider-max-label", value: q.sliderMaxLabel||"", maxlength:"40" }));
+  }
+
+  // ── NPS Score fields
+  if (q.type === "nps_score") {
+    body.appendChild(makeField("Label for 0 (left)", "input", { type:"text", id:"em-nps-min-label", value: q.npsMinLabel||"Not likely", maxlength:"40" }));
+    body.appendChild(makeField("Label for 10 (right)", "input", { type:"text", id:"em-nps-max-label", value: q.npsMaxLabel||"Very likely", maxlength:"40" }));
+  }
+
+  // ── Required toggle (not for title/image/video/toggle types)
+  if (!isTitle && q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input" && q.type !== "toggle") {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -1036,13 +1117,14 @@ function saveEditToMemory() {
   q.title       = get("em-title")?.value || "";
   q.subtitle    = get("em-subtitle")?.innerHTML || "";
   q.placeholder = get("em-placeholder")?.value || "";
-  if (q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input") {
+  if (q.type !== "image" && q.type !== "video" && q.type !== "password" && q.type !== "url_input" && q.type !== "toggle") {
     q.required  = get("em-required")?.checked || false;
   }
   q.gmailOnly   = get("em-gmail-only")?.checked || false;
   if (q.type === "checkbox") {
     q.checkboxOptions = collectOptions();
     q.checkboxAllowOther = get("em-allow-other")?.checked || false;
+    q.checkboxMax = Number(get("em-cb-max")?.value) || 0;
   } else {
     q.allowOther  = get("em-allow-other")?.checked || false;
   }
@@ -1080,6 +1162,33 @@ function saveEditToMemory() {
   // multi_input
   if (q.type === "multi_input") {
     q.multiInputFields = collectMiFields();
+  }
+  // datetime
+  if (q.type === "datetime") {
+    q.datetimeMode = get("em-dt-mode")?.value || "date";
+  }
+  // ranking
+  if (q.type === "ranking") {
+    q.rankingOptions = (get("em-ranking-opts")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
+    if (!q.rankingOptions.length) q.rankingOptions = ["Option 1","Option 2","Option 3"];
+  }
+  // emoji_rating
+  if (q.type === "emoji_rating") {
+    q.emojiSet = get("em-emoji-set")?.value || "5";
+  }
+  // slider
+  if (q.type === "slider") {
+    q.sliderMin     = Number(get("em-slider-min")?.value)     || 0;
+    q.sliderMax     = Number(get("em-slider-max")?.value)     || 100;
+    q.sliderStep    = Number(get("em-slider-step")?.value)    || 1;
+    q.sliderDefault = Number(get("em-slider-default")?.value) || 50;
+    q.sliderMinLabel = get("em-slider-min-label")?.value || "";
+    q.sliderMaxLabel = get("em-slider-max-label")?.value || "";
+  }
+  // nps_score
+  if (q.type === "nps_score") {
+    q.npsMinLabel = get("em-nps-min-label")?.value || "Not likely";
+    q.npsMaxLabel = get("em-nps-max-label")?.value || "Very likely";
   }
   // file_upload
   if (q.type === "file_upload") {
@@ -1571,6 +1680,11 @@ function buildPreviewField(q, i) {
   if (q.type === "likert") { const scale = q.likertScale||5; const rows = (q.likertRows||[""]).filter(Boolean); control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--text-muted)">${esc(q.likertStartLabel||"Strongly Disagree")}</th>${Array.from({length:scale},(_,i)=>`<th style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text-muted)">${i+1}</th>`).join("")}<th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--text-muted)">${esc(q.likertEndLabel||"Strongly Agree")}</th></tr></thead><tbody>${(rows.length?rows:["Statement 1","Statement 2"]).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:8px;font-size:13px">${esc(r)}</td>${Array.from({length:scale},(_,i)=>`<td style="padding:8px 4px;text-align:center"><input type="radio" name="l${i}" style="accent-color:var(--teal)"></td>`).join("")}<td></td></tr>`).join("")}</tbody></table></div>`; }
   if (q.type === "matrix") { const rows = q.matrixRows||["Row 1","Row 2"]; const cols = q.matrixCols||["Col 1","Col 2"]; control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)"></th>${cols.map(c=>`<th style="padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);font-weight:600">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--border-soft)"><td style="padding:9px 8px;font-size:13px">${esc(r)}</td>${cols.map((_,ci)=>`<td style="padding:9px 12px;text-align:center"><input type="${q.matrixType||"radio"}" name="mx-${r}-${ci}" style="accent-color:var(--teal)"></td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
   if (q.type === "multi_input") { const mif = q.multiInputFields||[]; control = `<div style="display:flex;flex-direction:column;gap:10px">${mif.map(f=>`<div><div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)">${esc(f.label||"")}</div><input type="${f.type||"text"}" placeholder="${esc(f.placeholder||"")}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`).join("")}</div>`; }
+  if (q.type === "datetime") { const mode = q.datetimeMode||"date"; const inpType = mode === "year" ? "number" : mode; control = `<input type="${inpType}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)" placeholder="${mode==='year'?'YYYY':''}">`; }
+  if (q.type === "ranking") { const rkopts = q.rankingOptions||["Option 1","Option 2","Option 3"]; control = `<div style="display:flex;flex-direction:column;gap:6px">${rkopts.map((o,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);cursor:grab"><span style="color:var(--text-muted);font-size:12px;min-width:18px;text-align:center">${i+1}</span><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' width='14' height='14' style='flex-shrink:0;opacity:.4'><line x1='3' y1='8' x2='21' y2='8'/><line x1='3' y1='16' x2='21' y2='16'/></svg><span>${esc(o)}</span></div>`).join("")}</div>`; }
+  if (q.type === "emoji_rating") { const eset = q.emojiSet||"5"; const emojis = eset==="2"?["👎","👍"]:eset==="3"?["😞","😐","😊"]:["😢","😠","😐","😊","😁"]; control = `<div style="display:flex;gap:10px;flex-wrap:wrap">${emojis.map(e=>`<button type="button" style="font-size:28px;background:none;border:2px solid var(--border);border-radius:50%;width:52px;height:52px;cursor:pointer;transition:border-color .15s">${e}</button>`).join("")}</div>`; }
+  if (q.type === "slider") { const mn=q.sliderMin||0,mx=q.sliderMax||100,df=q.sliderDefault!=null?q.sliderDefault:50,mnL=q.sliderMinLabel||"",mxL=q.sliderMaxLabel||""; control = `<div style="padding:4px 0"><input type="range" value="${df}" min="${mn}" max="${mx}" step="${q.sliderStep||1}" style="width:100%;accent-color:var(--teal)"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-top:2px"><span>${esc(mnL)||mn}</span><span style="font-weight:600;color:var(--text)">${df}</span><span>${esc(mxL)||mx}</span></div></div>`; }
+  if (q.type === "nps_score") { const mnL=q.npsMinLabel||"Not likely",mxL=q.npsMaxLabel||"Very likely"; control = `<div><div style="display:flex;gap:4px;margin-bottom:6px">${Array.from({length:11},(_,i)=>`<button type="button" style="flex:1;padding:6px 2px;font-size:13px;font-weight:600;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:var(--bg-raised);color:var(--text);min-width:28px">${i}</button>`).join("")}</div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)"><span>${esc(mnL)}</span><span>${esc(mxL)}</span></div></div>`; }
 
   return `
     <div style="margin-bottom:20px">

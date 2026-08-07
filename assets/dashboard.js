@@ -78,6 +78,10 @@ let pendingAction  = null; // for confirm modal
     close();
     // TODO: open leaderboard panel
   });
+  document.getElementById("ham-notification")?.addEventListener("click", () => {
+    close();
+    // TODO: open notification panel
+  });
   document.getElementById("ham-storage")?.addEventListener("click", () => {
     close();
     // TODO: open storage panel
@@ -705,7 +709,9 @@ function openDeleteWsModal(ws) {
     `Delete "${ws.name}"?`,
     "All forms and responses in this workspace will be permanently deleted. This cannot be undone.",
     async () => {
-      const { error } = await _sb.from("workspaces").delete().eq("id", ws.id);
+      const { error } = await _sb.rpc("delete_workspace_with_cleanup", {
+        p_workspace_id: ws.id,
+      });
       if (error) { toast("Failed to delete workspace", "error"); return; }
       toast("Workspace deleted");
       await loadWorkspaces();
@@ -811,7 +817,10 @@ async function renameForm(formId) {
 
 function openDeleteForm(formId, title) {
   openConfirm(`Delete "${title}"?`, "All responses will be permanently deleted. This cannot be undone.", async () => {
-    await _sb.from("forms").delete().eq("id", formId);
+    const { error } = await _sb.rpc("delete_form_with_cleanup", {
+      p_form_id: formId,
+    });
+    if (error) { toast("Failed to delete form", "error"); return; }
     toast("Form deleted");
     openWorkspace(activeWsId);
   });

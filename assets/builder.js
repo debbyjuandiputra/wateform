@@ -1486,7 +1486,7 @@ function renderSettingsPanel() {
       <label>Public URL</label>
       <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
         <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
-        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4" required
+        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4"
           placeholder="${esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx"))}"
           pattern="[A-Za-z0-9._~-]+" autocapitalize="off" autocorrect="off" spellcheck="false"
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)">
@@ -1698,12 +1698,12 @@ async function saveSetting() {
   }
   const slugInput = document.getElementById("s-slug");
   const slugHint  = document.getElementById("s-slug-hint");
-  // Public URL is required and may only contain letters, digits, and URL-safe symbols (no spaces)
+  // Public URL is optional; if provided, may only contain letters, digits, and URL-safe symbols (no spaces)
   let newSlug = (slugInput?.value || "").replace(/[^A-Za-z0-9._~-]/g, "").trim() || null;
   if (slugInput && slugInput.value !== (newSlug || "")) slugInput.value = newSlug || "";
-  if (!newSlug || newSlug.length < 4) {
+  if (newSlug && newSlug.length < 4) {
     if (slugHint) {
-      slugHint.textContent = newSlug ? "Custom link must be at least 4 characters." : "Public URL is required.";
+      slugHint.textContent = "Custom link must be at least 4 characters.";
       slugHint.style.color = "var(--red)";
     }
     slugInput?.classList.add("input-error");
@@ -1711,25 +1711,33 @@ async function saveSetting() {
   } else {
     // Check if slug is taken by another form before saving
     if (newSlug !== settings.slug) {
-      const { data: existingSlug } = await _sb
-        .from("forms")
-        .select("id")
-        .eq("slug", newSlug)
-        .neq("id", formId)
-        .maybeSingle();
-      if (existingSlug) {
-        if (slugHint) {
-          slugHint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
-          slugHint.style.color = "var(--red)";
-        }
-        slugInput?.classList.add("input-error");
-        newSlug = formData?.slug || null; // revert
-      } else {
+      if (!newSlug) {
+        // Slug dikosongkan — langsung simpan null
         if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
         slugInput?.classList.remove("input-error");
-        // Save into the dedicated `slug` column; short_id stays as the auto-generated ID
-        await _sb.from("forms").update({ slug: newSlug || null }).eq("id", formId);
-        if (formData) formData.slug = newSlug || null;
+        await _sb.from("forms").update({ slug: null }).eq("id", formId);
+        if (formData) formData.slug = null;
+      } else {
+        const { data: existingSlug } = await _sb
+          .from("forms")
+          .select("id")
+          .eq("slug", newSlug)
+          .neq("id", formId)
+          .maybeSingle();
+        if (existingSlug) {
+          if (slugHint) {
+            slugHint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
+            slugHint.style.color = "var(--red)";
+          }
+          slugInput?.classList.add("input-error");
+          newSlug = formData?.slug || null; // revert
+        } else {
+          if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
+          slugInput?.classList.remove("input-error");
+          // Save into the dedicated `slug` column; short_id stays as the auto-generated ID
+          await _sb.from("forms").update({ slug: newSlug }).eq("id", formId);
+          if (formData) formData.slug = newSlug;
+        }
       }
     } else {
       if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
@@ -1790,15 +1798,6 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
       toast("Form title cannot be empty.", "error");
       document.getElementById("settings-panel").classList.add("open");
       setTimeout(() => document.getElementById("s-title")?.focus(), 150);
-      return;
-    }
-
-    // Cek public URL (wajib diisi)
-    const slugVal = (settings.slug || "").trim();
-    if (!slugVal || slugVal.length < 4) {
-      toast("Set a public URL for this form (min 4 characters).", "error");
-      document.getElementById("settings-panel").classList.add("open");
-      setTimeout(() => document.getElementById("s-slug")?.focus(), 150);
       return;
     }
 

@@ -120,16 +120,14 @@ init();
     if (errorEl) { errorEl.textContent = ""; errorEl.style.display = "none"; }
 
     try {
-      const { data: { user } } = await _sb.auth.getUser();
-      if (user) {
-        await _sb.from("profiles").delete().eq("id", user.id);
-      }
+      const { data: { session } } = await _sb.auth.getSession();
+      if (!session?.access_token) throw new Error("No active session");
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
         method:  "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization:  `Bearer ${(await _sb.auth.getSession()).data.session?.access_token}`,
+          Authorization:  `Bearer ${session.access_token}`,
         },
       });
 

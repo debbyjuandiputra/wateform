@@ -140,8 +140,8 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
   display: flex; align-items: stretch; gap: 8px;
 }
 .btn-page-prev, .btn-page-next {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 11px 18px; font-size: 14px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 13px; font-size: 13px; font-weight: 600;
   border-radius: var(--radius); cursor: pointer;
   border: 1.5px solid var(--border); background: var(--bg-mid);
   color: var(--text); transition: background .15s, border-color .15s;
@@ -218,12 +218,24 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 }
 .color-codes { display: flex; gap: 8px; flex-wrap: wrap; }
 .color-code-chip {
-  padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+  display:inline-flex; align-items:center; gap:5px;
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;
   font-size: 12px; font-family: 'JetBrains Mono', monospace;
   background: var(--bg-mid); color: var(--text);
   cursor: pointer; transition: background .15s;
 }
 .color-code-chip:hover { background: var(--teal-dim); border-color: var(--teal); }
+.color-code-chip label { font-weight:700; color:var(--text-muted); font-size:11px; flex-shrink:0; cursor:pointer; }
+.color-code-input {
+  background:none; border:none; outline:none; color:var(--text);
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  min-width:0; width:auto; cursor:text;
+}
+.color-copy-btn {
+  background:none; border:none; cursor:pointer; color:var(--text-muted);
+  padding:0 0 0 4px; font-size:11px; line-height:1; flex-shrink:0;
+}
+.color-copy-btn:hover { color:var(--teal); }
 .color-swatch {
   width: 48px; height: 48px; border-radius: 8px;
   border: 1px solid var(--border); flex-shrink: 0;
@@ -299,11 +311,12 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 }
 .toggle-track.on { background:var(--teal); }
 .toggle-knob {
-  width:22px; height:22px; border-radius:50%; background:#fff;
-  position:absolute; top:3px; left:3px;
-  box-shadow:0 1px 4px rgba(0,0,0,.22); transition:left .2s;
+  width:20px; height:20px; border-radius:50%; background:#fff;
+  position:absolute; top:4px; left:4px;
+  box-shadow:0 1px 4px rgba(0,0,0,.22); transition:left .2s, transform .2s;
+  pointer-events:none;
 }
-.toggle-track.on .toggle-knob { left:27px; }
+.toggle-track.on .toggle-knob { left:28px; }
 .toggle-label-text { font-size:14px; color:var(--text); min-width:32px; }
 
 /* ── Multi-select Dropdown ─────────────────────── */
@@ -958,15 +971,13 @@ function renderForm(form) {
         const cols     = Array.from({length:scale},(_,i)=>i+1);
         inputHtml = `<div class="likert-scroll"><table class="likert-table" id="lkt-${q.id}">
           <thead><tr>
-            <th class="lk-label">${esc(startLbl)}</th>
-            ${cols.map(n=>`<th>${n}</th>`).join("")}
-            <th class="lk-label-r">${esc(endLbl)}</th>
+            <th class="lk-row-label" style="min-width:120px"></th>
+            ${cols.map((n,i)=>`<th style="text-align:center;min-width:52px">${i===0?`<span style="display:block;font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:2px">${esc(startLbl)}</span>`:""}${i===cols.length-1&&cols.length>1?`<span style="display:block;font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:2px">${esc(endLbl)}</span>`:i>0&&i<cols.length-1?"<span style='display:block;font-size:11px;margin-bottom:2px'>&nbsp;</span>":""}<span>${n}</span></th>`).join("")}
           </tr></thead>
           <tbody>
             ${lkRows.map((r,ri)=>`<tr>
               <td class="lk-row-label">${esc(r)}</td>
-              ${cols.map(n=>`<td><input type="radio" class="likert-radio" name="lkr-${q.id}-${ri}" data-row="${ri}" data-val="${n}" value="${n}"></td>`).join("")}
-              <td></td>
+              ${cols.map(n=>`<td style="text-align:center"><label style="cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px"><input type="radio" class="likert-radio" name="lkr-${q.id}-${ri}" data-row="${ri}" data-val="${n}" value="${n}" style="width:18px;height:18px;accent-color:var(--teal);cursor:pointer"></label></td>`).join("")}
             </tr>`).join("")}
           </tbody>
         </table></div>`;
@@ -1030,9 +1041,21 @@ function renderForm(form) {
             <input type="color" id="q-${q.id}" value="${esc(defColor)}" style="width:56px;height:48px;border:1px solid var(--border);border-radius:var(--radius);padding:3px;cursor:pointer;background:var(--bg-raised)">
           </div>
           <div class="color-codes">
-            <div class="color-code-chip" id="cchex-${q.id}" title="Click to copy HEX">HEX: ${esc(defColor)}</div>
-            <div class="color-code-chip" id="ccrgb-${q.id}" title="Click to copy RGB">RGB: —</div>
-            <div class="color-code-chip" id="cchsl-${q.id}" title="Click to copy HSL">HSL: —</div>
+            <div class="color-code-chip" id="cchex-${q.id}">
+              <label>HEX</label>
+              <input class="color-code-input" id="ci-hex-${q.id}" value="${esc(defColor)}" maxlength="7" size="8" spellcheck="false">
+              <button class="color-copy-btn" data-target="ci-hex-${q.id}" title="Copy">⎘</button>
+            </div>
+            <div class="color-code-chip" id="ccrgb-${q.id}">
+              <label>RGB</label>
+              <input class="color-code-input" id="ci-rgb-${q.id}" value="" size="14" spellcheck="false">
+              <button class="color-copy-btn" data-target="ci-rgb-${q.id}" title="Copy">⎘</button>
+            </div>
+            <div class="color-code-chip" id="cchsl-${q.id}">
+              <label>HSL</label>
+              <input class="color-code-input" id="ci-hsl-${q.id}" value="" size="14" spellcheck="false">
+              <button class="color-copy-btn" data-target="ci-hsl-${q.id}" title="Copy">⎘</button>
+            </div>
           </div>
         </div>`;
         break;
@@ -1272,11 +1295,15 @@ function renderForm(form) {
     if (q.type === "color") {
       const colorInp = block.querySelector(`#q-${q.id}`);
       const swatch   = block.querySelector(`#csw-${q.id}`);
-      const hexChip  = block.querySelector(`#cchex-${q.id}`);
-      const rgbChip  = block.querySelector(`#ccrgb-${q.id}`);
-      const hslChip  = block.querySelector(`#cchsl-${q.id}`);
+      const hexInput = block.querySelector(`#ci-hex-${q.id}`);
+      const rgbInput = block.querySelector(`#ci-rgb-${q.id}`);
+      const hslInput = block.querySelector(`#ci-hsl-${q.id}`);
+
       function hexToRgb(hex) {
-        const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        const h = hex.replace(/^#/,"");
+        if (h.length !== 6) return null;
+        const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+        if (isNaN(r)||isNaN(g)||isNaN(b)) return null;
         return {r,g,b};
       }
       function rgbToHsl(r,g,b) {
@@ -1286,22 +1313,79 @@ function renderForm(form) {
           switch(max){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;default:h=((r-g)/d+4)/6;}}
         return {h:Math.round(h*360),s:Math.round(s*100),l:Math.round(l*100)};
       }
-      function updateColor(hex) {
-        swatch.style.background = hex;
-        hexChip.textContent = "HEX: " + hex.toUpperCase();
-        const {r,g,b} = hexToRgb(hex);
-        rgbChip.textContent = `RGB: ${r}, ${g}, ${b}`;
+      function rgbToHex(r,g,b) {
+        return "#" + [r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,"0")).join("");
+      }
+      function hslToRgb(h,s,l) {
+        s/=100; l/=100;
+        const k=n=>(n+h/30)%12;
+        const a=s*Math.min(l,1-l);
+        const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+        return {r:Math.round(f(0)*255),g:Math.round(f(8)*255),b:Math.round(f(4)*255)};
+      }
+      function parseRgb(str) {
+        const m = str.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+        if (!m) return null;
+        return {r:parseInt(m[1]),g:parseInt(m[2]),b:parseInt(m[3])};
+      }
+      function parseHsl(str) {
+        const m = str.match(/(\d+)[°,\s]+(\d+)[%,\s]+(\d+)/);
+        if (!m) return null;
+        return {h:parseInt(m[1]),s:parseInt(m[2]),l:parseInt(m[3])};
+      }
+
+      function updateFromHex(hex, skipHexInput) {
+        const rgb = hexToRgb(hex);
+        if (!rgb) return;
+        const {r,g,b} = rgb;
         const {h,s,l} = rgbToHsl(r,g,b);
-        hslChip.textContent = `HSL: ${h}°, ${s}%, ${l}%`;
+        swatch.style.background = hex;
+        colorInp.value = hex;
+        if (!skipHexInput) hexInput.value = hex.toUpperCase();
+        rgbInput.value = `${r}, ${g}, ${b}`;
+        hslInput.value = `${h}°, ${s}%, ${l}%`;
         answers[q.id] = `${hex.toUpperCase()} | RGB(${r},${g},${b}) | HSL(${h}°,${s}%,${l}%)`;
       }
-      updateColor(colorInp.value);
-      colorInp.addEventListener("input", () => updateColor(colorInp.value));
-      [hexChip, rgbChip, hslChip].forEach(chip => {
-        chip.addEventListener("click", () => {
-          navigator.clipboard?.writeText(chip.textContent.replace(/^[A-Z]+: /,"")).catch(()=>{});
-          const orig = chip.textContent; chip.textContent = "Copied!";
-          setTimeout(() => { chip.textContent = orig; }, 1200);
+
+      updateFromHex(colorInp.value);
+
+      // Native color picker → update all
+      colorInp.addEventListener("input", () => updateFromHex(colorInp.value));
+
+      // HEX input edited
+      hexInput.addEventListener("input", () => {
+        let v = hexInput.value.trim();
+        if (!v.startsWith("#")) v = "#" + v;
+        if (/^#[0-9a-fA-F]{6}$/.test(v)) updateFromHex(v, true);
+      });
+      hexInput.addEventListener("blur", () => {
+        let v = hexInput.value.trim();
+        if (!v.startsWith("#")) v = "#" + v;
+        if (/^#[0-9a-fA-F]{6}$/.test(v)) updateFromHex(v, true);
+        else hexInput.value = colorInp.value.toUpperCase();
+      });
+
+      // RGB input edited
+      rgbInput.addEventListener("blur", () => {
+        const rgb = parseRgb(rgbInput.value);
+        if (rgb) updateFromHex(rgbToHex(rgb.r,rgb.g,rgb.b));
+      });
+
+      // HSL input edited
+      hslInput.addEventListener("blur", () => {
+        const hsl = parseHsl(hslInput.value);
+        if (hsl) { const {r,g,b}=hslToRgb(hsl.h,hsl.s,hsl.l); updateFromHex(rgbToHex(r,g,b)); }
+      });
+
+      // Copy buttons
+      block.querySelectorAll(".color-copy-btn").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          const inp = block.querySelector(`#${btn.dataset.target}`);
+          if (!inp) return;
+          navigator.clipboard?.writeText(inp.value).catch(()=>{});
+          const orig = btn.textContent; btn.textContent = "✓";
+          setTimeout(() => { btn.textContent = orig; }, 1200);
         });
       });
     }
@@ -1615,6 +1699,21 @@ function renderForm(form) {
     const dots = Array.from({length: totalPages}, (_, i) =>
       `<span class="page-dot ${i === pg ? 'active' : i < pg ? 'done' : ''}"></span>`
     ).join("");
+    if (isLast) {
+      // Last page: nav row (prev only) above submit
+      return `
+        <div class="page-progress">
+          <span class="page-label">Page ${pg + 1} of ${totalPages}</span>
+          <div class="page-dots">${dots}</div>
+        </div>
+        ${!isFirst ? `<div class="page-nav-btns" style="justify-content:flex-start">
+          <button class="btn-page-prev" id="nav-prev">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Previous
+          </button>
+        </div>` : ""}
+        <div class="form-submit" style="margin-top:4px">${submitBtnsHtml}</div>`;
+    }
     return `
       <div class="page-progress">
         <span class="page-label">Page ${pg + 1} of ${totalPages}</span>
@@ -1622,16 +1721,13 @@ function renderForm(form) {
       </div>
       <div class="page-nav-btns">
         ${!isFirst ? `<button class="btn-page-prev" id="nav-prev">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           Previous
         </button>` : `<span></span>`}
-        ${isLast
-          ? `<div class="form-submit" style="margin-top:0;flex:1">${submitBtnsHtml}</div>`
-          : `<button class="btn-page-next" id="nav-next">
-              Next
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </button>`
-        }
+        <button class="btn-page-next" id="nav-next">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
       </div>`;
   }
 
@@ -1712,7 +1808,8 @@ function renderForm(form) {
       } else {
         isEmpty = !ans || (typeof ans === 'string' && ans.trim() === '');
       }
-      if (q.required && isEmpty) {
+      // Ranking: never required (always has a default order)
+      if (q.required && isEmpty && q.type !== "ranking") {
         if (errEl) errEl.style.display = "";
         valid = false;
       } else {
@@ -1762,7 +1859,8 @@ function renderForm(form) {
       } else {
         isEmpty = !ans || (typeof ans === 'string' && ans.trim() === '');
       }
-      if (q.required && isEmpty) {
+      // Ranking: never required (always has a default order)
+      if (q.required && isEmpty && q.type !== "ranking") {
         if (errEl) errEl.style.display = "";
         if (q.type === "file_upload") {
           const area = block?.querySelector(`#fua-${q.id}`);

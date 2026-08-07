@@ -159,7 +159,7 @@ async function uploadFormMedia(file) {
 // ── Auth state listener ───────────────────────────────────────
 _sb.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
-    window.location.replace("login.html");
+    window.location.replace("/login.html");
   }
 });
 
@@ -170,7 +170,7 @@ async function init() {
     const { data: refreshed } = await _sb.auth.refreshSession();
     session = refreshed?.session ?? null;
   }
-  if (!session) { window.location.replace("login.html"); return; }
+  if (!session) { window.location.replace("/login.html"); return; }
 
   const params = new URLSearchParams(location.search);
   formId = params.get("form");

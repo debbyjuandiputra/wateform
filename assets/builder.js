@@ -1461,7 +1461,7 @@ function renderSettingsPanel() {
           pattern="[A-Za-z0-9._~-]+" autocapitalize="off" autocorrect="off" spellcheck="false"
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)">
       </div>
-      <!-- <div class="hint" id="s-slug-hint">Type a custom name (min 4 chars) for a short link like <strong>${window.location.host}/your-custom-name</strong>. Leave blank to use the default two-part link.</div> -->
+      <div id="s-slug-hint" style="font-size:12px;margin-top:5px;min-height:18px;display:flex;align-items:center;gap:5px"></div>
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1546,9 +1546,53 @@ function renderSettingsPanel() {
     document.getElementById(id)?.addEventListener("input", () => saveSetting());
   });
   // Public URL: strip anything that isn't a letter, digit, or a URL-safe symbol (no spaces)
+  let _slugCheckTimer = null;
   document.getElementById("s-slug")?.addEventListener("input", (e) => {
     const cleaned = e.target.value.replace(/[^A-Za-z0-9._~-]/g, "");
     if (cleaned !== e.target.value) e.target.value = cleaned;
+
+    const hint = document.getElementById("s-slug-hint");
+    const val = e.target.value.trim();
+
+    // Reset hint
+    if (hint) { hint.textContent = ""; hint.style.color = ""; }
+    clearTimeout(_slugCheckTimer);
+
+    if (!val || val.length < 4) return; // let saveSetting() handle the error msg
+    if (val === (formData?.slug || "")) return; // same as current, no need to check
+
+    // Show checking state
+    if (hint) {
+      hint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Checking availability…';
+      hint.style.color = "var(--text-muted)";
+    }
+
+    _slugCheckTimer = setTimeout(async () => {
+      try {
+        const { data, error } = await _sb
+          .from("forms")
+          .select("id")
+          .eq("slug", val)
+          .neq("id", formId)
+          .maybeSingle();
+        if (error) throw error;
+        if (hint) {
+          if (data) {
+            // Already taken
+            hint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
+            hint.style.color = "var(--red)";
+            document.getElementById("s-slug")?.classList.add("input-error");
+          } else {
+            // Available
+            hint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> URL tersedia';
+            hint.style.color = "var(--teal)";
+            document.getElementById("s-slug")?.classList.remove("input-error");
+          }
+        }
+      } catch(err) {
+        if (hint) { hint.textContent = ""; }
+      }
+    }, 500);
   });
   // WhatsApp number: digits only, numeric keyboard on mobile
   document.getElementById("s-wa-number")?.addEventListener("input", (e) => {
@@ -1635,12 +1679,31 @@ async function saveSetting() {
     slugInput?.classList.add("input-error");
     newSlug = formData?.slug || null; // don't persist an invalid value
   } else {
-    if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
-    slugInput?.classList.remove("input-error");
+    // Check if slug is taken by another form before saving
     if (newSlug !== settings.slug) {
-      // Save into the dedicated `slug` column; short_id stays as the auto-generated ID
-      await _sb.from("forms").update({ slug: newSlug || null }).eq("id", formId);
-      if (formData) formData.slug = newSlug || null;
+      const { data: existingSlug } = await _sb
+        .from("forms")
+        .select("id")
+        .eq("slug", newSlug)
+        .neq("id", formId)
+        .maybeSingle();
+      if (existingSlug) {
+        if (slugHint) {
+          slugHint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
+          slugHint.style.color = "var(--red)";
+        }
+        slugInput?.classList.add("input-error");
+        newSlug = formData?.slug || null; // revert
+      } else {
+        if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
+        slugInput?.classList.remove("input-error");
+        // Save into the dedicated `slug` column; short_id stays as the auto-generated ID
+        await _sb.from("forms").update({ slug: newSlug || null }).eq("id", formId);
+        if (formData) formData.slug = newSlug || null;
+      }
+    } else {
+      if (slugHint) { slugHint.textContent = ""; slugHint.style.color = ""; }
+      slugInput?.classList.remove("input-error");
     }
   }
   settings.slug        = newSlug;

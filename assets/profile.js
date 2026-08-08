@@ -203,7 +203,7 @@ function render2FAStatus(enabled) {
   } else {
     badge.className   = "tfa-badge off";
     badge.innerHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> Not enabled`;
-    desc.textContent  = "Add an extra layer of security using an authenticator app (Google Authenticator, Authy, etc.).";
+    desc.textContent  = "";
     btn.textContent   = "Enable 2FA";
     btn.className     = "btn btn-ghost btn-sm";
     actions.style.display = "none";

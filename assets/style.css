@@ -529,6 +529,17 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .qtype-btn:hover span { color: var(--teal-deep); }
 [data-theme="dark"] .qtype-btn:hover { color: var(--teal); }
 [data-theme="dark"] .qtype-btn:hover svg, [data-theme="dark"] .qtype-btn:hover span { color: var(--teal); }
+.qtype-btn.qtype-locked { opacity: .5; cursor: not-allowed; position: relative; }
+.qtype-btn.qtype-locked:hover { border-color: var(--border); background: transparent; }
+.qtype-btn.qtype-locked:hover svg, .qtype-btn.qtype-locked:hover span { color: var(--text-soft); }
+.qtype-tier-badge {
+  position: absolute; top: 4px; right: 4px;
+  font-size: 9px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 999px;
+  background: rgba(245,158,11,.2); color: #b45309;
+  pointer-events: none;
+}
+[data-theme="dark"] .qtype-tier-badge { background: rgba(245,158,11,.25); color: #fbbf24; }
 
 /* Inline toggle */
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

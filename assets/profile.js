@@ -171,8 +171,157 @@ async function init() {
   }
 
   await init2FA();
+  await initPhotoAndFrame(profile);
 }
 init();
+
+// ══════════════════════════════════════════════════════════════
+//  FOTO PROFIL & FRAME (plan-gated)
+// ══════════════════════════════════════════════════════════════
+
+// Plan → frame yang diizinkan (inklusif ke bawah)
+// free: tidak ada frame; plus: bronze; pro: silver; ultimate: gold
+const PLAN_FRAME_ALLOWED = {
+  free:     [],
+  plus:     ["bronze"],
+  pro:      ["bronze", "silver"],
+  ultimate: ["bronze", "silver", "gold"],
+};
+const PLAN_PHOTO_ALLOWED = ["plus", "pro", "ultimate"]; // free tidak boleh set foto
+
+async function initPhotoAndFrame(profile) {
+  // Ambil plan user
+  const { data: subRow } = await _sb.from("subscriptions")
+    .select("plan").eq("user_id", _currentUser.id).maybeSingle();
+  const userPlan = subRow?.plan || "free";
+
+  // ── Render badge plan di profil ──
+  const badge = document.getElementById("plan-badge-inline");
+  if (badge) {
+    badge.textContent = userPlan;
+    badge.className = "plan-badge-inline" + (userPlan !== "free" ? " plan-" + userPlan : "");
+  }
+
+  const canPhoto = PLAN_PHOTO_ALLOWED.includes(userPlan);
+  const allowedFrames = PLAN_FRAME_ALLOWED[userPlan] || [];
+
+  // ── Foto profil ──
+  const photoUploadBtn  = document.getElementById("photo-upload-btn");
+  const photoRemoveBtn  = document.getElementById("photo-remove-btn");
+  const photoFileInput  = document.getElementById("photo-file-input");
+  const photoHint       = document.getElementById("photo-hint");
+  const photoLockedEl   = document.getElementById("photo-locked-notice");
+  const photoPreviewEl  = document.getElementById("photo-preview");
+
+  // Render current photo / initials di preview
+  const initials = (profile?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  if (profile?.photo_url) {
+    photoPreviewEl.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover">`;
+    // Also update main avatar in header
+    const mainAvatar = document.getElementById("profile-avatar");
+    if (mainAvatar) mainAvatar.innerHTML = `<img src="${profile.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    if (photoRemoveBtn) photoRemoveBtn.style.display = "";
+  } else {
+    photoPreviewEl.textContent = initials;
+    if (photoRemoveBtn) photoRemoveBtn.style.display = "none";
+  }
+
+  // Apply frame to main avatar
+  applyFrameRing(profile?.avatar_frame || "");
+
+  if (!canPhoto) {
+    if (photoUploadBtn) { photoUploadBtn.disabled = true; photoUploadBtn.style.opacity = ".45"; photoUploadBtn.style.cursor = "not-allowed"; }
+    if (photoLockedEl)  { photoLockedEl.style.display = ""; }
+    if (photoHint)      { photoHint.style.display = "none"; }
+  } else {
+    photoUploadBtn?.addEventListener("click", () => photoFileInput?.click());
+    photoFileInput?.addEventListener("change", async () => {
+      const file = photoFileInput.files?.[0];
+      if (!file) return;
+      const MAX = 2 * 1024 * 1024; // 2MB
+      if (file.size > MAX) { toast("Foto terlalu besar (max 2MB)", "error"); photoFileInput.value = ""; return; }
+
+      photoUploadBtn.disabled = true; photoUploadBtn.textContent = "Uploading…";
+      try {
+        const ext  = file.name.split(".").pop().toLowerCase();
+        const path = `avatars/${_currentUser.id}/photo.${ext}`;
+        const { error: upErr } = await _sb.storage.from("avatars").upload(path, file, { upsert: true, cacheControl: "3600" });
+        if (upErr) throw upErr;
+        const { data: urlData } = _sb.storage.from("avatars").getPublicUrl(path);
+        const photoUrl = urlData?.publicUrl + "?t=" + Date.now(); // cache-bust
+
+        await _sb.from("profiles").update({ photo_url: photoUrl }).eq("id", _currentUser.id);
+        photoPreviewEl.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover">`;
+        const mainAvatar = document.getElementById("profile-avatar");
+        if (mainAvatar) mainAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        if (photoRemoveBtn) photoRemoveBtn.style.display = "";
+        toast("Foto profil diperbarui!");
+      } catch(e) {
+        toast("Gagal upload foto: " + (e.message || e), "error");
+      } finally {
+        photoUploadBtn.disabled = false; photoUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload foto';
+        photoFileInput.value = "";
+      }
+    });
+
+    photoRemoveBtn?.addEventListener("click", async () => {
+      photoRemoveBtn.disabled = true;
+      await _sb.from("profiles").update({ photo_url: null }).eq("id", _currentUser.id);
+      photoPreviewEl.textContent = initials;
+      const mainAvatar = document.getElementById("profile-avatar");
+      if (mainAvatar) mainAvatar.textContent = initials;
+      photoRemoveBtn.style.display = "none";
+      toast("Foto profil dihapus");
+      photoRemoveBtn.disabled = false;
+    });
+  }
+
+  // ── Frame ──
+  const frameOptions  = document.querySelectorAll(".frame-option");
+  const frameLockedEl = document.getElementById("frame-locked-notice");
+  let currentFrame    = profile?.avatar_frame || "";
+
+  // Mark current frame as selected
+  frameOptions.forEach(opt => {
+    const f = opt.dataset.frame;
+    opt.classList.toggle("selected", f === currentFrame);
+  });
+
+  if (allowedFrames.length === 0) {
+    // Free plan: lock all frames
+    frameOptions.forEach(opt => {
+      opt.style.opacity = ".45";
+      opt.style.cursor = "not-allowed";
+    });
+    if (frameLockedEl) frameLockedEl.style.display = "";
+  } else {
+    frameOptions.forEach(opt => {
+      const f = opt.dataset.frame;
+      const isAllowed = f === "" || allowedFrames.includes(f);
+      if (!isAllowed) {
+        opt.style.opacity = ".4";
+        opt.style.cursor = "not-allowed";
+        opt.title = f === "gold" ? "Butuh paket Ultimate" : (f === "silver" ? "Butuh paket Pro" : "");
+      } else {
+        opt.style.cursor = "pointer";
+        opt.addEventListener("click", async () => {
+          currentFrame = f;
+          frameOptions.forEach(o => o.classList.toggle("selected", o.dataset.frame === f));
+          applyFrameRing(f);
+          await _sb.from("profiles").update({ avatar_frame: f || null }).eq("id", _currentUser.id);
+          toast(f ? `Frame ${f} dipasang!` : "Frame dihapus");
+        });
+      }
+    });
+  }
+}
+
+function applyFrameRing(frame) {
+  const ring = document.getElementById("avatar-frame-ring");
+  if (!ring) return;
+  ring.className = "avatar-frame";
+  if (frame) ring.classList.add(frame);
+}
 
 // ══════════════════════════════════════════════════════════════
 //  2FA MANAGEMENT

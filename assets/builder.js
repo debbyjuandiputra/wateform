@@ -81,12 +81,35 @@ const LANGUAGES = [
   {code:"sw",label:"Kiswahili"},{code:"tl",label:"Filipino"},{code:"ur",label:"اردو"},
 ];
 
+// ── Field tiers — tipe yang butuh plan tertentu ──────────────
+// plus = butuh Plus ke atas; pro = butuh Pro ke atas
+const FIELD_TIERS = {
+  // Plus-only fields
+  file_upload:   "plus",
+  url_input:     "plus",
+  color:         "plus",
+  password:      "plus",
+  toggle:        "plus",
+  multiselect:   "plus",
+  likert:        "plus",
+  matrix:        "plus",
+  multi_input:   "plus",
+  datetime:      "plus",
+  ranking:       "plus",
+  emoji_rating:  "plus",
+  slider:        "plus",
+  nps_score:     "plus",
+  map:           "plus",
+  // Pro-only fields
+  button_link:   "pro",
+};
+
 // ── Plan benefits per paket (sesuai tabel di dashboard/subscription.html) ──
 const PLAN_FEATURES = {
-  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,  storageMb: 20  },
-  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,  storageMb: 50  },
-  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10, storageMb: 100 },
-  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50, storageMb: 500 },
+  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, fieldPlus: false, fieldPro: false, viewResponses: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,  storageMb: 20  },
+  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: false, viewResponses: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,  storageMb: 50  },
+  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10, storageMb: 100 },
+  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50, storageMb: 500 },
 };
 function planFeatures() { return PLAN_FEATURES[currentPlan] || PLAN_FEATURES.free; }
 
@@ -332,15 +355,33 @@ async function saveNow() {
 function renderQTypePicker() {
   const grid = document.getElementById("qtype-grid");
   grid.innerHTML = "";
+  const pf = planFeatures();
   Q_TYPES.forEach(def => {
     if (def.type === "page_break") return; // Added via dedicated button, not the picker
+    const tier = FIELD_TIERS[def.type]; // "plus", "pro", or undefined (free)
+    const locked =
+      (tier === "plus" && !pf.fieldPlus) ||
+      (tier === "pro"  && !pf.fieldPro);
+
     const btn = document.createElement("button");
-    btn.className = "qtype-btn";
+    btn.className = "qtype-btn" + (locked ? " qtype-locked" : "");
+    const badgeHtml = locked
+      ? `<span class="qtype-tier-badge">${tier === "pro" ? "Pro" : "Plus"}</span>`
+      : "";
     btn.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>
       <span>${def.label}</span>
+      ${badgeHtml}
     `;
-    btn.addEventListener("click", () => { addQuestion(def.type); closeModal("qtype-modal"); });
+    if (locked) {
+      const planLabel = tier === "pro" ? "Pro" : "Plus";
+      btn.title = `Butuh paket ${planLabel} atau lebih tinggi`;
+      btn.addEventListener("click", () => {
+        toast(`Field ini butuh paket ${planLabel} atau lebih tinggi. Upgrade di halaman Subscription.`, "error");
+      });
+    } else {
+      btn.addEventListener("click", () => { addQuestion(def.type); closeModal("qtype-modal"); });
+    }
     grid.appendChild(btn);
   });
 }
@@ -725,7 +766,8 @@ function openEditModal(idx) {
     fileInp.addEventListener("change", async () => {
       const file = fileInp.files?.[0];
       if (!file) { uploadHint.textContent = "No file chosen"; return; }
-      const maxMb = 25;
+      const _planMaxMb = planFeatures().maxUploadMb || 0;
+      const maxMb = _planMaxMb > 0 ? Math.min(25, _planMaxMb) : 25; // form media upload; 0=free→still allow 25 for image/video in builder
       if (file.size > maxMb * 1024 * 1024) {
         uploadHint.textContent = `File too large (max ${maxMb}MB).`;
         uploadHint.style.color = "var(--red)";
@@ -819,9 +861,19 @@ function openEditModal(idx) {
     ftHint.textContent = "Hold Ctrl/Cmd to select multiple. Leave blank to allow any.";
     ftWrap.appendChild(ftHint);
     body.appendChild(ftWrap);
-    body.appendChild(makeField("Max file size (MB)", "input",
-      { type:"number", id:"em-file-maxmb", value: q.maxFileSizeMb || 10, min:"1", max:"100", step:"1" }
-    ));
+    const _pMaxMb = planFeatures().maxUploadMb;
+    const _maxMbInput = makeField("Max file size (MB)", "input",
+      { type:"number", id:"em-file-maxmb",
+        value: _pMaxMb > 0 ? Math.min(q.maxFileSizeMb || 10, _pMaxMb) : (q.maxFileSizeMb || 10),
+        min:"1", max: _pMaxMb > 0 ? String(_pMaxMb) : "100", step:"1" }
+    );
+    if (_pMaxMb > 0) {
+      const _hintEl = document.createElement("div");
+      _hintEl.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:4px";
+      _hintEl.textContent = `Paket kamu: max ${_pMaxMb} MB per file.`;
+      _maxMbInput.appendChild(_hintEl);
+    }
+    body.appendChild(_maxMbInput);
   }
 
   // ── URL Input fields
@@ -1388,7 +1440,10 @@ function saveEditToMemory() {
     if (ftSel) {
       q.allowedFileTypes = Array.from(ftSel.selectedOptions).map(o=>o.value).join(",");
     }
-    q.maxFileSizeMb = Number(get("em-file-maxmb")?.value) || 10;
+    // Clamp to plan's maxUploadMb if set (0 = no file upload allowed)
+    const _planMax = planFeatures().maxUploadMb;
+    const _rawMax  = Number(get("em-file-maxmb")?.value) || 10;
+    q.maxFileSizeMb = _planMax > 0 ? Math.min(_rawMax, _planMax) : _rawMax;
   }
   // url_input
   if (q.type === "url_input") {
@@ -1518,15 +1573,20 @@ function renderSettingsPanel() {
     </div>
     <div class="settings-sep"></div>
     <div class="field">
-      <label>Public URL</label>
-      <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;">
+      <label style="display:flex;align-items:center;gap:6px">
+        Public URL
+        ${!planFeatures().customUrl ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : ""}
+      </label>
+      <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;${!planFeatures().customUrl ? "opacity:.55;cursor:not-allowed" : ""}">
         <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
-        <input type="text" id="s-slug" value="${esc(formSlug)}" maxlength="40" minlength="4"
-          placeholder="${esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx"))}"
+        <input type="text" id="s-slug" value="${planFeatures().customUrl ? esc(formSlug) : ""}" maxlength="40" minlength="4"
+          placeholder="${planFeatures().customUrl ? esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx")) : "Upgrade ke Plus untuk custom URL"}"
           pattern="[A-Za-z0-9._~-]+" autocapitalize="off" autocorrect="off" spellcheck="false"
-          style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)">
+          ${!planFeatures().customUrl ? "disabled" : ""}
+          style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)${!planFeatures().customUrl ? ";cursor:not-allowed" : ""}">
       </div>
       <div id="s-slug-hint" style="font-size:12px;margin-top:5px;min-height:18px;display:flex;align-items:center;gap:5px"></div>
+      ${!planFeatures().customUrl ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk custom URL. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1783,7 +1843,8 @@ async function saveSetting() {
       slugInput?.classList.remove("input-error");
     }
   }
-  settings.slug        = newSlug;
+  // Gate custom URL: jika plan tidak allow, paksa null
+  settings.slug        = planFeatures().customUrl ? newSlug : null;
   settings.isActive    = document.getElementById("s-active")?.checked !== false;
   // ── Enforce plan: paksa false/null jika plan pemilik workspace tidak mengizinkan,
   //    walaupun DOM-nya di-manipulasi dari devtools ──

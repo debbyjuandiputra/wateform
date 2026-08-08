@@ -35,12 +35,55 @@
     window.location.replace("../login.html");
   });
 
-  // ── Pilih paket — TODO: sambungkan ke alur pembayaran + benefit ──
+  // ── Ambil & tampilkan plan saat ini ──────────────────────────
+  (async () => {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (!session) return;
+
+    const { data: subRow } = await _sb.from("subscriptions")
+      .select("plan, status, expires_at")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    const currentPlan = subRow?.plan || "free";
+
+    // Highlight "Current plan" button
+    document.querySelectorAll("[data-plan]").forEach(btn => {
+      const p = btn.dataset.plan;
+      if (p === currentPlan) {
+        btn.textContent = "✓ Paket saat ini";
+        btn.disabled = true;
+        btn.className = "btn btn-ghost btn-sm";
+        btn.style.opacity = ".7";
+        // Highlight kolom
+        const head = btn.closest(".plan-head");
+        if (head && !head.classList.contains("featured")) {
+          head.style.background = "rgba(43,189,164,.08)";
+        }
+      }
+    });
+
+    // Tampilkan info plan aktif di bawah judul
+    const intro = document.querySelector(".sub-intro");
+    if (intro && currentPlan !== "free") {
+      const infoEl = document.createElement("div");
+      infoEl.style.cssText = "display:inline-flex;align-items:center;gap:8px;background:rgba(43,189,164,.1);border:1px solid rgba(43,189,164,.25);border-radius:999px;padding:4px 14px;font-size:12.5px;font-weight:600;color:var(--teal-deep);width:fit-content";
+      const expiresText = subRow?.expires_at
+        ? ` · Expires ${new Date(subRow.expires_at).toLocaleDateString()}`
+        : (subRow?.interval === "lifetime" ? " · Lifetime" : "");
+      infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> Paket aktif: <strong style="text-transform:capitalize">${currentPlan}</strong>${expiresText}`;
+      intro.insertBefore(infoEl, intro.children[1] || null);
+    }
+  })();
+
+  // ── Pilih paket ──────────────────────────────────────────────
   document.querySelectorAll("[data-plan]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const plan = btn.dataset.plan;
-      console.log("[subscription] plan selected:", plan);
-      // TODO: arahkan ke checkout / update paket user setelah alur benefit siap
+      if (btn.disabled) return;
+      // TODO: arahkan ke checkout / payment gateway
+      // Untuk sementara tampilkan info contact admin
+      alert(`Untuk upgrade ke ${plan}, hubungi admin atau pembuat aplikasi. Fitur pembayaran otomatis sedang dalam pengembangan.`);
     });
   });
 

@@ -15,9 +15,19 @@ const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // ── State ─────────────────────────────────────────────────────
 let currentUser    = null;
 let currentProfile = null;
+let currentPlan    = "free"; // plan milik user saat ini
 let workspaces     = [];
 let activeWsId     = null;
 let pendingAction  = null; // for confirm modal
+
+// ── Plan limits ───────────────────────────────────────────────
+const PLAN_LIMITS = {
+  free:     { maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   viewResponses: false },
+  plus:     { maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   viewResponses: false },
+  pro:      { maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   viewResponses: true  },
+  ultimate: { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, viewResponses: true  },
+};
+function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
 
 // ── Theme ─────────────────────────────────────────────────────
 (function initTheme() {
@@ -148,6 +158,11 @@ async function init() {
   const { data: profile } = await _sb.from("profiles").select("*").eq("id", currentUser.id).single();
   currentProfile = profile;
 
+  // Ambil plan user
+  const { data: subRow } = await _sb.from("subscriptions")
+    .select("plan").eq("user_id", currentUser.id).maybeSingle();
+  currentPlan = subRow?.plan || "free";
+
   // Render user info
   const initials = (profile?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   document.getElementById("user-avatar").textContent = initials;
@@ -216,6 +231,13 @@ function renderHome() {
       <button class="btn btn-solid btn-sm" id="create-ws-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
         New workspace
+        ${(()=>{
+          const lim = planLimits();
+          const owned = workspaces.filter(w => w.workspace_members?.some(m => m.user_id === currentUser.id && m.role === "owner")).length;
+          if (lim.maxWorkspaces === Infinity) return "";
+          const atLimit = owned >= lim.maxWorkspaces;
+          return `<span style="font-size:10px;opacity:.7;margin-left:2px">(${owned}/${lim.maxWorkspaces})</span>`;
+        })()}
       </button>
     </div>
     <div class="dash-body">
@@ -487,9 +509,10 @@ function renderFormList(forms, wsId, isOwner) {
               Settings
             </button>
             <div class="dropdown-sep"></div>
-            <button class="dropdown-item" data-action="responses" data-id="${form.id}">
+            <button class="dropdown-item" data-action="responses" data-id="${form.id}" style="${(()=>{const _wsR=workspaces.find(w=>w.id===wsId);const _oId=_wsR?.workspace_members?.find(m=>m.role==='owner')?.user_id||currentUser.id;let _oPlan=currentPlan;/* note: owner plan check is async so we use cached currentPlan for owner, show lock for non-owner */ const _oLim=PLAN_LIMITS[_oId===currentUser.id?currentPlan:'free']||PLAN_LIMITS.free;return !_oLim.viewResponses?'opacity:.5':'';})()}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               View responses
+              ${!planLimits().viewResponses && (workspaces.find(w=>w.id===wsId)?.workspace_members?.find(m=>m.role==='owner')?.user_id||currentUser.id)===currentUser.id ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" style="margin-left:auto;color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' : ''}
             </button>
             <button class="dropdown-item" data-action="share" data-id="${form.id}" data-url="${url}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
@@ -547,7 +570,32 @@ function renderFormList(forms, wsId, isOwner) {
     if (action === "open-builder") { window.location.href = `../builder.html?form=${id}`; return; }
     if (action === "preview")    { window.open(btn.dataset.url, "_blank"); return; }
     if (action === "settings")   { window.location.href = `../builder.html?form=${id}&panel=settings`; return; }
-    if (action === "responses")  { openResponses(id); return; }
+    if (action === "responses")  {
+      // Cek apakah plan owner workspace mengizinkan view responses
+      const _ws = workspaces.find(w => w.id === activeWsId);
+      const _wsOwnerId = _ws?.workspace_members?.find(m => m.role === "owner")?.user_id || currentUser.id;
+      // Ambil plan owner workspace (cached dari currentPlan jika kita adalah owner)
+      const _checkViewResp = async () => {
+        let _ownerPlan = currentPlan;
+        if (_wsOwnerId !== currentUser.id) {
+          const { data: _ownerSub } = await _sb.from("subscriptions")
+            .select("plan").eq("user_id", _wsOwnerId).maybeSingle();
+          _ownerPlan = _ownerSub?.plan || "free";
+        }
+        const _ownerLim = PLAN_LIMITS[_ownerPlan] || PLAN_LIMITS.free;
+        if (!_ownerLim.viewResponses) {
+          toast(
+            `Paket ${_ownerPlan} tidak bisa melihat responses. ` +
+            (_wsOwnerId === currentUser.id ? "Upgrade ke Pro atau lebih tinggi." : "Pemilik workspace perlu upgrade."),
+            "error"
+          );
+          return;
+        }
+        openResponses(id);
+      };
+      _checkViewResp();
+      return;
+    }
     if (action === "share")      { openShareModal(btn.dataset.url); return; }
     if (action === "duplicate")  { duplicateForm(id, btn.dataset.ws); return; }
     if (action === "rename")     { openRenameModal(id, btn.dataset.title); return; }
@@ -700,6 +748,22 @@ function openEditWsModal(ws) {
 async function createWorkspace() {
   const name = document.getElementById("ws-name").value.trim();
   if (!name) { showError("ws-modal-error", "Workspace name is required."); return; }
+
+  // ── Cek batas workspace per plan ──
+  const lim = planLimits();
+  // Hitung workspace yang dimiliki (owned) oleh user ini
+  const ownedCount = workspaces.filter(w =>
+    w.workspace_members?.some(m => m.user_id === currentUser.id && m.role === "owner")
+  ).length;
+  if (ownedCount >= lim.maxWorkspaces) {
+    const limLabel = lim.maxWorkspaces === Infinity ? "unlimited" : lim.maxWorkspaces;
+    showError("ws-modal-error",
+      `Paket ${currentPlan} hanya bisa membuat ${limLabel} workspace. ` +
+      `Upgrade untuk menambah lebih banyak.`
+    );
+    return;
+  }
+
   const btn = document.getElementById("ws-save-btn");
   btn.disabled = true; btn.textContent = "Creating…";
   const { error } = await _sb.from("workspaces").insert({ name, description: document.getElementById("ws-desc").value.trim() || null, owner_id: currentUser.id, short_id: "" });
@@ -755,6 +819,33 @@ async function inviteMember(wsId) {
   const email = document.getElementById("invite-email").value.trim().toLowerCase();
   if (!email) { showError("invite-error", "Enter an email address."); return; }
   if (!/^[a-zA-Z0-9._%+\-]+@gmail\.com$/.test(email)) { showError("invite-error", "Only @gmail.com addresses are allowed."); return; }
+
+  // ── Cek batas member per plan (berdasarkan plan owner workspace) ──
+  const ws = workspaces.find(w => w.id === wsId);
+  const wsOwnerId = ws?.workspace_members?.find(m => m.role === "owner")?.user_id || currentUser.id;
+  const { data: ownerSub } = await _sb.from("subscriptions")
+    .select("plan").eq("user_id", wsOwnerId).maybeSingle();
+  const ownerPlan = ownerSub?.plan || "free";
+  const ownerLim  = PLAN_LIMITS[ownerPlan] || PLAN_LIMITS.free;
+
+  if (ownerLim.maxMembers <= 0) {
+    showError("invite-error",
+      `Paket ${ownerPlan} tidak mengizinkan penambahan member. ` +
+      (wsOwnerId === currentUser.id ? "Upgrade ke Plus atau lebih tinggi." : "Pemilik workspace perlu upgrade.")
+    );
+    return;
+  }
+  // Hitung member yang sudah ada (tidak termasuk owner)
+  const currentMemberCount = (ws?.workspace_members?.length || 1) - 1; // exclude owner
+  if (currentMemberCount >= ownerLim.maxMembers) {
+    const limLabel = ownerLim.maxMembers;
+    showError("invite-error",
+      `Paket ${ownerPlan} hanya bisa menambah ${limLabel} member per workspace. ` +
+      (wsOwnerId === currentUser.id ? "Upgrade untuk menambah lebih banyak." : "Pemilik workspace perlu upgrade.")
+    );
+    return;
+  }
+
   const btn = document.getElementById("invite-save-btn");
   btn.disabled = true; btn.textContent = "Adding…";
 
@@ -796,6 +887,44 @@ function openNewFormModal(wsId) {
 async function createForm(wsId) {
   const title = document.getElementById("form-title").value.trim();
   if (!title) { showError("form-modal-error", "Form title is required."); return; }
+
+  // ── Cek batas form per plan (total form di semua workspace milik owner workspace ini) ──
+  // Cari owner workspace aktif
+  const ws = workspaces.find(w => w.id === wsId);
+  const wsOwnerId = ws?.workspace_members?.find(m => m.role === "owner")?.user_id || currentUser.id;
+  // Ambil semua form milik owner workspace ini
+  const { data: ownerForms } = await _sb
+    .from("forms")
+    .select("id", { count: "exact", head: true })
+    .in("workspace_id",
+      workspaces
+        .filter(w => w.workspace_members?.some(m => m.user_id === wsOwnerId && m.role === "owner"))
+        .map(w => w.id)
+    );
+  // Ambil plan owner workspace
+  const { data: ownerSub } = await _sb.from("subscriptions")
+    .select("plan").eq("user_id", wsOwnerId).maybeSingle();
+  const ownerPlan = ownerSub?.plan || "free";
+  const ownerLim  = PLAN_LIMITS[ownerPlan] || PLAN_LIMITS.free;
+
+  // Count total forms owned
+  const { count: formCount } = await _sb
+    .from("forms")
+    .select("id", { count: "exact", head: true })
+    .in("workspace_id",
+      workspaces
+        .filter(w => w.workspace_members?.some(m => m.user_id === wsOwnerId && m.role === "owner"))
+        .map(w => w.id)
+    );
+  if (formCount !== null && formCount >= ownerLim.maxForms) {
+    const limLabel = ownerLim.maxForms === Infinity ? "unlimited" : ownerLim.maxForms;
+    showError("form-modal-error",
+      `Paket ${ownerPlan} hanya bisa membuat ${limLabel} form. ` +
+      (wsOwnerId === currentUser.id ? "Upgrade untuk menambah lebih banyak." : "Pemilik workspace perlu upgrade.")
+    );
+    return;
+  }
+
   const btn = document.getElementById("form-save-btn");
   btn.disabled = true; btn.textContent = "Creating…";
   const { data, error } = await _sb.from("forms").insert({

@@ -1932,13 +1932,20 @@ function renderForm(form) {
 
     try {
       // ── Create the response row first so file uploads can link back to it ──
-      const { data: respRow, error: respErr } = await sb.from("responses").insert({
+      // NOTE: generate the id client-side instead of .select().single() after
+      // insert — anonymous respondents don't have SELECT rights on `responses`
+      // (RLS only allows authenticated workspace members to read), so chaining
+      // .select() here would make the whole insert fail/rollback for them.
+      const responseId = (crypto.randomUUID && crypto.randomUUID()) || genShortCode() + genShortCode();
+
+      const { error: respErr } = await sb.from("responses").insert({
+        id:      responseId,
         form_id: form.id,
         answers: answers,
         sent_to: targetOverride || target,
-      }).select("id").single();
+      });
 
-      const responseId = respRow?.id || null;
+      if (respErr) console.error("Failed to create response row:", respErr);
 
       // ── Upload any file_upload fields to Supabase Storage ──
       const fileQuestions = questions.filter(q => q.type === "file_upload" && fileMap[q.id]);
@@ -1963,7 +1970,7 @@ function renderForm(form) {
             await sb.from("form_uploads").insert({
               short_code:  shortCode,
               form_id:     form.id,
-              response_id: responseId,
+              response_id: respErr ? null : responseId,
               owner_id:    storageOwner,
               file_name:   file.name,
               file_path:   filePath,
@@ -1987,7 +1994,7 @@ function renderForm(form) {
       }
 
       // Update the response with final answers (file placeholders replaced by viewer links)
-      if (responseId) {
+      if (!respErr) {
         await sb.from("responses").update({ answers }).eq("id", responseId);
       }
     } catch (err) {

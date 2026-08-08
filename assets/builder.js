@@ -35,6 +35,7 @@ const Q_TYPES = [
   { type:"multiselect", label:"Multi-select Dropdown", icon:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', desc:"Select multiple from dropdown" },
   { type:"likert",      label:"Likert Scale",    icon:'<circle cx="4" cy="12" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="22" cy="12" r="2"/><line x1="4" y1="12" x2="22" y2="12"/>', desc:"Agreement scale" },
   { type:"matrix",      label:"Matrix / Grid",   icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>', desc:"Table-style grid" },
+  { type:"data_table",  label:"Table",            icon:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="15" x2="21" y2="15"/>', desc:"Data table; owner prefills, users fill empty cells" },
   { type:"multi_input", label:"Multiple Inputs",  icon:'<path d="M8 6h13M8 12h13"/><path d="M3 6h.01M3 12h.01"/><path d="M3 18h.01M8 18h13"/>', desc:"Multiple labeled fields" },
   { type:"datetime",    label:"Date & Time",      icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',  desc:"Date, time, week, month, year" },
   { type:"ranking",     label:"Ranking",          icon:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',   desc:"Drag to rank options" },
@@ -94,6 +95,7 @@ const FIELD_TIERS = {
   multiselect:   "plus",
   likert:        "plus",
   matrix:        "pro",
+  data_table:    "pro",
   multi_input:   "plus",
   datetime:      "plus",
   ranking:       "plus",
@@ -480,6 +482,11 @@ function addQuestion(type) {
     matrixRows: ["Row 1","Row 2"],
     matrixCols: ["Column 1","Column 2","Column 3"],
     matrixType: "radio",
+    // data_table
+    tableColumns:        ["","",""],
+    tableRows:           ["",""],
+    tableCells:          [["","",""],["","",""]],
+    tableAllowMultiple:  false,
     // multi_input
     multiInputFields: [{label:"Field 1", placeholder:"", type:"text"}, {label:"Field 2", placeholder:"", type:"text"}],
     // datetime
@@ -1077,6 +1084,160 @@ function openEditModal(idx) {
     body.appendChild(mtTypeWrap);
   }
 
+  // ── Data Table fields
+  if (q.type === "data_table") {
+    const dtWrap = document.createElement("div");
+    dtWrap.id = "em-datatable-wrap";
+    dtWrap.style.cssText = "display:flex;flex-direction:column;gap:10px";
+
+    let dtCols  = [...(q.tableColumns || ["Ulangan I","Ulangan II","Ulangan III"])];
+    let dtRows  = [...(q.tableRows    || ["M0","M1"])];
+    let dtCells = (q.tableCells || []).map(r => [...(r||[])]);
+    while (dtCells.length < dtRows.length) dtCells.push(Array(dtCols.length).fill(""));
+    dtCells = dtCells.slice(0, dtRows.length).map(r => {
+      const row = [...(r||[])];
+      while (row.length < dtCols.length) row.push("");
+      return row.slice(0, dtCols.length);
+    });
+
+    function syncDtState() {
+      dtCols  = [...dtWrap.querySelectorAll(".dt-col-header")].map(i => i.value);
+      dtRows  = [...dtWrap.querySelectorAll(".dt-row-label")].map(i => i.value);
+      dtWrap.querySelectorAll(".dt-cell-inp").forEach(c => {
+        const ri = +c.dataset.ri, ci = +c.dataset.ci;
+        if (dtCells[ri]) dtCells[ri][ci] = c.value;
+      });
+    }
+
+    function renderDtEditor() {
+      // Keep the allow-multiple checkbox state before wiping
+      const prevAM = dtWrap.querySelector("#em-dt-allow-multiple")?.checked ?? q.tableAllowMultiple ?? false;
+      dtWrap.innerHTML = "";
+
+      // ─ Table scroll wrapper
+      const scroll = document.createElement("div");
+      scroll.style.cssText = "overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius)";
+      const tbl = document.createElement("table");
+      tbl.style.cssText = "width:100%;border-collapse:collapse;font-size:12.5px";
+
+      // Header row
+      const thead = document.createElement("thead");
+      const hRow  = document.createElement("tr");
+
+      // top-left corner
+      const corner = document.createElement("th");
+      corner.style.cssText = "padding:8px 10px;background:var(--bg-mid);border-bottom:1px solid var(--border);border-right:1px solid var(--border);min-width:88px";
+      hRow.appendChild(corner);
+
+      dtCols.forEach((col, ci) => {
+        const th = document.createElement("th");
+        th.style.cssText = "padding:6px 8px;background:var(--bg-mid);border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:center;min-width:110px";
+        const colDiv = document.createElement("div");
+        colDiv.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px";
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.className = "dt-col-header"; inp.dataset.ci = ci;
+        inp.value = col; inp.placeholder = "Column "+(ci+1);
+        inp.style.cssText = "width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;background:var(--bg-raised);color:var(--text);text-align:center";
+        const rmBtn = document.createElement("button");
+        rmBtn.type = "button"; rmBtn.textContent = "×"; rmBtn.title = "Remove column";
+        rmBtn.style.cssText = "border:none;background:none;color:var(--text-muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;border-radius:4px";
+        rmBtn.addEventListener("click", () => {
+          if (dtCols.length <= 1) return;
+          syncDtState(); dtCols.splice(ci,1); dtCells = dtCells.map(r=>{r.splice(ci,1);return r;});
+          renderDtEditor();
+        });
+        colDiv.appendChild(inp); colDiv.appendChild(rmBtn);
+        th.appendChild(colDiv); hRow.appendChild(th);
+      });
+      thead.appendChild(hRow); tbl.appendChild(thead);
+
+      // Body
+      const tbody = document.createElement("tbody");
+      dtRows.forEach((row, ri) => {
+        const tr = document.createElement("tr");
+        // Row label cell
+        const tdLbl = document.createElement("td");
+        tdLbl.style.cssText = "padding:6px 8px;background:var(--bg-mid);border-top:1px solid var(--border-soft);border-right:1px solid var(--border)";
+        const lblDiv = document.createElement("div"); lblDiv.style.cssText = "display:flex;align-items:center;gap:4px";
+        const lblInp = document.createElement("input");
+        lblInp.type = "text"; lblInp.className = "dt-row-label"; lblInp.dataset.ri = ri;
+        lblInp.value = row; lblInp.placeholder = "Row "+(ri+1);
+        lblInp.style.cssText = "flex:1;min-width:50px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;background:var(--bg-raised);color:var(--text)";
+        const rmRow = document.createElement("button");
+        rmRow.type = "button"; rmRow.textContent = "×"; rmRow.title = "Remove row";
+        rmRow.style.cssText = "border:none;background:none;color:var(--text-muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;border-radius:4px;flex-shrink:0";
+        rmRow.addEventListener("click", () => {
+          if (dtRows.length <= 1) return;
+          syncDtState(); dtRows.splice(ri,1); dtCells.splice(ri,1);
+          renderDtEditor();
+        });
+        lblDiv.appendChild(lblInp); lblDiv.appendChild(rmRow);
+        tdLbl.appendChild(lblDiv); tr.appendChild(tdLbl);
+
+        // Data cells
+        dtCols.forEach((_, ci) => {
+          const td = document.createElement("td");
+          td.style.cssText = "padding:5px 8px;border-top:1px solid var(--border-soft);border-right:1px solid var(--border);text-align:center";
+          const cInp = document.createElement("input");
+          cInp.type = "text"; cInp.className = "dt-cell-inp"; cInp.dataset.ri = ri; cInp.dataset.ci = ci;
+          cInp.value = (dtCells[ri]||[])[ci] || ""; cInp.placeholder = "—";
+          cInp.title = "Leave empty → respondent will fill this";
+          cInp.style.cssText = "width:100%;padding:4px 8px;border:1px dashed var(--border);border-radius:6px;font-size:12.5px;background:var(--bg-raised);color:var(--text);text-align:center;min-width:80px";
+          td.appendChild(cInp); tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody); scroll.appendChild(tbl);
+      dtWrap.appendChild(scroll);
+
+      // Hint
+      const hint = document.createElement("p");
+      hint.style.cssText = "font-size:11.5px;color:var(--text-muted);margin:0";
+      hint.textContent = "Cells left empty will be filled by respondents. Column headers & row labels are set by you.";
+      dtWrap.appendChild(hint);
+
+      // Add col / row buttons
+      const btnRow = document.createElement("div");
+      btnRow.style.cssText = "display:flex;gap:8px";
+      const addColBtn = document.createElement("button");
+      addColBtn.type = "button"; addColBtn.className = "add-option-btn";
+      addColBtn.textContent = "+ Column";
+      addColBtn.addEventListener("click", () => {
+        syncDtState();
+        dtCols.push("Ulangan "+(dtCols.length+1));
+        dtCells = dtCells.map(r => [...r, ""]);
+        renderDtEditor();
+      });
+      const addRowBtn = document.createElement("button");
+      addRowBtn.type = "button"; addRowBtn.className = "add-option-btn";
+      addRowBtn.textContent = "+ Rows";
+      addRowBtn.addEventListener("click", () => {
+        syncDtState();
+        dtRows.push("M"+dtRows.length);
+        dtCells.push(Array(dtCols.length).fill(""));
+        renderDtEditor();
+      });
+      btnRow.appendChild(addColBtn); btnRow.appendChild(addRowBtn);
+      dtWrap.appendChild(btnRow);
+
+      // Allow multiple answers toggle
+      const amRow = document.createElement("div");
+      amRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius)";
+      const amChk = document.createElement("input");
+      amChk.type = "checkbox"; amChk.id = "em-dt-allow-multiple"; amChk.checked = prevAM;
+      amChk.style.cssText = "width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0";
+      const amLbl = document.createElement("label");
+      amLbl.htmlFor = "em-dt-allow-multiple";
+      amLbl.style.cssText = "font-size:13px;cursor:pointer;line-height:1.4";
+      amLbl.innerHTML = "<strong>Allow multiple answers</strong>";
+      amRow.appendChild(amChk); amRow.appendChild(amLbl);
+      dtWrap.appendChild(amRow);
+    }
+
+    renderDtEditor();
+    body.appendChild(dtWrap);
+  }
+
   // ── Multiple Inputs fields
   if (q.type === "multi_input") {
     const miWrap = document.createElement("div"); miWrap.className = "field";
@@ -1436,6 +1597,22 @@ function saveEditToMemory() {
     q.matrixRows = (get("em-matrix-rows")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixCols = (get("em-matrix-cols")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixType = get("em-matrix-type")?.value || "radio";
+  }
+  // data_table
+  if (q.type === "data_table") {
+    const wrap = get("em-datatable-wrap");
+    if (wrap) {
+      q.tableColumns = [...wrap.querySelectorAll(".dt-col-header")].map(i => i.value.trim() || "Column");
+      q.tableRows    = [...wrap.querySelectorAll(".dt-row-label")].map(i => i.value.trim() || "Row");
+      const nR = q.tableRows.length, nC = q.tableColumns.length;
+      q.tableCells = Array.from({length: nR}, (_, ri) =>
+        Array.from({length: nC}, (_, ci) => {
+          const c = wrap.querySelector(`.dt-cell-inp[data-ri="${ri}"][data-ci="${ci}"]`);
+          return c ? c.value : "";
+        })
+      );
+      q.tableAllowMultiple = get("em-dt-allow-multiple")?.checked || false;
+    }
   }
   // multi_input
   if (q.type === "multi_input") {
@@ -2093,6 +2270,24 @@ function buildPreviewField(q, i) {
   if (q.type === "multiselect") { const mso = (q.multiselectOptions||[]).slice(0,5); control = `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 12px 8px;background:var(--bg-raised)"><div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${esc(q.multiselectPlaceholder||"Select options…")}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${mso.map(o=>`<span style="padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer">${esc(o)}</span>`).join("")}${(q.multiselectOptions||[]).length>5?`<span style="font-size:12px;color:var(--text-muted);padding:3px 6px">+${(q.multiselectOptions||[]).length-5} more</span>`:""}</div></div>`; }
   if (q.type === "likert") { const scale = q.likertScale||5; const rows = (q.likertRows||[""]).filter(Boolean); control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--text-muted)">${esc(q.likertStartLabel||"Strongly Disagree")}</th>${Array.from({length:scale},(_,i)=>`<th style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text-muted)">${i+1}</th>`).join("")}<th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--text-muted)">${esc(q.likertEndLabel||"Strongly Agree")}</th></tr></thead><tbody>${(rows.length?rows:["Statement 1","Statement 2"]).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:8px;font-size:13px">${esc(r)}</td>${Array.from({length:scale},(_,i)=>`<td style="padding:8px 4px;text-align:center"><input type="radio" name="l${i}" style="accent-color:var(--teal)"></td>`).join("")}<td></td></tr>`).join("")}</tbody></table></div>`; }
   if (q.type === "matrix") { const rows = q.matrixRows||["Row 1","Row 2"]; const cols = q.matrixCols||["Col 1","Col 2"]; control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)"></th>${cols.map(c=>`<th style="padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);font-weight:600">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--border-soft)"><td style="padding:9px 8px;font-size:13px">${esc(r)}</td>${cols.map((_,ci)=>`<td style="padding:9px 12px;text-align:center"><input type="${q.matrixType||"radio"}" name="mx-${r}-${ci}" style="accent-color:var(--teal)"></td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
+  if (q.type === "data_table") {
+    const dtC = q.tableColumns||["Ulangan I","Ulangan II","Ulangan III"];
+    const dtR = q.tableRows||["M0","M1"];
+    const dtCells = q.tableCells||dtR.map(()=>dtC.map(()=>""));
+    control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>
+        <th style="padding:8px 10px;text-align:left;border-bottom:2px solid var(--border);background:var(--bg-mid);min-width:80px"></th>
+        ${dtC.map(c=>`<th style="padding:8px 12px;text-align:center;border-bottom:2px solid var(--border);font-weight:600;background:var(--bg-mid);white-space:nowrap">${esc(c)}</th>`).join("")}
+      </tr></thead>
+      <tbody>${dtR.map((r,ri)=>`<tr style="border-top:1px solid var(--border-soft)">
+        <td style="padding:8px 10px;font-weight:600;font-size:12.5px;background:var(--bg-mid);white-space:nowrap">${esc(r)}</td>
+        ${dtC.map((_,ci)=>{const v=(dtCells[ri]||[])[ci]||""; return v
+          ? `<td style="padding:8px 12px;text-align:center;font-size:13px">${esc(v)}</td>`
+          : `<td style="padding:5px 8px;text-align:center"><div style="height:28px;border:1.5px dashed var(--border);border-radius:6px;background:var(--bg-raised);opacity:.7"></div></td>`;}
+        ).join("")}
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+  }
   if (q.type === "multi_input") { const mif = q.multiInputFields||[]; control = `<div style="display:flex;flex-direction:column;gap:10px">${mif.map(f=>`<div><div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)">${esc(f.label||"")}</div><input type="${f.type||"text"}" placeholder="${esc(f.placeholder||"")}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`).join("")}</div>`; }
   if (q.type === "datetime") { const mode = q.datetimeMode||"date"; const inpType = mode === "year" ? "number" : mode; control = `<input type="${inpType}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)" placeholder="${mode==='year'?'YYYY':''}">`; }
   if (q.type === "ranking") { const rkopts = q.rankingOptions||["Option 1","Option 2","Option 3"]; control = `<div style="display:flex;flex-direction:column;gap:6px">${rkopts.map((o,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);cursor:grab"><span style="color:var(--text-muted);font-size:12px;min-width:18px;text-align:center">${i+1}</span><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' width='14' height='14' style='flex-shrink:0;opacity:.4'><line x1='3' y1='8' x2='21' y2='8'/><line x1='3' y1='16' x2='21' y2='16'/></svg><span>${esc(o)}</span></div>`).join("")}</div>`; }

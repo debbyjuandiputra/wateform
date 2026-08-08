@@ -431,6 +431,20 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .matrix-table td:first-child { text-align:left; font-size:13px; color:var(--text); }
 .matrix-table tr:hover td { background:var(--teal-dim); }
 .matrix-input { width:18px; height:18px; accent-color:var(--teal); cursor:pointer; }
+/* ── Data Table field ── */
+.dt-scroll { overflow-x:auto; }
+.dt-table  { width:100%; border-collapse:collapse; font-size:13px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.dt-table th { padding:9px 14px; font-weight:600; color:var(--text); background:var(--bg-mid); border-bottom:2px solid var(--border); white-space:nowrap; text-align:center; }
+.dt-table th.dt-th-corner { text-align:left; border-right:1px solid var(--border); }
+.dt-table th:not(.dt-th-corner) { border-right:1px solid var(--border-soft); }
+.dt-table td { padding:8px 12px; border-top:1px solid var(--border-soft); border-right:1px solid var(--border-soft); text-align:center; }
+.dt-table .dt-row-label-cell { text-align:left; font-weight:600; font-size:13px; background:var(--bg-mid); border-right:1px solid var(--border); white-space:nowrap; }
+.dt-table .dt-cell-fixed  { font-size:13px; color:var(--text); }
+.dt-table .dt-cell-editable { padding:5px 8px; }
+.dt-user-input { width:100%; min-width:80px; padding:5px 10px; border:1.5px solid var(--border); border-radius:7px; background:var(--bg-raised); color:var(--text); font-size:13px; text-align:center; outline:none; font-family:inherit; transition:border-color .15s; }
+.dt-user-input:focus { border-color:var(--teal); box-shadow:0 0 0 2px rgba(43,189,164,.15); }
+.dt-table tr:hover td { background:var(--teal-dim); }
+.dt-table tr:hover .dt-row-label-cell { background:var(--bg-mid); }
 
 /* ── Multiple Inputs ───────────────────────────── */
 .multi-input-grid { display:flex; flex-direction:column; gap:12px; }
@@ -1042,6 +1056,29 @@ function renderForm(form) {
         </table></div>`;
         break;
       }
+      case "data_table": {
+        const dtCols  = q.tableColumns || ["Column 1","Column 2","Column 3"];
+        const dtRows  = q.tableRows    || ["Row 1","Row 2"];
+        const dtCells = q.tableCells   || dtRows.map(() => dtCols.map(() => ""));
+        inputHtml = `<div class="dt-scroll"><table class="dt-table" id="dtt-${q.id}">
+          <thead><tr>
+            <th class="dt-th-corner"></th>
+            ${dtCols.map((c,ci)=>`<th data-ci="${ci}">${esc(c)}</th>`).join("")}
+          </tr></thead>
+          <tbody>
+            ${dtRows.map((r,ri)=>`<tr>
+              <td class="dt-row-label-cell">${esc(r)}</td>
+              ${dtCols.map((_,ci)=>{
+                const v = (dtCells[ri]||[])[ci] ?? "";
+                return v !== ""
+                  ? `<td class="dt-cell-fixed" data-ri="${ri}" data-ci="${ci}">${esc(v)}</td>`
+                  : `<td class="dt-cell-editable" data-ri="${ri}" data-ci="${ci}"><input type="text" class="dt-user-input" data-qid="${q.id}" data-ri="${ri}" data-ci="${ci}" placeholder="—" autocomplete="off"></td>`;
+              }).join("")}
+            </tr>`).join("")}
+          </tbody>
+        </table></div>`;
+        break;
+      }
       case "multi_input": {
         const miFields = q.multiInputFields || [];
         inputHtml = `<div class="multi-input-grid" id="mig-${q.id}">
@@ -1580,6 +1617,36 @@ function renderForm(form) {
       });
     }
 
+    // Bind data_table
+    if (q.type === "data_table") {
+      const dtRows  = q.tableRows    || [];
+      const dtCols  = q.tableColumns || [];
+      const dtCells = q.tableCells   || dtRows.map(() => dtCols.map(() => ""));
+      const userVals = {};
+      function rebuildDtAnswer() {
+        const parts = [];
+        dtRows.forEach((r, ri) => {
+          const rowParts = [];
+          dtCols.forEach((c, ci) => {
+            const ownerV = (dtCells[ri]||[])[ci] ?? "";
+            const userV  = userVals[`${ri},${ci}`] || "";
+            const val    = ownerV !== "" ? ownerV : userV;
+            if (val) rowParts.push(c + ": " + val);
+          });
+          if (rowParts.length) parts.push(r + " → " + rowParts.join(", "));
+        });
+        answers[q.id] = parts.join(" | ");
+      }
+      block.querySelectorAll(".dt-user-input").forEach(inp => {
+        inp.addEventListener("input", () => {
+          userVals[inp.dataset.ri + "," + inp.dataset.ci] = inp.value.trim();
+          rebuildDtAnswer();
+        });
+      });
+      // Seed answer with owner-prefilled values
+      rebuildDtAnswer();
+    }
+
     // Bind multi_input
     if (q.type === "multi_input") {
       const miFields = q.multiInputFields || [];
@@ -1667,7 +1734,7 @@ function renderForm(form) {
     }
 
     if (!["choice","dropdown","rating","file_upload","color","password","url_input","checkbox",
-           "toggle","multiselect","likert","matrix","multi_input","ranking","emoji_rating","slider","nps_score"].includes(q.type)) {
+           "toggle","multiselect","likert","matrix","data_table","multi_input","ranking","emoji_rating","slider","nps_score"].includes(q.type)) {
       const el = block.querySelector(`#q-${q.id}`);
       if (el) {
         el.addEventListener("input", () => {

@@ -621,22 +621,17 @@ function renderMemberList(members, wsId, isOwner, meId) {
     const isMe = m.user_id === meId;
     const row = document.createElement("div");
     row.className = "member-row";
-    const initials = (m.profiles?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const initials  = (m.profiles?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
     const photoUrl   = m.profiles?.photo_url   || "";
     const frameClass = m.profiles?.avatar_frame || "";
-    const frameStyle = frameClass === "bronze"
-      ? "border:2.5px solid #cd7f32;box-shadow:0 0 6px rgba(205,127,50,.3);opacity:.7"
-      : frameClass === "silver"
-      ? "border:2.5px solid #b0b0b0;box-shadow:0 0 6px rgba(176,176,176,.5)"
-      : frameClass === "gold"
-      ? "border:2.5px solid #ffd700;box-shadow:0 0 6px rgba(255,215,0,.6)"
-      : "";
-    const avatarHtml = photoUrl
-      ? `<div class="avatar" style="padding:0;overflow:hidden;position:relative">
-           <img src="${photoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
-           ${frameStyle ? `<div style="position:absolute;inset:-2px;border-radius:50%;pointer-events:none;${frameStyle}"></div>` : ""}
-         </div>`
-      : `<div class="avatar">${initials}</div>`;
+    const frameRingHtml = frameClass ? `<div class="avatar-frame-ring ${esc(frameClass)}"></div>` : "";
+    const avatarHtml = `
+      <div class="avatar-wrap">
+        ${photoUrl
+          ? `<div class="avatar" style="padding:0;overflow:hidden"><img src="${photoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+          : `<div class="avatar">${initials}</div>`}
+        ${frameRingHtml}
+      </div>`;
 
     // Default permissions for display
     const p = m.permissions || {};

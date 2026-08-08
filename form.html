@@ -1938,44 +1938,9 @@ function renderForm(form) {
     btns.forEach(b => b.disabled = true);
 
     try {
-      // ── Upload file_upload fields ke Storage dulu, lalu INSERT response sekali dengan answers final ──
+      // ── Insert response dulu (draft), lalu upload file, lalu update answers dengan link final ──
       const responseId = (crypto.randomUUID && crypto.randomUUID()) || genShortCode() + genShortCode();
-      const fileQuestions = questions.filter(q => q.type === "file_upload" && fileMap[q.id]);
-      for (const q of fileQuestions) {
-        const file = fileMap[q.id];
-        try {
-          const shortCode = genShortCode();
-          const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-          const filePath  = `${form.id}/${shortCode}/${safeName}`;
-          const { error: uploadErr } = await sb.storage
-            .from("response-uploads")
-            .upload(filePath, file, { contentType: file.type, upsert: false });
-          if (!uploadErr) {
-            const storageOwner = form.storage_owner_id || form.created_by;
-            const { error: fuErr } = await sb.from("form_uploads").insert({
-              short_code:  shortCode,
-              form_id:     form.id,
-              response_id: responseId,
-              owner_id:    storageOwner,
-              file_name:   file.name,
-              file_path:   filePath,
-              file_size:   file.size,
-              mime_type:   file.type || "application/octet-stream",
-            });
-            if (fuErr) console.error("form_uploads insert failed:", fuErr);
-            const { error: incErr } = await sb.rpc("increment_storage_usage", {
-              p_owner_id: storageOwner,
-              p_bytes:    file.size,
-            });
-            if (incErr) console.error("increment_storage_usage failed:", incErr);
-            // Jawaban langsung jadi link — tidak perlu UPDATE setelahnya
-            answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
-          }
-        } catch (fileErr) {
-          console.error("File upload failed for question", q.id, fileErr);
-        }
-      }
-      // INSERT sekali — answers sudah berisi link file final
+
       const { error: respErr } = await sb.from("responses").insert({
         id:      responseId,
         form_id: form.id,
@@ -1983,6 +1948,55 @@ function renderForm(form) {
         sent_to: targetOverride || target,
       });
       if (respErr) console.error("Failed to create response row:", respErr);
+
+      // ── Upload file_upload fields ke Supabase Storage ──
+      const fileQuestions = questions.filter(q => q.type === "file_upload" && fileMap[q.id]);
+      for (const q of fileQuestions) {
+        const file = fileMap[q.id];
+        try {
+          const shortCode = genShortCode();
+          const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const filePath  = `${form.id}/${shortCode}/${safeName}`;
+
+          const { error: uploadErr } = await sb.storage
+            .from("response-uploads")
+            .upload(filePath, file, { contentType: file.type, upsert: false });
+
+          if (!uploadErr) {
+            const storageOwner = form.storage_owner_id || form.created_by;
+            const { error: fuErr } = await sb.from("form_uploads").insert({
+              short_code:  shortCode,
+              form_id:     form.id,
+              response_id: respErr ? null : responseId,
+              owner_id:    storageOwner,
+              file_name:   file.name,
+              file_path:   filePath,
+              file_size:   file.size,
+              mime_type:   file.type || "application/octet-stream",
+            });
+            if (fuErr) console.error("form_uploads insert failed:", fuErr);
+
+            const { error: incErr } = await sb.rpc("increment_storage_usage", {
+              p_owner_id: storageOwner,
+              p_bytes:    file.size,
+            });
+            if (incErr) console.error("increment_storage_usage failed:", incErr);
+
+            answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
+          }
+        } catch (fileErr) {
+          console.error("File upload failed for question", q.id, fileErr);
+        }
+      }
+
+      // ── PATCH answers dengan link file final menggunakan service-role via RPC ──
+      if (!respErr && fileQuestions.length > 0) {
+        const { error: updErr } = await sb.rpc("update_response_answers", {
+          p_response_id: responseId,
+          p_answers:     answers,
+        });
+        if (updErr) console.error("Failed to update response answers:", updErr);
+      }
     } catch (err) {
       console.error("Failed to save response:", err);
       // Non-blocking: still let the person send their answers even if the save failed.

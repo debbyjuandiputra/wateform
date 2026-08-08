@@ -1954,6 +1954,32 @@ function renderForm(form) {
       for (const q of fileQuestions) {
         const file = fileMap[q.id];
         try {
+          const storageOwner = form.storage_owner_id || form.created_by;
+
+          // ── CEK KUOTA DULU sebelum upload (atomic: cek + increment dalam 1 RPC) ──
+          const { data: quotaResult, error: quotaErr } = await sb.rpc("increment_storage_usage", {
+            p_owner_id: storageOwner,
+            p_bytes:    file.size,
+          });
+
+          // Jika kuota habis atau RPC error → tampilkan pesan, skip upload file ini
+          if (quotaErr || !quotaResult || quotaResult.ok === false) {
+            console.warn("Storage quota exceeded atau RPC error untuk owner:", storageOwner, quotaResult, quotaErr);
+            const allBlocks = Array.from(card.querySelectorAll(".q-block"));
+            const block = allBlocks.find(b => b.querySelector(`#fua-${q.id}`));
+            if (block) {
+              const errEl = block.querySelector(".q-err");
+              if (errEl) {
+                errEl.textContent = "Pemilik form sudah kehabisan storage. File tidak dapat diunggah.";
+                errEl.style.display = "";
+              }
+              const area = block.querySelector(`#fua-${q.id}`);
+              if (area) area.style.borderColor = "var(--red)";
+            }
+            continue; // skip ke file berikutnya
+          }
+
+          // Kuota aman & sudah di-increment — lanjut upload
           const shortCode = genShortCode();
           const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           const filePath  = `${form.id}/${shortCode}/${safeName}`;
@@ -1963,7 +1989,6 @@ function renderForm(form) {
             .upload(filePath, file, { contentType: file.type, upsert: false });
 
           if (!uploadErr) {
-            const storageOwner = form.storage_owner_id || form.created_by;
             const { error: fuErr } = await sb.from("form_uploads").insert({
               short_code:  shortCode,
               form_id:     form.id,
@@ -1976,13 +2001,14 @@ function renderForm(form) {
             });
             if (fuErr) console.error("form_uploads insert failed:", fuErr);
 
-            const { error: incErr } = await sb.rpc("increment_storage_usage", {
+            answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
+          } else {
+            // Upload ke storage gagal padahal kuota sudah di-increment → rollback usage
+            console.error("Upload ke storage gagal, rollback storage usage:", uploadErr);
+            await sb.rpc("decrement_storage_usage", {
               p_owner_id: storageOwner,
               p_bytes:    file.size,
-            });
-            if (incErr) console.error("increment_storage_usage failed:", incErr);
-
-            answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
+            }).catch(e => console.error("Rollback decrement gagal:", e));
           }
         } catch (fileErr) {
           console.error("File upload failed for question", q.id, fileErr);

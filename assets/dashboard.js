@@ -949,8 +949,12 @@ async function openResponses(formId) {
         `Delete ${count} selected response${count > 1 ? "s" : ""}? This cannot be undone.`,
         async () => {
           const ids = selectedIdx.map(i => responses[i].id);
-          const { error } = await _sb.from("responses").delete().in("id", ids);
-          if (error) { toast("Failed to delete", "error"); return; }
+          let deleteError = null;
+          for (const id of ids) {
+            const { error } = await _sb.rpc("delete_response_with_cleanup", { p_response_id: id });
+            if (error) { deleteError = error; break; }
+          }
+          if (deleteError) { toast("Failed to delete", "error"); return; }
           toast(`${count} response${count > 1 ? "s" : ""} deleted`);
           openResponses(formId);
         },

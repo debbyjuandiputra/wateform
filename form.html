@@ -550,6 +550,13 @@ function buildLink(settings, questions, answers, targetOverride) {
       const ansStr = parts.join("\n");
       return ansStr ? `*${q.title}*\n${ansStr}` : null;
     }
+    // File upload: format "Pertanyaan: namaFile,link" (ans = "namaFile||url")
+    if (q.type === "file_upload" && typeof ans === "string" && ans.includes("||")) {
+      const sep      = ans.indexOf("||");
+      const fileName = ans.slice(0, sep);
+      const fileUrl  = ans.slice(sep + 2);
+      return `${q.title}: ${fileName},${fileUrl}`;
+    }
     return `*${q.title}*\n${ans}`;
   }).filter(Boolean);
 

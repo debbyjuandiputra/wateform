@@ -1938,46 +1938,24 @@ function renderForm(form) {
     btns.forEach(b => b.disabled = true);
 
     try {
-      // ── Create the response row first so file uploads can link back to it ──
-      // NOTE: generate the id client-side instead of .select().single() after
-      // insert — anonymous respondents don't have SELECT rights on `responses`
-      // (RLS only allows authenticated workspace members to read), so chaining
-      // .select() here would make the whole insert fail/rollback for them.
+      // ── Upload file_upload fields ke Storage dulu, lalu INSERT response sekali dengan answers final ──
       const responseId = (crypto.randomUUID && crypto.randomUUID()) || genShortCode() + genShortCode();
-
-      const { error: respErr } = await sb.from("responses").insert({
-        id:      responseId,
-        form_id: form.id,
-        answers: answers,
-        sent_to: targetOverride || target,
-      });
-
-      if (respErr) console.error("Failed to create response row:", respErr);
-
-      // ── Upload any file_upload fields to Supabase Storage ──
       const fileQuestions = questions.filter(q => q.type === "file_upload" && fileMap[q.id]);
       for (const q of fileQuestions) {
         const file = fileMap[q.id];
         try {
           const shortCode = genShortCode();
-          const ext       = file.name.includes(".") ? "." + file.name.split(".").pop() : "";
           const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           const filePath  = `${form.id}/${shortCode}/${safeName}`;
-
           const { error: uploadErr } = await sb.storage
             .from("response-uploads")
             .upload(filePath, file, { contentType: file.type, upsert: false });
-
           if (!uploadErr) {
-            // storage_owner_id = workspace creator (tidak berubah meski transfer ownership).
-            // Fallback ke created_by untuk form lama sebelum migration 018.
             const storageOwner = form.storage_owner_id || form.created_by;
-
-            // Save metadata + short viewer link
             const { error: fuErr } = await sb.from("form_uploads").insert({
               short_code:  shortCode,
               form_id:     form.id,
-              response_id: respErr ? null : responseId,
+              response_id: responseId,
               owner_id:    storageOwner,
               file_name:   file.name,
               file_path:   filePath,
@@ -1985,30 +1963,26 @@ function renderForm(form) {
               mime_type:   file.type || "application/octet-stream",
             });
             if (fuErr) console.error("form_uploads insert failed:", fuErr);
-
-            // Increment storage usage workspace creator
             const { error: incErr } = await sb.rpc("increment_storage_usage", {
               p_owner_id: storageOwner,
               p_bytes:    file.size,
             });
             if (incErr) console.error("increment_storage_usage failed:", incErr);
-
-            // Replace the placeholder answer with the viewer URL (format: "filename||url")
+            // Jawaban langsung jadi link — tidak perlu UPDATE setelahnya
             answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
           }
         } catch (fileErr) {
           console.error("File upload failed for question", q.id, fileErr);
-          // Keep the "[Attached: filename]" placeholder if upload fails
         }
       }
-
-      // Update the response with final answers (file placeholders replaced by viewer links)
-      if (!respErr) {
-        const { error: updErr } = await sb.from("responses").update({ answers }).eq("id", responseId);
-        if (updErr) console.error("Failed to save final answers (link may be missing in Responses view):", updErr);
-      } else {
-        console.error("Skipped final answers update because the response row was never created.");
-      }
+      // INSERT sekali — answers sudah berisi link file final
+      const { error: respErr } = await sb.from("responses").insert({
+        id:      responseId,
+        form_id: form.id,
+        answers: answers,
+        sent_to: targetOverride || target,
+      });
+      if (respErr) console.error("Failed to create response row:", respErr);
     } catch (err) {
       console.error("Failed to save response:", err);
       // Non-blocking: still let the person send their answers even if the save failed.

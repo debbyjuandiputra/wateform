@@ -45,7 +45,7 @@ const Q_TYPES = [
   { type:"divider",     label:"Divider",          icon:'<line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/><line x1="3" y1="7" x2="21" y2="7" opacity=".3"/><line x1="3" y1="17" x2="21" y2="17" opacity=".3"/>',  desc:"Horizontal rule / separator" },
   { type:"spacer",      label:"Spacer",           icon:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M8 21H5a2 2 0 0 0-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/>',                                              desc:"Blank vertical space" },
   { type:"button_link", label:"Button (link)",    icon:'<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M9 12h6M13 10l2 2-2 2"/>',                                                                          desc:"Button that opens a URL" },
-  { type:"calculation", label:"Calculation",      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/>', desc:"Coming soon" },
+  { type:"calculation", label:"Calculation",      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/>', desc:"Formula from other fields" },
   { type:"page_break",  label:"Page Break",       icon:'<path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/>',                                                                                     desc:"Split form into pages (Next/Prev)" },
 ];
 
@@ -386,29 +386,21 @@ function renderQTypePicker() {
 
     defs.forEach(def => {
       const tier = FIELD_TIERS[def.type]; // "plus", "pro", or undefined (free)
-      const comingSoon = def.type === "calculation";
       const locked =
-        !comingSoon && (
-          (tier === "plus" && !pf.fieldPlus) ||
-          (tier === "pro"  && !pf.fieldPro)
-        );
+        (tier === "plus" && !pf.fieldPlus) ||
+        (tier === "pro"  && !pf.fieldPro);
 
       const btn = document.createElement("button");
-      btn.className = "qtype-btn" + (locked ? " qtype-locked" : "") + (comingSoon ? " qtype-soon" : "");
+      btn.className = "qtype-btn" + (locked ? " qtype-locked" : "");
       const badgeHtml = locked
         ? `<span class="qtype-tier-badge">${tier === "pro" ? "Pro" : "Plus"}</span>`
-        : (comingSoon ? `<span class="qtype-tier-badge qtype-tier-badge--pro">Pro</span><span class="qtype-tier-badge qtype-soon-badge">Soon</span>` : "");
+        : "";
       btn.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>
         <span>${def.label}</span>
         ${badgeHtml}
       `;
-      if (comingSoon) {
-        btn.title = "Coming soon";
-        btn.addEventListener("click", () => {
-          toast("Calculation fields are coming soon.", "error");
-        });
-      } else if (locked) {
+      if (locked) {
         const planLabel = tier === "pro" ? "Pro" : "Plus";
         btn.title = `Requires the ${planLabel} plan or higher`;
         btn.addEventListener("click", () => {

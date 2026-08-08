@@ -130,6 +130,7 @@ let saveTimer = null;
 let editingIdx = null; // index of question being edited in modal
 let currentUser = null;   // session user (fix: sebelumnya undefined, dipakai di uploadFormMedia)
 let currentPlan = "free"; // plan milik PEMILIK workspace (bukan viewer/member)
+let storageOwnerFull = false; // true jika storage pemilik workspace penuh
 
 // ── Member permissions (for invited users) ────────────────────
 let memberPerms = {
@@ -251,6 +252,15 @@ async function init() {
         .eq("user_id", wsOwnerId)
         .maybeSingle();
       currentPlan = subData?.plan || "free";
+
+      // ── Cek storage pemilik workspace ──
+      const { data: storData } = await _sb.from("storage_usage")
+        .select("used_bytes, quota_bytes")
+        .eq("user_id", wsOwnerId)
+        .maybeSingle();
+      const usedBytes  = storData?.used_bytes  ?? 0;
+      const quotaBytes = storData?.quota_bytes ?? 1;
+      storageOwnerFull = quotaBytes > 0 && usedBytes >= quotaBytes;
     }
     if (!isOwner) {
       const { data: myMember } = await _sb.from("workspace_members")
@@ -409,7 +419,13 @@ function renderQTypePicker() {
           toast(`This field requires the ${planLabel} plan or higher. Upgrade on the Subscription page.`, "error");
         });
       } else {
-        btn.addEventListener("click", () => { addQuestion(def.type); closeModal("qtype-modal"); });
+        btn.addEventListener("click", () => {
+          if (storageOwnerFull) {
+            toast("Storage is full.", "error");
+            return;
+          }
+          addQuestion(def.type); closeModal("qtype-modal");
+        });
       }
       sectionGrid.appendChild(btn);
     });
@@ -586,7 +602,7 @@ function renderQuestionCards() {
   const addBtn = document.createElement("button");
   addBtn.className = "add-q-btn center-add-q-btn";
   addBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14M5 12h14"/></svg> Add question`;
-  addBtn.addEventListener("click", () => openModal("qtype-modal"));
+  addBtn.addEventListener("click", () => openQTypeModal());
 
   const addPbBtn = document.createElement("button");
   const pbLocked = !planFeatures().fieldPlus;
@@ -1563,8 +1579,15 @@ function deleteQuestion(idx) {
 }
 
 // ── Add question buttons ──────────────────────────────────────
-document.getElementById("add-q-btn")?.addEventListener("click", () => openModal("qtype-modal"));
-document.getElementById("center-add-btn")?.addEventListener("click", () => openModal("qtype-modal"));
+function openQTypeModal() {
+  if (storageOwnerFull) {
+    toast("Storage is full.", "error");
+    return;
+  }
+  openModal("qtype-modal");
+}
+document.getElementById("add-q-btn")?.addEventListener("click", openQTypeModal);
+document.getElementById("center-add-btn")?.addEventListener("click", openQTypeModal);
 
 // ── Submit placeholder dinamis ────────────────────────────────
 function getSubmitPlaceholder(target) {

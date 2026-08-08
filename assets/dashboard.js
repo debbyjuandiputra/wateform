@@ -16,6 +16,7 @@ const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 let currentUser    = null;
 let currentProfile = null;
 let currentPlan    = "free"; // plan milik user saat ini
+let currentStorageFull = false; // true jika storage user sudah penuh
 let workspaces     = [];
 let activeWsId     = null;
 let pendingAction  = null; // for confirm modal
@@ -210,6 +211,11 @@ async function loadStorageBar() {
     ? (quotaMb >= 10240 ? `${quotaMb / 1024} GB` : `${(quotaMb / 1024).toFixed(1)} GB`)
     : `${quotaMb} MB`;
   label.textContent = `${usedMb} / ${quotaLabel}`;
+
+  // Tandai storage penuh jika sudah >= 100% kuota
+  currentStorageFull = quotaBytes > 0 && usedBytes >= quotaBytes;
+  if (currentStorageFull) label.style.color = "var(--red, #ef4444)";
+  else label.style.color = "";
 }
 
 // ── Load workspaces ───────────────────────────────────────────
@@ -744,6 +750,10 @@ function renderMemberList(members, wsId, isOwner, meId) {
 
 // ── Workspace CRUD ────────────────────────────────────────────
 function openNewWsModal() {
+  if (currentStorageFull) {
+    toast("Storage is full.", "error");
+    return;
+  }
   document.getElementById("ws-modal-title").textContent = "New workspace";
   document.getElementById("ws-name").value = "";
   document.getElementById("ws-desc").value = "";
@@ -768,6 +778,12 @@ function openEditWsModal(ws) {
 async function createWorkspace() {
   const name = document.getElementById("ws-name").value.trim();
   if (!name) { showError("ws-modal-error", "Workspace name is required."); return; }
+
+  // ── Cek storage penuh ──
+  if (currentStorageFull) {
+    showError("ws-modal-error", "Storage penuh. Hapus beberapa file untuk melanjutkan.");
+    return;
+  }
 
   // ── Cek batas workspace per plan ──
   const lim = planLimits();
@@ -897,6 +913,10 @@ async function inviteMember(wsId) {
 
 // ── Form CRUD ─────────────────────────────────────────────────
 function openNewFormModal(wsId) {
+  if (currentStorageFull) {
+    toast("Storage is full.", "error");
+    return;
+  }
   document.getElementById("form-title").value = "";
   showError("form-modal-error", "");
   document.getElementById("form-save-btn").onclick = () => createForm(wsId);
@@ -907,6 +927,12 @@ function openNewFormModal(wsId) {
 async function createForm(wsId) {
   const title = document.getElementById("form-title").value.trim();
   if (!title) { showError("form-modal-error", "Form title is required."); return; }
+
+  // ── Cek storage penuh ──
+  if (currentStorageFull) {
+    showError("form-modal-error", "Storage penuh. Hapus beberapa file untuk melanjutkan.");
+    return;
+  }
 
   // ── Cek batas form per plan (total form di semua workspace milik owner workspace ini) ──
   // Cari owner workspace aktif

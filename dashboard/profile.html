@@ -34,6 +34,75 @@
 }
 .back-link:hover { color: var(--text); }
 .back-link svg { width: 15px; height: 15px; }
+
+/* 2FA card */
+.tfa-status-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tfa-status-info { display: flex; flex-direction: column; gap: 4px; }
+.tfa-status-info p { font-size: 13px; color: var(--text-soft); margin: 0; line-height: 1.5; }
+.tfa-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 700; padding: 3px 10px;
+  border-radius: 999px; margin-bottom: 3px; width: fit-content;
+}
+.tfa-badge.on  { background: rgba(43,189,164,.15); color: var(--teal-deep); }
+.tfa-badge.off { background: var(--bg-mid); color: var(--text-muted); border: 1px solid var(--border); }
+[data-theme="dark"] .tfa-badge.on { color: var(--teal); }
+.tfa-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.tfa-action-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 11px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--bg-mid);
+}
+.tfa-action-row div { display: flex; flex-direction: column; gap: 2px; }
+.tfa-action-row span { font-size: 13px; font-weight: 600; color: var(--text); }
+.tfa-action-row p { font-size: 12px; color: var(--text-soft); margin: 0; }
+
+/* Setup modal */
+.setup-secret-box {
+  background: var(--bg-mid); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 13px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.setup-secret-box code {
+  font-family: 'JetBrains Mono', monospace; font-size: 14.5px;
+  font-weight: 700; letter-spacing: .1em; color: var(--teal-deep); word-break: break-all;
+}
+[data-theme="dark"] .setup-secret-box code { color: var(--teal); }
+.setup-qr { display: flex; justify-content: center; padding: 4px 0; }
+.setup-qr canvas { border-radius: 8px; border: 6px solid #fff; }
+.setup-steps { font-size: 13px; color: var(--text-soft); line-height: 1.7; margin: 0; padding-left: 18px; }
+
+/* Backup codes */
+.backup-codes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.backup-code-item {
+  background: var(--bg-mid); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 9px 10px; text-align: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  font-weight: 700; letter-spacing: .12em; color: var(--text);
+}
+.backup-info-note {
+  font-size: 12.5px; color: var(--text-soft); line-height: 1.6;
+  background: rgba(43,189,164,.07); border: 1px solid rgba(43,189,164,.2);
+  border-radius: var(--radius); padding: 10px 13px; margin: 0;
+}
+.backup-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Icon buttons (hamburger, notifications) + badge dot */
+.icon-btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-mid); color: var(--text-soft);
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--text); background: var(--bg-raised); }
+.icon-btn svg { width: 17px; height: 17px; }
+.notif-dot {
+  position: absolute; top: 4px; right: 4px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--red, #ef4444);
+  border: 1.5px solid var(--bg-mid);
+}
+.hamburger-btn { display: none; }
+@media (max-width: 720px) { .hamburger-btn { display: inline-flex; } }
 </style>
 </head>
 
@@ -49,6 +118,14 @@
     <div class="topbar-sep"></div>
     <span class="topbar-title">Profile</span>
     <div class="topbar-right">
+      <button class="icon-btn notif-btn" id="notif-btn" data-notif-bell aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="notif-dot" hidden></span>
+      </button>
+      <button class="icon-btn hamburger-btn" id="hamburger-btn" data-hamburger-menu aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        <span class="notif-dot" hidden></span>
+      </button>
       <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -70,6 +147,7 @@
           Back to dashboard
         </a>
 
+        <!-- Profile info -->
         <div class="profile-card">
           <div class="profile-head">
             <div class="avatar-lg" id="profile-avatar">?</div>
@@ -90,6 +168,32 @@
           </div>
         </div>
 
+        <!-- 2FA Card -->
+        <div class="profile-card" id="tfa-card">
+          <h3>Two-Factor Authentication</h3>
+          <div class="tfa-status-row">
+            <div class="tfa-status-info">
+              <div id="tfa-badge" class="tfa-badge off">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                Not enabled
+              </div>
+              <p id="tfa-desc">Add an extra layer of security using an authenticator app (Google Authenticator, Authy, etc.).</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="tfa-toggle-btn" style="white-space:nowrap;flex-shrink:0">Enable 2FA</button>
+          </div>
+          <!-- Extra actions — visible only when enabled -->
+          <div class="tfa-actions" id="tfa-actions" style="display:none">
+            <div class="tfa-action-row">
+              <div>
+                <span>Backup codes</span>
+                <p>12 single-use recovery codes for when you lose your authenticator.</p>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="tfa-regen-btn" style="white-space:nowrap;flex-shrink:0">Regenerate</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger zone -->
         <div class="profile-card danger-zone">
           <h3>Danger zone</h3>
           <p>Deleting your account permanently removes all your workspaces, forms, and data. This cannot be undone.</p>
@@ -106,8 +210,117 @@
 
 <div id="toast-container"></div>
 
-<!-- ── Delete Account Modal ── -->
-<div class="modal-backdrop hidden" id="delete-account-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+<!-- ══════════════════════════════════════
+     MODAL: Setup 2FA
+══════════════════════════════════════ -->
+<div class="modal-backdrop" id="tfa-setup-modal" role="dialog" aria-modal="true" aria-labelledby="tfa-setup-title">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3 id="tfa-setup-title" style="display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--teal);flex-shrink:0"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Set up two-factor authentication
+      </h3>
+      <button class="modal-close" id="tfa-setup-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-soft);margin:0">
+        Scan the QR code below with your authenticator app, or enter the secret key manually.
+      </p>
+      <div class="setup-qr"><canvas id="tfa-qr-canvas" width="160" height="160"></canvas></div>
+      <div class="setup-secret-box">
+        <code id="tfa-secret-display">…</code>
+        <button class="btn btn-ghost btn-sm" id="tfa-copy-secret-btn" title="Copy secret key">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <ul class="setup-steps">
+        <li>Open your authenticator app and tap <strong>+</strong></li>
+        <li>Choose <strong>Scan QR code</strong> or <strong>Enter key manually</strong></li>
+        <li>Then enter the 6-digit code the app shows below</li>
+      </ul>
+      <div id="tfa-setup-error" class="error-banner" style="display:none"></div>
+      <div class="field">
+        <label for="tfa-verify-input">6-digit verification code</label>
+        <input type="text" id="tfa-verify-input" inputmode="numeric" maxlength="6"
+          placeholder="000000" autocomplete="one-time-code"
+          style="letter-spacing:.25em;font-size:20px;font-family:'JetBrains Mono',monospace;text-align:center;padding:10px">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="tfa-setup-cancel">Cancel</button>
+      <button class="btn btn-solid" id="tfa-setup-confirm">Verify &amp; Enable</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: Backup Codes
+══════════════════════════════════════ -->
+<div class="modal-backdrop" id="tfa-backup-modal" role="dialog" aria-modal="true" aria-labelledby="tfa-backup-title">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="tfa-backup-title" style="display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:var(--teal);flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Backup codes
+      </h3>
+      <button class="modal-close" id="tfa-backup-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="backup-info-note">
+        Save these codes in a safe place. Each code can only be used <strong>once</strong>.
+        Using any one of them will invalidate all codes and generate 12 new ones.
+      </p>
+      <div class="backup-codes-grid" id="tfa-backup-grid"></div>
+      <div class="backup-actions">
+        <button class="btn btn-ghost btn-sm" id="tfa-backup-download">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download .txt
+        </button>
+        <button class="btn btn-ghost btn-sm" id="tfa-backup-copy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy all
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-solid" id="tfa-backup-done">I've saved these codes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: Confirm with TOTP (disable / regen)
+══════════════════════════════════════ -->
+<div class="modal-backdrop" id="tfa-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="tfa-confirm-title">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3 id="tfa-confirm-title">Confirm with authenticator</h3>
+      <button class="modal-close" id="tfa-confirm-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-soft);margin:0" id="tfa-confirm-desc">
+        Enter your 6-digit authenticator code to continue.
+      </p>
+      <div id="tfa-confirm-error" class="error-banner" style="display:none"></div>
+      <div class="field">
+        <label for="tfa-confirm-input">Authenticator code</label>
+        <input type="text" id="tfa-confirm-input" inputmode="numeric" maxlength="6"
+          placeholder="000000" autocomplete="one-time-code"
+          style="letter-spacing:.25em;font-size:20px;font-family:'JetBrains Mono',monospace;text-align:center;padding:10px">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="tfa-confirm-cancel">Cancel</button>
+      <button class="btn btn-solid" id="tfa-confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL: Delete Account
+══════════════════════════════════════ -->
+<div class="modal-backdrop" id="delete-account-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
   <div class="modal" style="max-width:420px">
     <div class="modal-header" style="border-bottom:1px solid var(--border)">
       <h2 class="modal-title" id="delete-modal-title" style="color:var(--red);display:flex;align-items:center;gap:8px">
@@ -124,14 +337,9 @@
       <p style="color:var(--text-soft);margin:0 0 20px;line-height:1.6;font-size:14px">
         Type <strong style="color:var(--text);font-family:monospace">DELETE</strong> to confirm:
       </p>
-      <input
-        type="text"
-        id="delete-confirm-input"
-        placeholder="Type DELETE here"
-        autocomplete="off"
-        spellcheck="false"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-mid);color:var(--text);font-size:14px;font-family:monospace;letter-spacing:.05em;outline:none;transition:border-color .2s"
-      />
+      <input type="text" id="delete-confirm-input" placeholder="Type DELETE here"
+        autocomplete="off" spellcheck="false"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-mid);color:var(--text);font-size:14px;font-family:monospace;letter-spacing:.05em;outline:none;transition:border-color .2s"/>
       <div id="delete-modal-error" style="display:none;margin-top:10px;font-size:13px;color:var(--red)"></div>
     </div>
     <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)">
@@ -142,6 +350,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="../assets/profile.js"></script>
+<script src="../assets/notifications-badge.js" defer></script>
 </body>
 </html>

@@ -7,6 +7,50 @@
 <title>Log in — WateForm</title>
 <link rel="icon" href="assets/logo.webp" type="image/webp">
 <link rel="stylesheet" href="assets/style.css">
+<style>
+/* ── 2FA verification panel ── */
+#tfa-panel { display: none; }
+.tfa-verify-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.tfa-lock-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--teal-dim); display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.tfa-lock-icon svg { color: var(--teal-deep); }
+[data-theme="dark"] .tfa-lock-icon svg { color: var(--teal); }
+#tfa-panel h1 { font-size: 22px; font-weight: 800; margin: 0; }
+#tfa-panel .sub { font-size: 14px; color: var(--text-soft); margin: 4px 0 0; }
+
+.tfa-code-input {
+  letter-spacing: .3em; font-size: 22px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center; padding: 12px;
+  width: 100%; box-sizing: border-box;
+}
+.tfa-switch-link {
+  font-size: 13px; color: var(--text-soft); text-align: center;
+}
+.tfa-switch-link button {
+  background: none; border: none; color: var(--teal); font-weight: 600;
+  font-size: 13px; cursor: pointer; padding: 0;
+}
+.tfa-switch-link button:hover { text-decoration: underline; }
+
+/* backup code input (5 char, wider letter spacing) */
+.tfa-backup-input {
+  letter-spacing: .25em; font-size: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center; padding: 12px; text-transform: uppercase;
+  width: 100%; box-sizing: border-box;
+}
+.tfa-back-btn {
+  background: none; border: none; color: var(--text-soft); font-size: 13px;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  padding: 0; font-weight: 600;
+}
+.tfa-back-btn:hover { color: var(--text); }
+.tfa-back-btn svg { width: 14px; height: 14px; }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -28,77 +72,142 @@
   <div class="auth-main">
     <div class="auth-card">
 
-      <div class="auth-tabs">
-        <button class="auth-tab active" data-tab="login" translate="yes">Log in</button>
-        <button class="auth-tab" data-tab="register">Create account</button>
+      <!-- ── LOGIN + REGISTER tabs ── -->
+      <div id="auth-tabs-wrap">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login" translate="yes">Log in</button>
+          <button class="auth-tab" data-tab="register">Create account</button>
+        </div>
+
+        <!-- LOGIN -->
+        <div data-panel="login">
+          <h1>Welcome back</h1>
+          <p class="sub"></p>
+
+          <div id="login-general-error" class="error-banner"></div>
+
+          <form id="login-form" class="auth-form" novalidate>
+            <div class="field">
+              <label for="login-email">Email</label>
+              <input type="email" id="login-email" autocomplete="email">
+            </div>
+            <div class="field">
+              <label for="login-password">Password</label>
+              <input type="password" id="login-password" autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-solid auth-submit">Log in</button>
+          </form>
+
+          <p class="auth-foot">
+            No account?
+            <a href="#register" onclick="document.querySelector('[data-tab=register]').click();return false;">Create one</a>
+          </p>
+        </div>
+
+        <!-- REGISTER -->
+        <div data-panel="register" style="display:none">
+          <h1>Create your account</h1>
+          <p class="sub"></p>
+
+          <div id="register-general-error" class="error-banner"></div>
+
+          <form id="register-form" class="auth-form" novalidate>
+            <div class="field">
+              <label for="reg-fullname">Full name</label>
+              <input type="text" id="reg-fullname" autocomplete="name">
+              <div class="error-text"></div>
+            </div>
+            <div class="field">
+              <label for="reg-username">Username</label>
+              <input type="text" id="reg-username" autocomplete="username">
+              <div class="error-text"></div>
+            </div>
+            <div class="field">
+              <label for="reg-email">Email</label>
+              <input type="email" id="reg-email" autocomplete="email">
+              <div class="error-text">Please use a @gmail.com address.</div>
+            </div>
+            <div class="field">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" placeholder="At least 8 characters" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="reg-password-confirm">Confirm password</label>
+              <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
+              <div class="error-text">Passwords don't match.</div>
+            </div>
+            <button type="submit" class="btn btn-solid auth-submit">Create account</button>
+          </form>
+
+          <p class="auth-foot">
+            Already have an account?
+            <a href="#login" onclick="document.querySelector('[data-tab=login]').click();return false;">Log in</a>
+          </p>
+        </div>
       </div>
 
-      <!-- ── LOGIN ────────────────────────────────── -->
-      <div data-panel="login">
-        <h1>Welcome back</h1>
-        <p class="sub"></p>
+      <!-- ══════════════════════════════════════
+           2FA VERIFICATION PANEL
+           (menggantikan tabs saat login berhasil + 2FA aktif)
+      ═══════════════════════════════════════ -->
+      <div id="tfa-panel">
 
-        <div id="login-general-error" class="error-banner"></div>
-
-        <form id="login-form" class="auth-form" novalidate>
-          <div class="field">
-            <label for="login-email">Email</label>
-            <input type="email" id="login-email" autocomplete="email">
+        <!-- Mode A: TOTP (6-digit) -->
+        <div id="tfa-totp-mode">
+          <div class="tfa-verify-wrap">
+            <div class="tfa-lock-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            </div>
+            <h1>Two-factor authentication</h1>
+            <p class="sub">Enter the 6-digit code from your authenticator app.</p>
           </div>
-          <div class="field">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" autocomplete="current-password">
-          </div>
-          <button type="submit" class="btn btn-solid auth-submit">Log in</button>
-        </form>
 
-        <p class="auth-foot">
-          No account?
-          <a href="#register" onclick="document.querySelector('[data-tab=register]').click();return false;">Create one</a>
-        </p>
+          <div id="tfa-totp-error" class="error-banner" style="display:none;margin-top:16px"></div>
+
+          <form id="tfa-totp-form" class="auth-form" novalidate style="margin-top:20px">
+            <div class="field">
+              <input type="text" id="tfa-totp-input" class="tfa-code-input"
+                inputmode="numeric" maxlength="6" placeholder="000000"
+                autocomplete="one-time-code">
+            </div>
+            <button type="submit" class="btn btn-solid auth-submit">Verify</button>
+          </form>
+
+          <div class="tfa-switch-link" style="margin-top:16px">
+            Lost your authenticator?
+            <button id="tfa-use-backup-btn">Use a backup code</button>
+          </div>
+        </div>
+
+        <!-- Mode B: Backup code (5 char) -->
+        <div id="tfa-backup-mode" style="display:none">
+          <button class="tfa-back-btn" id="tfa-back-to-totp" style="margin-bottom:16px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+
+          <div class="tfa-verify-wrap">
+            <div class="tfa-lock-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <h1>Backup code</h1>
+            <p class="sub">Enter one of your 5-character backup codes.</p>
+          </div>
+
+          <div id="tfa-backup-error" class="error-banner" style="display:none;margin-top:16px"></div>
+
+          <form id="tfa-backup-form" class="auth-form" novalidate style="margin-top:20px">
+            <div class="field">
+              <input type="text" id="tfa-backup-input" class="tfa-backup-input"
+                maxlength="5" placeholder="XXXXX"
+                autocomplete="off" spellcheck="false">
+            </div>
+            <button type="submit" class="btn btn-solid auth-submit">Verify backup code</button>
+          </form>
+        </div>
+
       </div>
-
-      <!-- ── REGISTER ──────────────────────────────── -->
-      <div data-panel="register" style="display:none">
-        <h1>Create your account</h1>
-        <p class="sub"></p>
-
-        <div id="register-general-error" class="error-banner"></div>
-
-        <form id="register-form" class="auth-form" novalidate>
-          <div class="field">
-            <label for="reg-fullname">Full name</label>
-            <input type="text" id="reg-fullname" autocomplete="name">
-            <div class="error-text"></div>
-          </div>
-          <div class="field">
-            <label for="reg-username">Username</label>
-            <input type="text" id="reg-username" autocomplete="username">
-            <!-- <div class="hint">Teammates use this to invite you to a workspace.</div> -->
-            <div class="error-text"></div>
-          </div>
-          <div class="field">
-            <label for="reg-email">Email</label>
-            <input type="email" id="reg-email" autocomplete="email">
-            <div class="error-text">Please use a @gmail.com address.</div>
-          </div>
-          <div class="field">
-            <label for="reg-password">Password</label>
-            <input type="password" id="reg-password" placeholder="At least 8 characters" autocomplete="new-password">
-          </div>
-          <div class="field">
-            <label for="reg-password-confirm">Confirm password</label>
-            <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
-            <div class="error-text">Passwords don't match.</div>
-          </div>
-          <button type="submit" class="btn btn-solid auth-submit">Create account</button>
-        </form>
-
-        <p class="auth-foot">
-          Already have an account?
-          <a href="#login" onclick="document.querySelector('[data-tab=login]').click();return false;">Log in</a>
-        </p>
-      </div>
+      <!-- /tfa-panel -->
 
     </div>
   </div>

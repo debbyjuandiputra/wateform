@@ -249,23 +249,12 @@ document.getElementById("tfa-regen-btn").addEventListener("click", () => {
 
 // ── Setup modal ───────────────────────────────────────────────
 function openSetupModal() {
-  if (typeof QRCode === "undefined") {
-    toast("Failed to load QR code library — check your connection and try again.", "error");
-    return;
-  }
-
   _tfaSecret = generateTOTPSecret();
 
-  // Tampilkan secret
+  // Tampilkan secret (format WATEFORMXXXXXXXX) untuk dimasukkan manual di authenticator app
   document.getElementById("tfa-secret-display").textContent = _tfaSecret;
   document.getElementById("tfa-setup-error").style.display  = "none";
   document.getElementById("tfa-verify-input").value         = "";
-
-  // Generate QR code
-  const email  = _currentUser.email || "user";
-  const uri    = `otpauth://totp/WateForm:${encodeURIComponent(email)}?secret=${_tfaSecret}&issuer=WateForm&algorithm=SHA1&digits=6&period=30`;
-  const canvas = document.getElementById("tfa-qr-canvas");
-  QRCode.toCanvas(canvas, uri, { width: 160, margin: 1, color: { dark: "#000", light: "#fff" } });
 
   openModal("tfa-setup-modal");
   setTimeout(() => document.getElementById("tfa-verify-input").focus(), 150);

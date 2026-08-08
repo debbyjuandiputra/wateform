@@ -68,8 +68,6 @@
   font-weight: 700; letter-spacing: .1em; color: var(--teal-deep); word-break: break-all;
 }
 [data-theme="dark"] .setup-secret-box code { color: var(--teal); }
-.setup-qr { display: flex; justify-content: center; padding: 4px 0; }
-.setup-qr canvas { border-radius: 8px; border: 6px solid #fff; }
 .setup-steps { font-size: 13px; color: var(--text-soft); line-height: 1.7; margin: 0; padding-left: 18px; }
 
 /* Backup codes */
@@ -220,9 +218,8 @@
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:var(--text-soft);margin:0">
-        Scan the QR code below with your authenticator app, or enter the secret key manually.
+        Enter this key manually into your authenticator app.
       </p>
-      <div class="setup-qr"><canvas id="tfa-qr-canvas" width="160" height="160"></canvas></div>
       <div class="setup-secret-box">
         <code id="tfa-secret-display">…</code>
         <button class="btn btn-ghost btn-sm" id="tfa-copy-secret-btn" title="Copy secret key">
@@ -231,8 +228,9 @@
         </button>
       </div>
       <ul class="setup-steps">
-        <li>Open your authenticator app and tap <strong>+</strong></li>
-        <li>Choose <strong>Scan QR code</strong> or <strong>Enter key manually</strong></li>
+        <li>Open your authenticator app (e.g. Google Authenticator) and tap <strong>+</strong></li>
+        <li>Choose <strong>Enter a setup key</strong> / <strong>Enter key manually</strong></li>
+        <li>Type the key above as the secret (Time based, SHA1, 6 digits)</li>
         <li>Then enter the 6-digit code the app shows below</li>
       </ul>
       <div id="tfa-setup-error" class="error-banner" style="display:none"></div>
@@ -346,8 +344,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"
-  onerror="var s=document.createElement('script');s.src='https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';document.head.appendChild(s);"></script>
 <script src="../assets/profile.js"></script>
 <script src="../assets/notifications-badge.js" defer></script>
 <script src="../assets/hamburger-menu.js" defer></script>

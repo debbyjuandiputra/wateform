@@ -72,6 +72,7 @@ let pendingAction  = null; // for confirm modal
   // Subscription & Leaderboard placeholders
   document.getElementById("ham-subscription")?.addEventListener("click", () => {
     close();
+    window.location.href = "subscription.html";
     // TODO: open subscription panel
   });
   document.getElementById("ham-leaderboard")?.addEventListener("click", () => {

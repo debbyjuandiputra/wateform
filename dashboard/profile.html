@@ -103,6 +103,21 @@
 }
 .hamburger-btn { display: none; }
 @media (max-width: 720px) { .hamburger-btn { display: inline-flex; } }
+
+/* Hamburger dropdown */
+.hamburger-wrap { position: relative; }
+.hamburger-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  min-width: 190px; background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.hamburger-dropdown a {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border-radius: 7px; font-size: 13.5px; font-weight: 600; color: var(--text);
+}
+.hamburger-dropdown a:hover { background: var(--bg-mid); }
+.hamburger-dropdown a svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-soft); }
 </style>
 </head>
 
@@ -122,10 +137,26 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span class="notif-dot" hidden></span>
       </button>
-      <button class="icon-btn hamburger-btn" id="hamburger-btn" data-hamburger-menu aria-label="Menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-        <span class="notif-dot" hidden></span>
-      </button>
+      <div class="hamburger-wrap">
+        <button class="icon-btn hamburger-btn" id="hamburger-btn" data-hamburger-menu aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <span class="notif-dot" hidden></span>
+        </button>
+        <div class="hamburger-dropdown" data-hamburger-dropdown hidden>
+          <a href="./">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Dashboard
+          </a>
+          <a href="./profile.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+            Profile
+          </a>
+          <a href="./subscription.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9h20M6 15h4"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+            Subscription
+          </a>
+        </div>
+      </div>
       <button class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -350,8 +381,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"
+  onerror="var s=document.createElement('script');s.src='https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';document.head.appendChild(s);"></script>
 <script src="../assets/profile.js"></script>
 <script src="../assets/notifications-badge.js" defer></script>
+<script src="../assets/hamburger-menu.js" defer></script>
 </body>
 </html>

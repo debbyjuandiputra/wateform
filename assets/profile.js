@@ -249,6 +249,11 @@ document.getElementById("tfa-regen-btn").addEventListener("click", () => {
 
 // ── Setup modal ───────────────────────────────────────────────
 function openSetupModal() {
+  if (typeof QRCode === "undefined") {
+    toast("Failed to load QR code library — check your connection and try again.", "error");
+    return;
+  }
+
   _tfaSecret = generateTOTPSecret();
 
   // Tampilkan secret

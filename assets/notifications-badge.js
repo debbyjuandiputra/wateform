@@ -46,12 +46,25 @@
   }
 
   // ── Realtime: update seketika saat ada notif baru / ditandai dibaca ─
+  let _channel        = null;
+  let _channelUserId  = null;
+
   function subscribeRealtime(userId) {
     const client = sb();
     if (!client) return;
 
-    client
-      .channel("wf-notif-badge")
+    // Sudah subscribe utk user yang sama → jangan bikin channel lagi
+    if (_channel && _channelUserId === userId) return;
+
+    // Ganti user (mis. login ulang) → lepas channel lama dulu
+    if (_channel) {
+      client.removeChannel(_channel);
+      _channel = null;
+    }
+
+    _channelUserId = userId;
+    _channel = client
+      .channel(`wf-notif-badge-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
@@ -76,6 +89,7 @@
         subscribeRealtime(session.user.id);
       } else {
         setDots(false);
+        if (_channel) { client.removeChannel(_channel); _channel = null; _channelUserId = null; }
       }
     });
   });

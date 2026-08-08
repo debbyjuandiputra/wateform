@@ -446,7 +446,7 @@ function generateBackupCodes(count = 12) {
         return;
       }
 
-      window.location.href = DASH_URL;
+      window.location.href = DASH_URL + "subscription.html";
     });
   }
 
@@ -549,7 +549,7 @@ function generateBackupCodes(count = 12) {
         return;
       }
       pendingEmail = null;
-      window.location.href = DASH_URL;
+      window.location.href = DASH_URL + "subscription.html";
     });
   }
 

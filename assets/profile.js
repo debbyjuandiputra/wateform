@@ -188,50 +188,110 @@ async function init2FA() {
 }
 
 function render2FAStatus(enabled) {
-  const badge   = document.getElementById("tfa-badge");
-  const desc    = document.getElementById("tfa-desc");
-  const actions = document.getElementById("tfa-actions");
-  const btn     = document.getElementById("tfa-toggle-btn");
+  const badge      = document.getElementById("tfa-badge");
+  const desc       = document.getElementById("tfa-desc");
+  const actions    = document.getElementById("tfa-actions");
+  const enableBtn  = document.getElementById("tfa-toggle-btn");
+  const disableBtn = document.getElementById("tfa-disable-btn");
 
   if (enabled) {
-    badge.className   = "tfa-badge on";
-    badge.innerHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg> Enabled`;
-    desc.textContent  = "Your account is protected with two-factor authentication.";
-    btn.textContent   = "Disable 2FA";
-    btn.className     = "btn btn-danger btn-sm";
-    actions.style.display = "";
+    badge.className        = "tfa-badge on";
+    badge.innerHTML        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg> Enabled`;
+    if (desc) desc.textContent = "Your account is protected with two-factor authentication.";
+    disableBtn.style.display  = "";
+    enableBtn.style.display   = "none";
+    actions.style.display     = "";
   } else {
-    badge.className   = "tfa-badge off";
-    badge.innerHTML   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> Not enabled`;
-    desc.textContent  = "";
-    btn.textContent   = "Enable 2FA";
-    btn.className     = "btn btn-ghost btn-sm";
-    actions.style.display = "none";
+    badge.className        = "tfa-badge off";
+    badge.innerHTML        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> Not enabled`;
+    if (desc) desc.textContent = "";
+    disableBtn.style.display  = "none";
+    enableBtn.style.display   = "";
+    actions.style.display     = "none";
   }
 }
 
 // ── Enable 2FA ────────────────────────────────────────────────
-document.getElementById("tfa-toggle-btn").addEventListener("click", async () => {
-  const { data: row } = await _sb.from("user_2fa")
-    .select("enabled").eq("user_id", _currentUser.id).maybeSingle();
-
-  if (row?.enabled) {
-    // Nonaktifkan — minta konfirmasi TOTP dulu
-    openConfirmModal("Enter your 6-digit code to disable 2FA.", async (code) => {
-      const { data: tfaRow } = await _sb.from("user_2fa")
-        .select("secret").eq("user_id", _currentUser.id).single();
-      if (!(await verifyTOTP(tfaRow.secret, code))) return false;
-
-      await _sb.from("user_2fa").update({ enabled: false }).eq("user_id", _currentUser.id);
-      await _sb.from("user_2fa_backup_codes").delete().eq("user_id", _currentUser.id);
-      toast("Two-factor authentication disabled.");
-      render2FAStatus(false);
-      return true;
-    });
-  } else {
-    openSetupModal();
-  }
+document.getElementById("tfa-toggle-btn").addEventListener("click", () => {
+  openSetupModal();
 });
+// ── Disable 2FA modal ─────────────────────────────────────────
+document.getElementById("tfa-disable-btn").addEventListener("click", () => {
+  document.getElementById("tfa-disable-password").value = "";
+  document.getElementById("tfa-disable-code").value     = "";
+  document.getElementById("tfa-disable-error").style.display = "none";
+  openModal("tfa-disable-modal");
+  setTimeout(() => document.getElementById("tfa-disable-password").focus(), 150);
+});
+
+document.getElementById("tfa-disable-code").addEventListener("input", (e) => {
+  e.target.value = e.target.value.replace(/\D/g, "");
+  if (e.target.value.length === 6) document.getElementById("tfa-disable-confirm").click();
+});
+
+document.getElementById("tfa-disable-confirm").addEventListener("click", async () => {
+  const password = document.getElementById("tfa-disable-password").value;
+  const code     = document.getElementById("tfa-disable-code").value.trim();
+  const errEl    = document.getElementById("tfa-disable-error");
+  const btn      = document.getElementById("tfa-disable-confirm");
+
+  errEl.style.display = "none";
+
+  if (!password) {
+    errEl.textContent = "Please enter your password.";
+    errEl.style.display = "";
+    return;
+  }
+  if (code.length !== 6) {
+    errEl.textContent = "Please enter the 6-digit authenticator code.";
+    errEl.style.display = "";
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = "Verifying…";
+
+  // Verify password
+  const { error: signInErr } = await _sb.auth.signInWithPassword({
+    email:    _currentUser.email,
+    password: password,
+  });
+  if (signInErr) {
+    errEl.textContent   = "Incorrect password.";
+    errEl.style.display = "";
+    btn.disabled = false; btn.textContent = "Disable 2FA";
+    return;
+  }
+
+  // Verify TOTP
+  const { data: tfaRow } = await _sb.from("user_2fa")
+    .select("secret").eq("user_id", _currentUser.id).single();
+  const valid = await verifyTOTP(tfaRow.secret, code);
+  if (!valid) {
+    errEl.textContent   = "Incorrect authenticator code. Please try again.";
+    errEl.style.display = "";
+    document.getElementById("tfa-disable-code").value = "";
+    document.getElementById("tfa-disable-code").focus();
+    btn.disabled = false; btn.textContent = "Disable 2FA";
+    return;
+  }
+
+  // Disable
+  await _sb.from("user_2fa").update({ enabled: false }).eq("user_id", _currentUser.id);
+  await _sb.from("user_2fa_backup_codes").delete().eq("user_id", _currentUser.id);
+
+  btn.disabled = false; btn.textContent = "Disable 2FA";
+  closeModal("tfa-disable-modal");
+  render2FAStatus(false);
+  toast("Two-factor authentication disabled.");
+});
+
+[
+  ["tfa-disable-close", "tfa-disable-modal"],
+  ["tfa-disable-cancel", "tfa-disable-modal"],
+].forEach(([btnId, modalId]) =>
+  document.getElementById(btnId).addEventListener("click", () => closeModal(modalId))
+);
+
 
 // ── Regen backup codes ────────────────────────────────────────
 document.getElementById("tfa-regen-btn").addEventListener("click", () => {
@@ -379,7 +439,7 @@ function showBackupCodesModal(codes, isNew) {
     `<div class="backup-code-item">${c.slice(0,2)}&thinsp;${c.slice(2,3)}&thinsp;${c.slice(3)}</div>`
   ).join("");
 
-  document.getElementById("tfa-backup-title").querySelector("h3").textContent =
+  document.getElementById("tfa-backup-title").textContent =
     isNew ? "Save your backup codes" : "New backup codes";
 
   openModal("tfa-backup-modal");
@@ -497,3 +557,77 @@ async function saveNewBackupCodes() {
     }
   });
 })();
+// ══════════════════════════════════════════════════════════════
+//  CHANGE PASSWORD
+// ══════════════════════════════════════════════════════════════
+document.getElementById("cp-save-btn").addEventListener("click", async () => {
+  const oldPass  = document.getElementById("cp-old").value;
+  const newPass  = document.getElementById("cp-new").value;
+  const confirm  = document.getElementById("cp-confirm").value;
+  const errEl    = document.getElementById("cp-error");
+  const btn      = document.getElementById("cp-save-btn");
+
+  errEl.style.display = "none";
+
+  if (!oldPass || !newPass || !confirm) {
+    errEl.textContent = "Please fill in all fields.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (newPass.length < 8) {
+    errEl.textContent = "New password must be at least 8 characters.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (newPass === oldPass) {
+    errEl.textContent = "New password cannot be the same as your current password.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (newPass !== confirm) {
+    errEl.textContent = "New passwords do not match.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Updating…";
+
+  // Verifikasi password lama tanpa mengganggu session aktif
+  const { data: { session: currentSession } } = await _sb.auth.getSession();
+  const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY },
+    body: JSON.stringify({ email: _currentUser.email, password: oldPass }),
+  });
+  if (!verifyRes.ok) {
+    errEl.textContent = "Current password is incorrect.";
+    errEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Update password";
+    return;
+  }
+
+  // Restore session asli agar tidak ter-logout
+  if (currentSession) {
+    await _sb.auth.setSession({ access_token: currentSession.access_token, refresh_token: currentSession.refresh_token });
+  }
+
+  // Update to new password
+  const { error: updateErr } = await _sb.auth.updateUser({ password: newPass });
+  if (updateErr) {
+    errEl.textContent = "Failed to update password. Please try again.";
+    errEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Update password";
+    return;
+  }
+
+  // Clear fields
+  document.getElementById("cp-old").value     = "";
+  document.getElementById("cp-new").value     = "";
+  document.getElementById("cp-confirm").value = "";
+  btn.disabled = false;
+  btn.textContent = "Update password";
+  toast("Password updated successfully!");
+});

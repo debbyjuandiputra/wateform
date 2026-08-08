@@ -155,6 +155,7 @@ async function init() {
   document.getElementById("user-handle").textContent = "@" + (profile?.username || "");
 
   await loadWorkspaces();
+  loadStorageBar();
 
   // Auto-open workspace if redirected from builder (?ws=<id>)
   const urlParams = new URLSearchParams(location.search);
@@ -164,6 +165,30 @@ async function init() {
   } else {
     renderHome();
   }
+}
+
+// ── Storage bar ──────────────────────────────────────────────
+async function loadStorageBar() {
+  const fill = document.getElementById("ham-storage-fill");
+  if (!fill) return;
+
+  const { data } = await _sb
+    .from("storage_usage")
+    .select("used_bytes, quota_bytes")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (!data) return;
+
+  const pct = data.quota_bytes > 0
+    ? Math.min(100, Math.round((data.used_bytes / data.quota_bytes) * 100))
+    : 0;
+
+  fill.style.width = pct + "%";
+
+  if (pct >= 90)      fill.style.background = "var(--red)";
+  else if (pct >= 70) fill.style.background = "var(--amber, #f59e0b)";
+  else                fill.style.background = "var(--accent)";
 }
 
 // ── Load workspaces ───────────────────────────────────────────

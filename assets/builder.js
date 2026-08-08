@@ -81,14 +81,26 @@ const LANGUAGES = [
   {code:"sw",label:"Kiswahili"},{code:"tl",label:"Filipino"},{code:"ur",label:"اردو"},
 ];
 
+// ── Plan benefits per paket (sesuai tabel di dashboard/subscription.html) ──
+const PLAN_FEATURES = {
+  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,  storageMb: 20  },
+  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,  storageMb: 50  },
+  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10, storageMb: 100 },
+  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50, storageMb: 500 },
+};
+function planFeatures() { return PLAN_FEATURES[currentPlan] || PLAN_FEATURES.free; }
+
 // ── State ─────────────────────────────────────────────────────
 let formId    = null;
 let formData  = null;
 let wsShortId = "";
+let wsOwnerId = "";
 let questions = [];
 let settings  = {};
 let saveTimer = null;
 let editingIdx = null; // index of question being edited in modal
+let currentUser = null;   // session user (fix: sebelumnya undefined, dipakai di uploadFormMedia)
+let currentPlan = "free"; // plan milik PEMILIK workspace (bukan viewer/member)
 
 // ── Member permissions (for invited users) ────────────────────
 let memberPerms = {
@@ -179,6 +191,7 @@ async function init() {
     session = refreshed?.session ?? null;
   }
   if (!session) { window.location.replace("login.html"); return; }
+  currentUser = session.user;
 
   const params = new URLSearchParams(location.search);
   formId = params.get("form");
@@ -197,7 +210,17 @@ async function init() {
   if (wsId && session.user) {
     const { data: ws } = await _sb.from("workspaces").select("owner_id, short_id").eq("id", wsId).single();
     wsShortId = ws?.short_id || "";
+    wsOwnerId = ws?.owner_id || "";
     const isOwner = ws?.owner_id === session.user.id;
+
+    // ── Ambil plan pemilik workspace (benefit ditentukan oleh plan owner, bukan viewer) ──
+    if (wsOwnerId) {
+      const { data: subData } = await _sb.from("subscriptions")
+        .select("plan")
+        .eq("user_id", wsOwnerId)
+        .maybeSingle();
+      currentPlan = subData?.plan || "free";
+    }
     if (!isOwner) {
       const { data: myMember } = await _sb.from("workspace_members")
         .select("permissions")
@@ -1472,13 +1495,17 @@ function renderSettingsPanel() {
       </label>
     </div>
     <div class="field">
-      <label class="toggle-row" style="cursor:pointer">
-        <span class="toggle-label" style="font-weight:600;color:var(--text)">Remove watermark</span>
+      <label class="toggle-row" style="cursor:${planFeatures().removeWatermark ? "pointer" : "not-allowed"}">
+        <span class="toggle-label" style="font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px">
+          Remove watermark
+          ${!planFeatures().removeWatermark ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : ""}
+        </span>
         <label class="toggle">
-          <input type="checkbox" id="s-watermark" ${s.removeWatermark === true ? "checked" : ""}>
+          <input type="checkbox" id="s-watermark" ${s.removeWatermark === true ? "checked" : ""} ${!planFeatures().removeWatermark ? "disabled" : ""}>
           <span class="toggle-track"></span>
         </label>
       </label>
+      ${!planFeatures().removeWatermark ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk menghapus watermark. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1567,8 +1594,12 @@ function renderSettingsPanel() {
       <label style="display:flex;align-items:center;gap:6px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Closed message <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span>
+        ${!planFeatures().closedMessage ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : ""}
       </label>
-      <textarea id="s-closed-msg" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5">${esc(s.closedMessage||"")}</textarea>
+      <textarea id="s-closed-msg" rows="3" ${!planFeatures().closedMessage ? "disabled" : ""}
+        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5${!planFeatures().closedMessage ? ";opacity:.55;cursor:not-allowed" : ""}"
+        placeholder="${!planFeatures().closedMessage ? "Upgrade ke Plus untuk mengatur pesan penutup form…" : ""}">${planFeatures().closedMessage ? esc(s.closedMessage||"") : ""}</textarea>
+      ${!planFeatures().closedMessage ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk mengatur pesan penutup. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
     </div>
   `;
 
@@ -1754,7 +1785,11 @@ async function saveSetting() {
   }
   settings.slug        = newSlug;
   settings.isActive    = document.getElementById("s-active")?.checked !== false;
-  settings.removeWatermark = document.getElementById("s-watermark")?.checked === true;
+  // ── Enforce plan: paksa false/null jika plan pemilik workspace tidak mengizinkan,
+  //    walaupun DOM-nya di-manipulasi dari devtools ──
+  settings.removeWatermark = planFeatures().removeWatermark
+    ? (document.getElementById("s-watermark")?.checked === true)
+    : false;
   settings.target      = document.getElementById("s-target")?.value || "wa";
   settings.waPrefix    = document.getElementById("s-wa-prefix")?.value || "+62";
   settings.waNumber    = (document.getElementById("s-wa-number")?.value || "").replace(/[^0-9]/g, "");
@@ -1762,7 +1797,9 @@ async function saveSetting() {
   settings.language    = document.getElementById("s-lang")?.value || "en";
   settings.openAt        = document.getElementById("s-open-at")?.value  || null;
   settings.closeAt       = document.getElementById("s-close-at")?.value || null;
-  settings.closedMessage = document.getElementById("s-closed-msg")?.value.trim() || null;
+  settings.closedMessage = planFeatures().closedMessage
+    ? (document.getElementById("s-closed-msg")?.value.trim() || null)
+    : null;
   const tgt = document.getElementById("s-target")?.value || "wa";
   if (tgt === "both") {
     settings.submitLabelWa = document.getElementById("s-submit-label-wa")?.value.trim() || "";

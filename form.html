@@ -1967,7 +1967,7 @@ function renderForm(form) {
             const storageOwner = form.storage_owner_id || form.created_by;
 
             // Save metadata + short viewer link
-            await sb.from("form_uploads").insert({
+            const { error: fuErr } = await sb.from("form_uploads").insert({
               short_code:  shortCode,
               form_id:     form.id,
               response_id: respErr ? null : responseId,
@@ -1977,12 +1977,14 @@ function renderForm(form) {
               file_size:   file.size,
               mime_type:   file.type || "application/octet-stream",
             });
+            if (fuErr) console.error("form_uploads insert failed:", fuErr);
 
             // Increment storage usage workspace creator
-            await sb.rpc("increment_storage_usage", {
+            const { error: incErr } = await sb.rpc("increment_storage_usage", {
               p_owner_id: storageOwner,
               p_bytes:    file.size,
             });
+            if (incErr) console.error("increment_storage_usage failed:", incErr);
 
             // Replace the placeholder answer with the viewer URL (format: "filename||url")
             answers[q.id] = `${file.name}||https://wateform.my.id/storage/${shortCode}`;
@@ -1995,7 +1997,10 @@ function renderForm(form) {
 
       // Update the response with final answers (file placeholders replaced by viewer links)
       if (!respErr) {
-        await sb.from("responses").update({ answers }).eq("id", responseId);
+        const { error: updErr } = await sb.from("responses").update({ answers }).eq("id", responseId);
+        if (updErr) console.error("Failed to save final answers (link may be missing in Responses view):", updErr);
+      } else {
+        console.error("Skipped final answers update because the response row was never created.");
       }
     } catch (err) {
       console.error("Failed to save response:", err);

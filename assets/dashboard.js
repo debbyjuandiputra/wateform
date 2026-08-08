@@ -858,7 +858,9 @@ function openShareModal(url) {
 }
 
 // ── Responses view ────────────────────────────────────────────
+let _responsesChannel = null;
 async function openResponses(formId) {
+  if (_responsesChannel) { _sb.removeChannel(_responsesChannel); _responsesChannel = null; }
   const [{ data: form }, { data: responses }] = await Promise.all([
     _sb.from("forms").select("title, questions").eq("id", formId).single(),
     _sb.from("responses").select("*").eq("form_id", formId).order("submitted_at", { ascending: false })
@@ -903,7 +905,10 @@ async function openResponses(formId) {
       </table></div>`}
     </div>
   `;
-  document.getElementById("back-from-resp").addEventListener("click", () => openWorkspace(activeWsId));
+  document.getElementById("back-from-resp").addEventListener("click", () => {
+    if (_responsesChannel) { _sb.removeChannel(_responsesChannel); _responsesChannel = null; }
+    openWorkspace(activeWsId);
+  });
 
   if (responses?.length) {
     const selectAll = document.getElementById("resp-select-all");
@@ -953,6 +958,13 @@ async function openResponses(formId) {
       );
     });
   }
+
+  // ── Realtime: auto-refresh tabel saat ada submission baru atau update jawaban (file link) ──
+  _responsesChannel = _sb
+    .channel('responses-' + formId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'responses', filter: 'form_id=eq.' + formId }, () => openResponses(formId))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'responses', filter: 'form_id=eq.' + formId }, () => openResponses(formId))
+    .subscribe();
 }
 
 // ── CSV export ────────────────────────────────────────────────

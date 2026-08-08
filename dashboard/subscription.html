@@ -13,6 +13,10 @@
 .sub-intro h1 { font-size: 22px; font-weight: 800; margin: 0; }
 .sub-intro p { font-size: 13.5px; color: var(--text-soft); margin: 0; }
 
+.plans-grid-scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+}
 .plans-grid {
   display: grid; grid-template-columns: 1.2fr repeat(4, 1fr);
   gap: 0; border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -53,8 +57,8 @@
 .btn-ultimate:hover { background: #d97706; border-color: #d97706; }
 
 @media (max-width: 900px) {
-  .plans-grid { display: none; }
-  .plans-cards { display: flex; flex-direction: column; gap: 14px; }
+  .plans-grid { min-width: 760px; }
+  .plans-cards { display: none; }
 }
 @media (min-width: 901px) {
   .plans-cards { display: none; }
@@ -108,7 +112,8 @@
           <!-- <p>Pick the plan that fits your workspace — you can upgrade or downgrade anytime.</p> -->
         </div>
 
-        <!-- Desktop table -->
+        <!-- Plan comparison table (scrolls horizontally on narrow screens) -->
+        <div class="plans-grid-scroll">
         <div class="plans-grid" id="plans-grid">
           <div class="row-label corner"></div>
           <div class="plan-head"><span class="plan-name">Free</span><span class="plan-price">Free</span><button class="btn btn-ghost btn-sm" data-plan="free">Current plan</button></div>
@@ -116,7 +121,7 @@
           <div class="plan-head featured"><span class="plan-name">Pro</span><span class="plan-price">Rp10.000 or $2 / mo</span><button class="btn btn-pro btn-sm" data-plan="pro">Choose Pro</button></div>
           <div class="plan-head"><span class="plan-name">Ultimate</span><span class="plan-price">Rp25.000 or $4 / mo</span><button class="btn btn-ultimate btn-sm" data-plan="ultimate">Choose Ultimate</button></div>
 
-          <div class="row-label">Frame foto profile</div>
+          <div class="row-label">Frame photo profile</div>
           <div class="cell">default</div><div class="cell">bronze</div><div class="cell">silver</div><div class="cell">gold</div>
 
           <div class="row-label">Workspace</div>
@@ -125,8 +130,8 @@
           <div class="row-label">Form</div>
           <div class="cell">5</div><div class="cell">20</div><div class="cell">50</div><div class="cell">unlimited</div>
 
-          <div class="row-label">Storage (MB)</div>
-          <div class="cell">20</div><div class="cell">50</div><div class="cell">100</div><div class="cell">500</div>
+          <div class="row-label">Storage</div>
+          <div class="cell">20 MB</div><div class="cell">50 MB</div><div class="cell">100 MB</div><div class="cell">500 MB</div>
 
           <div class="row-label">Add member / workspace</div>
           <div class="cell no">-</div><div class="cell">1</div><div class="cell">5</div><div class="cell">100</div>
@@ -135,6 +140,15 @@
           <div class="cell no">-</div><div class="cell">1</div><div class="cell">10</div><div class="cell">50</div>
 
           <div class="row-label">Remove watermark</div>
+          <div class="cell no">-</div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="20 6 9 17 4 12"></polyline>
+</svg></div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="20 6 9 17 4 12"></polyline>
+</svg></div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="20 6 9 17 4 12"></polyline>
+</svg></div>
+
+          <div class="row-label">Page break</div>
           <div class="cell no">-</div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <polyline points="20 6 9 17 4 12"></polyline>
 </svg></div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -189,7 +203,7 @@
   <polyline points="20 6 9 17 4 12"></polyline>
 </svg></div>
 
-          <div class="row-label">Set foto profile</div>
+          <div class="row-label">Set photo profile</div>
           <div class="cell no">-</div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <polyline points="20 6 9 17 4 12"></polyline>
 </svg></div><div class="cell yes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -207,11 +221,12 @@
   <polyline points="20 6 9 17 4 12"></polyline>
 </svg></div>
         </div>
+        </div>
 
-        <!-- Mobile cards -->
+        <!-- Mobile cards (unused; table above scrolls horizontally on small screens) -->
         <div class="plans-cards" id="plans-cards">
           <div class="plan-card">
-            <div class="plan-card-head"><span class="plan-name">Free</span><span class="plan-price">Rp25.000 or $4 / mo</span></div>
+            <div class="plan-card-head"><span class="plan-name">Free</span><span class="plan-price">Free</span></div>
             <ul>
               <li>Workspace <span class="v">1</span></li>
               <li>Form <span class="v">5</span></li>
@@ -227,6 +242,7 @@
               <li>Storage <span class="v">50 MB</span></li>
             </ul>
             <button class="btn btn-plus btn-sm" style="width:100%" data-plan="plus">Choose Plus</button>
+
           </div>
           <div class="plan-card featured">
             <div class="plan-card-head"><span class="plan-name">Pro</span><span class="plan-price">Rp10.000 or $2 / mo</span></div>

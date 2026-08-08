@@ -431,6 +431,9 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s;
 }
 .add-q-btn:hover { background: var(--teal-dim); border-color: var(--teal-deep); color: var(--teal-deep); }
+.add-q-btn.qtype-locked { opacity: .5; cursor: not-allowed; }
+.add-q-btn.qtype-locked:hover { background: transparent; border-color: var(--border); color: inherit; }
+.add-q-btn.qtype-locked .qtype-tier-badge { margin-left: 2px; }
 
 /* Center — editor canvas */
 .builder-center {
@@ -515,6 +518,11 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .toolbar-sep { width: 1px; height: 20px; background: var(--border); }
 
 /* Question type picker */
+.qtype-sections { display: flex; flex-direction: column; gap: 14px; }
+.qtype-section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px;
+}
 .qtype-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .qtype-btn {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
@@ -540,6 +548,13 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   pointer-events: none;
 }
 [data-theme="dark"] .qtype-tier-badge { background: rgba(245,158,11,.25); color: #fbbf24; }
+.qtype-btn.qtype-soon { opacity: .6; cursor: not-allowed; }
+.qtype-btn.qtype-soon:hover { border-color: var(--border); background: transparent; }
+.qtype-tier-badge.qtype-soon-badge { background: rgba(148,163,184,.25); color: var(--text-muted); }
+[data-theme="dark"] .qtype-tier-badge.qtype-soon-badge { background: rgba(148,163,184,.25); color: var(--text-muted); }
+.qtype-tier-badge.qtype-tier-badge--pro { background: rgba(20,184,166,.18); color: var(--teal-deep); }
+[data-theme="dark"] .qtype-tier-badge.qtype-tier-badge--pro { background: rgba(20,184,166,.2); color: var(--teal); }
+.qtype-btn .qtype-tier-badge + .qtype-tier-badge { margin-left: 2px; }
 
 /* Inline toggle */
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

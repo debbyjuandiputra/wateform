@@ -176,18 +176,19 @@ async function init() {
 init();
 
 // ══════════════════════════════════════════════════════════════
-//  FOTO PROFIL & FRAME (plan-gated)
+//  PROFILE PHOTO & FRAME (plan-gated)
 // ══════════════════════════════════════════════════════════════
 
-// Plan → frame yang diizinkan (inklusif ke bawah)
-// free: tidak ada frame; plus: bronze; pro: silver; ultimate: gold
+// Plan → frame allowed (inclusive downward)
+// free: no frame; plus: bronze; pro: silver; ultimate/admin: gold
 const PLAN_FRAME_ALLOWED = {
   free:     [],
   plus:     ["bronze"],
   pro:      ["bronze", "silver"],
   ultimate: ["bronze", "silver", "gold"],
+  admin:    ["bronze", "silver", "gold"],
 };
-const PLAN_PHOTO_ALLOWED = ["plus", "pro", "ultimate"]; // free tidak boleh set foto
+const PLAN_PHOTO_ALLOWED = ["plus", "pro", "ultimate", "admin"]; // free cannot set a photo
 
 async function initPhotoAndFrame(profile) {
   // Ambil plan user
@@ -205,7 +206,7 @@ async function initPhotoAndFrame(profile) {
   const canPhoto = PLAN_PHOTO_ALLOWED.includes(userPlan);
   const allowedFrames = PLAN_FRAME_ALLOWED[userPlan] || [];
 
-  // ── Foto profil ──
+  // ── Photo profil ──
   const photoUploadBtn  = document.getElementById("photo-upload-btn");
   const photoRemoveBtn  = document.getElementById("photo-remove-btn");
   const photoFileInput  = document.getElementById("photo-file-input");
@@ -239,7 +240,7 @@ async function initPhotoAndFrame(profile) {
       const file = photoFileInput.files?.[0];
       if (!file) return;
       const MAX = 2 * 1024 * 1024; // 2MB
-      if (file.size > MAX) { toast("Foto terlalu besar (max 2MB)", "error"); photoFileInput.value = ""; return; }
+      if (file.size > MAX) { toast("Photo too large (max 2MB)", "error"); photoFileInput.value = ""; return; }
 
       photoUploadBtn.disabled = true; photoUploadBtn.textContent = "Uploading…";
       try {
@@ -255,11 +256,11 @@ async function initPhotoAndFrame(profile) {
         const mainAvatar = document.getElementById("profile-avatar");
         if (mainAvatar) mainAvatar.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
         if (photoRemoveBtn) photoRemoveBtn.style.display = "";
-        toast("Foto profil diperbarui!");
+        toast("Profile photo updated!");
       } catch(e) {
-        toast("Gagal upload foto: " + (e.message || e), "error");
+        toast("Failed to upload photo: " + (e.message || e), "error");
       } finally {
-        photoUploadBtn.disabled = false; photoUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload foto';
+        photoUploadBtn.disabled = false; photoUploadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload photo';
         photoFileInput.value = "";
       }
     });
@@ -271,7 +272,7 @@ async function initPhotoAndFrame(profile) {
       const mainAvatar = document.getElementById("profile-avatar");
       if (mainAvatar) mainAvatar.textContent = initials;
       photoRemoveBtn.style.display = "none";
-      toast("Foto profil dihapus");
+      toast("Profile photo removed");
       photoRemoveBtn.disabled = false;
     });
   }
@@ -301,7 +302,7 @@ async function initPhotoAndFrame(profile) {
       if (!isAllowed) {
         opt.style.opacity = ".4";
         opt.style.cursor = "not-allowed";
-        opt.title = f === "gold" ? "Butuh paket Ultimate" : (f === "silver" ? "Butuh paket Pro" : "");
+        opt.title = f === "gold" ? "Requires the Ultimate plan" : (f === "silver" ? "Requires the Pro plan" : "");
       } else {
         opt.style.cursor = "pointer";
         opt.addEventListener("click", async () => {
@@ -309,7 +310,7 @@ async function initPhotoAndFrame(profile) {
           frameOptions.forEach(o => o.classList.toggle("selected", o.dataset.frame === f));
           applyFrameRing(f);
           await _sb.from("profiles").update({ avatar_frame: f || null }).eq("id", _currentUser.id);
-          toast(f ? `Frame ${f} dipasang!` : "Frame dihapus");
+          toast(f ? `${f} frame applied!` : "Frame removed");
         });
       }
     });

@@ -21,11 +21,13 @@ let activeWsId     = null;
 let pendingAction  = null; // for confirm modal
 
 // ── Plan limits ───────────────────────────────────────────────
+// "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
 const PLAN_LIMITS = {
-  free:     { maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   viewResponses: false },
-  plus:     { maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   viewResponses: false },
-  pro:      { maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   viewResponses: true  },
-  ultimate: { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, viewResponses: true  },
+  free:     { maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,       viewResponses: false },
+  plus:     { maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,       viewResponses: false },
+  pro:      { maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,       viewResponses: true  },
+  ultimate: { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100,     viewResponses: true  },
+  admin:    { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: Infinity, viewResponses: true  },
 };
 function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
 
@@ -195,11 +197,14 @@ async function loadStorageBar() {
 
   // Jika tidak ada data (user lama sebelum migration 011/018), tampilkan default free tier.
   const usedBytes  = data?.used_bytes  ?? 0;
-  const quotaBytes = data?.quota_bytes ?? 52428800;
+  const quotaBytes = data?.quota_bytes ?? 20971520; // 20 MB (free)
 
   const usedMb  = (usedBytes / 1048576).toFixed(1);
   const quotaMb = Math.round(quotaBytes / 1048576);
-  label.textContent = `${usedMb}/${quotaMb} MB digunakan`;
+  const quotaLabel = quotaMb >= 1024
+    ? (quotaMb >= 10240 ? `${quotaMb / 1024} GB` : `${(quotaMb / 1024).toFixed(1)} GB`)
+    : `${quotaMb} MB`;
+  label.textContent = `${usedMb} / ${quotaLabel}`;
 }
 
 // ── Load workspaces ───────────────────────────────────────────
@@ -367,7 +372,7 @@ async function openWorkspace(wsId) {
   if (members.length > 0) {
     const userIds = members.map(m => m.user_id);
     const { data: profiles, error: profErr } = await _sb
-      .from("profiles").select("id, full_name, username").in("id", userIds);
+      .from("profiles").select("id, full_name, username, photo_url, avatar_frame").in("id", userIds);
     if (profErr) console.error("profiles query error:", profErr);
     const profileMap = Object.fromEntries((profiles || []).map(p => [p.id, p]));
     members = members.map(m => ({ ...m, profiles: profileMap[m.user_id] || null }));
@@ -585,8 +590,8 @@ function renderFormList(forms, wsId, isOwner) {
         const _ownerLim = PLAN_LIMITS[_ownerPlan] || PLAN_LIMITS.free;
         if (!_ownerLim.viewResponses) {
           toast(
-            `Paket ${_ownerPlan} tidak bisa melihat responses. ` +
-            (_wsOwnerId === currentUser.id ? "Upgrade ke Pro atau lebih tinggi." : "Pemilik workspace perlu upgrade."),
+            `The ${_ownerPlan} plan cannot view responses. ` +
+            (_wsOwnerId === currentUser.id ? "Upgrade to Pro or higher." : "Workspace owner needs to upgrade."),
             "error"
           );
           return;
@@ -617,6 +622,21 @@ function renderMemberList(members, wsId, isOwner, meId) {
     const row = document.createElement("div");
     row.className = "member-row";
     const initials = (m.profiles?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const photoUrl   = m.profiles?.photo_url   || "";
+    const frameClass = m.profiles?.avatar_frame || "";
+    const frameStyle = frameClass === "bronze"
+      ? "border:2.5px solid #cd7f32;box-shadow:0 0 6px rgba(205,127,50,.3);opacity:.7"
+      : frameClass === "silver"
+      ? "border:2.5px solid #b0b0b0;box-shadow:0 0 6px rgba(176,176,176,.5)"
+      : frameClass === "gold"
+      ? "border:2.5px solid #ffd700;box-shadow:0 0 6px rgba(255,215,0,.6)"
+      : "";
+    const avatarHtml = photoUrl
+      ? `<div class="avatar" style="padding:0;overflow:hidden;position:relative">
+           <img src="${photoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
+           ${frameStyle ? `<div style="position:absolute;inset:-2px;border-radius:50%;pointer-events:none;${frameStyle}"></div>` : ""}
+         </div>`
+      : `<div class="avatar">${initials}</div>`;
 
     // Default permissions for display
     const p = m.permissions || {};
@@ -641,7 +661,7 @@ function renderMemberList(members, wsId, isOwner, meId) {
         </div>` : "";
 
     row.innerHTML = `
-      <div class="avatar">${initials}</div>
+      ${avatarHtml}
       <div class="member-info">
         <div class="member-name">
           ${esc(m.profiles?.full_name || "Unknown")}
@@ -758,8 +778,8 @@ async function createWorkspace() {
   if (ownedCount >= lim.maxWorkspaces) {
     const limLabel = lim.maxWorkspaces === Infinity ? "unlimited" : lim.maxWorkspaces;
     showError("ws-modal-error",
-      `Paket ${currentPlan} hanya bisa membuat ${limLabel} workspace. ` +
-      `Upgrade untuk menambah lebih banyak.`
+      `The ${currentPlan} plan can only create ${limLabel} workspace(s). ` +
+      `Upgrade to add more.`
     );
     return;
   }
@@ -830,8 +850,8 @@ async function inviteMember(wsId) {
 
   if (ownerLim.maxMembers <= 0) {
     showError("invite-error",
-      `Paket ${ownerPlan} tidak mengizinkan penambahan member. ` +
-      (wsOwnerId === currentUser.id ? "Upgrade ke Plus atau lebih tinggi." : "Pemilik workspace perlu upgrade.")
+      `The ${ownerPlan} plan does not allow adding members. ` +
+      (wsOwnerId === currentUser.id ? "Upgrade to Plus or higher." : "Workspace owner needs to upgrade.")
     );
     return;
   }
@@ -840,8 +860,8 @@ async function inviteMember(wsId) {
   if (currentMemberCount >= ownerLim.maxMembers) {
     const limLabel = ownerLim.maxMembers;
     showError("invite-error",
-      `Paket ${ownerPlan} hanya bisa menambah ${limLabel} member per workspace. ` +
-      (wsOwnerId === currentUser.id ? "Upgrade untuk menambah lebih banyak." : "Pemilik workspace perlu upgrade.")
+      `The ${ownerPlan} plan can only add ${limLabel} member(s) per workspace. ` +
+      (wsOwnerId === currentUser.id ? "Upgrade to add more." : "Workspace owner needs to upgrade.")
     );
     return;
   }
@@ -919,8 +939,8 @@ async function createForm(wsId) {
   if (formCount !== null && formCount >= ownerLim.maxForms) {
     const limLabel = ownerLim.maxForms === Infinity ? "unlimited" : ownerLim.maxForms;
     showError("form-modal-error",
-      `Paket ${ownerPlan} hanya bisa membuat ${limLabel} form. ` +
-      (wsOwnerId === currentUser.id ? "Upgrade untuk menambah lebih banyak." : "Pemilik workspace perlu upgrade.")
+      `The ${ownerPlan} plan can only create ${limLabel} form(s). ` +
+      (wsOwnerId === currentUser.id ? "Upgrade to add more." : "Workspace owner needs to upgrade.")
     );
     return;
   }

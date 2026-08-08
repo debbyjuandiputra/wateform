@@ -51,7 +51,7 @@
     document.querySelectorAll("[data-plan]").forEach(btn => {
       const p = btn.dataset.plan;
       if (p === currentPlan) {
-        btn.textContent = "✓ Paket saat ini";
+        btn.textContent = "✓ Current plan";
         btn.disabled = true;
         btn.className = "btn btn-ghost btn-sm";
         btn.style.opacity = ".7";
@@ -71,7 +71,7 @@
       const expiresText = subRow?.expires_at
         ? ` · Expires ${new Date(subRow.expires_at).toLocaleDateString()}`
         : (subRow?.interval === "lifetime" ? " · Lifetime" : "");
-      infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> Paket aktif: <strong style="text-transform:capitalize">${currentPlan}</strong>${expiresText}`;
+      infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> Active plan: <strong style="text-transform:capitalize">${currentPlan}</strong>${expiresText}`;
       intro.insertBefore(infoEl, intro.children[1] || null);
     }
   })();

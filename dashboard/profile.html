@@ -12,7 +12,7 @@
 .avatar-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
 .avatar-img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 .avatar-frame { position: absolute; inset: -3px; border-radius: 50%; pointer-events: none; }
-.avatar-frame.bronze { border: 3px solid #cd7f32; box-shadow: 0 0 8px rgba(205,127,50,.5); }
+.avatar-frame.bronze { border: 3px solid #cd7f32; box-shadow: 0 0 8px rgba(205,127,50,.3); opacity: .7; }
 .avatar-frame.silver { border: 3px solid #b0b0b0; box-shadow: 0 0 8px rgba(176,176,176,.5); }
 .avatar-frame.gold   { border: 3px solid #ffd700; box-shadow: 0 0 8px rgba(255,215,0,.6); }
 .photo-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
@@ -182,9 +182,9 @@
             </div>
           </div>
 
-          <!-- Foto profil & frame (plan-gated) -->
+          <!-- PROFILE PHOTO & FRAME (plan-gated) -->
           <div class="photo-section">
-            <label class="section-label">Foto Profil</label>
+            <label class="section-label">Photo Profil</label>
             <div class="photo-row">
               <div class="avatar-wrap" style="width:56px;height:56px">
                 <div id="photo-preview" style="width:56px;height:56px;border-radius:50%;background:var(--bg-mid);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700"></div>
@@ -192,22 +192,22 @@
               <div style="display:flex;flex-direction:column;gap:6px">
                 <button class="btn btn-ghost btn-sm" id="photo-upload-btn" style="align-self:flex-start">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  Upload foto
+                  Upload photo
                 </button>
                 <button class="btn btn-ghost btn-sm" id="photo-remove-btn" style="align-self:flex-start;display:none;color:var(--red)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-                  Hapus foto
+                  Remove photo
                 </button>
                 <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
                 <div id="photo-hint" style="font-size:11px;color:var(--text-muted)">JPG/PNG/WebP, max 2MB</div>
               </div>
             </div>
             <div id="photo-locked-notice" style="display:none;margin-top:8px;font-size:12px;color:var(--text-muted)">
-              🔒 Upload foto profil tersedia mulai paket <strong>Plus</strong>.
+              Profile photo upload is available from the <strong>Plus</strong> plan.
               <a href="subscription.html" style="color:var(--teal)">Upgrade →</a>
             </div>
 
-            <label class="section-label" style="margin-top:14px">Frame Foto Profil</label>
+            <label class="section-label" style="margin-top:14px">Frame Photo Profile</label>
             <div class="frame-options" id="frame-options">
               <div class="frame-option frame-bronze" data-frame="bronze">🥉 Bronze</div>
               <div class="frame-option frame-silver" data-frame="silver">🥈 Silver</div>
@@ -215,7 +215,7 @@
               <div class="frame-option" data-frame="">Tidak ada</div>
             </div>
             <div id="frame-locked-notice" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted)">
-              🔒 Frame foto tersedia mulai paket <strong>Plus</strong> (Bronze).
+              Photo frame is available from the <strong>Plus</strong> plan (Bronze).
               <a href="subscription.html" style="color:var(--teal)">Upgrade →</a>
             </div>
           </div>

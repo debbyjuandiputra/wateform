@@ -45,6 +45,7 @@ const Q_TYPES = [
   { type:"divider",     label:"Divider",          icon:'<line x1="3" y1="12" x2="21" y2="12" stroke-width="2.5"/><line x1="3" y1="7" x2="21" y2="7" opacity=".3"/><line x1="3" y1="17" x2="21" y2="17" opacity=".3"/>',  desc:"Horizontal rule / separator" },
   { type:"spacer",      label:"Spacer",           icon:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M8 21H5a2 2 0 0 0-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/>',                                              desc:"Blank vertical space" },
   { type:"button_link", label:"Button (link)",    icon:'<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M9 12h6M13 10l2 2-2 2"/>',                                                                          desc:"Button that opens a URL" },
+  { type:"calculation", label:"Calculation",      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/>', desc:"Coming soon" },
   { type:"page_break",  label:"Page Break",       icon:'<path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/>',                                                                                     desc:"Split form into pages (Next/Prev)" },
 ];
 
@@ -81,35 +82,40 @@ const LANGUAGES = [
   {code:"sw",label:"Kiswahili"},{code:"tl",label:"Filipino"},{code:"ur",label:"اردو"},
 ];
 
-// ── Field tiers — tipe yang butuh plan tertentu ──────────────
-// plus = butuh Plus ke atas; pro = butuh Pro ke atas
+// ── Field tiers — field types that require a certain plan ──────
+// plus = requires Plus or higher; pro = requires Pro or higher
 const FIELD_TIERS = {
   // Plus-only fields
   file_upload:   "plus",
-  url_input:     "plus",
+  video:         "plus",
   color:         "plus",
   password:      "plus",
   toggle:        "plus",
   multiselect:   "plus",
   likert:        "plus",
-  matrix:        "plus",
+  matrix:        "pro",
   multi_input:   "plus",
   datetime:      "plus",
   ranking:       "plus",
-  emoji_rating:  "plus",
   slider:        "plus",
   nps_score:     "plus",
-  map:           "plus",
   // Pro-only fields
+  map:           "pro",
   button_link:   "pro",
+  calculation:   "pro",
+  page_break:    "plus",
 };
 
 // ── Plan benefits per paket (sesuai tabel di dashboard/subscription.html) ──
+// "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
+// ── Plan benefits per paket (sesuai tabel di dashboard/subscription.html) ──
+// "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
 const PLAN_FEATURES = {
-  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, fieldPlus: false, fieldPro: false, viewResponses: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,  storageMb: 20  },
-  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: false, viewResponses: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,  storageMb: 50  },
-  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10, storageMb: 100 },
-  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50, storageMb: 500 },
+  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, fieldPlus: false, fieldPro: false, viewResponses: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,   storageMb: 20    },
+  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: false, viewResponses: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,   storageMb: 50    },
+  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10,  storageMb: 100   },
+  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50,  storageMb: 500   },
+  admin:    { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: Infinity, maxUploadMb: Infinity, storageMb: Infinity },
 };
 function planFeatures() { return PLAN_FEATURES[currentPlan] || PLAN_FEATURES.free; }
 
@@ -352,37 +358,70 @@ async function saveNow() {
 }
 
 // ── Question type picker (modal) ──────────────────────────────
+const TIER_SECTIONS = [
+  { tier: undefined, label: "Free" },
+  { tier: "plus",     label: "Plus" },
+  { tier: "pro",      label: "Pro" },
+];
+
 function renderQTypePicker() {
   const grid = document.getElementById("qtype-grid");
   grid.innerHTML = "";
   const pf = planFeatures();
-  Q_TYPES.forEach(def => {
-    if (def.type === "page_break") return; // Added via dedicated button, not the picker
-    const tier = FIELD_TIERS[def.type]; // "plus", "pro", or undefined (free)
-    const locked =
-      (tier === "plus" && !pf.fieldPlus) ||
-      (tier === "pro"  && !pf.fieldPro);
 
-    const btn = document.createElement("button");
-    btn.className = "qtype-btn" + (locked ? " qtype-locked" : "");
-    const badgeHtml = locked
-      ? `<span class="qtype-tier-badge">${tier === "pro" ? "Pro" : "Plus"}</span>`
-      : "";
-    btn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>
-      <span>${def.label}</span>
-      ${badgeHtml}
-    `;
-    if (locked) {
-      const planLabel = tier === "pro" ? "Pro" : "Plus";
-      btn.title = `Butuh paket ${planLabel} atau lebih tinggi`;
-      btn.addEventListener("click", () => {
-        toast(`Field ini butuh paket ${planLabel} atau lebih tinggi. Upgrade di halaman Subscription.`, "error");
-      });
-    } else {
-      btn.addEventListener("click", () => { addQuestion(def.type); closeModal("qtype-modal"); });
-    }
-    grid.appendChild(btn);
+  TIER_SECTIONS.forEach(section => {
+    const defs = Q_TYPES.filter(def => def.type !== "page_break" && FIELD_TIERS[def.type] === section.tier);
+    if (!defs.length) return;
+
+    const sectionEl = document.createElement("div");
+    sectionEl.className = "qtype-section";
+
+    const heading = document.createElement("div");
+    heading.className = "qtype-section-title";
+    heading.textContent = section.label;
+    sectionEl.appendChild(heading);
+
+    const sectionGrid = document.createElement("div");
+    sectionGrid.className = "qtype-grid";
+
+    defs.forEach(def => {
+      const tier = FIELD_TIERS[def.type]; // "plus", "pro", or undefined (free)
+      const comingSoon = def.type === "calculation";
+      const locked =
+        !comingSoon && (
+          (tier === "plus" && !pf.fieldPlus) ||
+          (tier === "pro"  && !pf.fieldPro)
+        );
+
+      const btn = document.createElement("button");
+      btn.className = "qtype-btn" + (locked ? " qtype-locked" : "") + (comingSoon ? " qtype-soon" : "");
+      const badgeHtml = locked
+        ? `<span class="qtype-tier-badge">${tier === "pro" ? "Pro" : "Plus"}</span>`
+        : (comingSoon ? `<span class="qtype-tier-badge qtype-tier-badge--pro">Pro</span><span class="qtype-tier-badge qtype-soon-badge">Soon</span>` : "");
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${def.icon}</svg>
+        <span>${def.label}</span>
+        ${badgeHtml}
+      `;
+      if (comingSoon) {
+        btn.title = "Coming soon";
+        btn.addEventListener("click", () => {
+          toast("Calculation fields are coming soon.", "error");
+        });
+      } else if (locked) {
+        const planLabel = tier === "pro" ? "Pro" : "Plus";
+        btn.title = `Requires the ${planLabel} plan or higher`;
+        btn.addEventListener("click", () => {
+          toast(`This field requires the ${planLabel} plan or higher. Upgrade on the Subscription page.`, "error");
+        });
+      } else {
+        btn.addEventListener("click", () => { addQuestion(def.type); closeModal("qtype-modal"); });
+      }
+      sectionGrid.appendChild(btn);
+    });
+
+    sectionEl.appendChild(sectionGrid);
+    grid.appendChild(sectionEl);
   });
 }
 
@@ -556,12 +595,20 @@ function renderQuestionCards() {
   addBtn.addEventListener("click", () => openModal("qtype-modal"));
 
   const addPbBtn = document.createElement("button");
-  addPbBtn.className = "add-q-btn center-add-pb-btn";
-  addPbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/></svg> Add page break`;
-  addPbBtn.addEventListener("click", () => {
-    if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
-    addQuestion("page_break");
-  });
+  const pbLocked = !planFeatures().fieldPlus;
+  addPbBtn.className = "add-q-btn center-add-pb-btn" + (pbLocked ? " qtype-locked" : "");
+  addPbBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/></svg> Add page break${pbLocked ? ` <span class="qtype-tier-badge">Plus</span>` : ""}`;
+  if (pbLocked) {
+    addPbBtn.title = "Requires the Plus plan or higher";
+    addPbBtn.addEventListener("click", () => {
+      toast("Page breaks require the Plus plan or higher. Upgrade on the Subscription page.", "error");
+    });
+  } else {
+    addPbBtn.addEventListener("click", () => {
+      if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
+      addQuestion("page_break");
+    });
+  }
 
   btnsRow.appendChild(addBtn);
   btnsRow.appendChild(addPbBtn);
@@ -870,7 +917,7 @@ function openEditModal(idx) {
     if (_pMaxMb > 0) {
       const _hintEl = document.createElement("div");
       _hintEl.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:4px";
-      _hintEl.textContent = `Paket kamu: max ${_pMaxMb} MB per file.`;
+      _hintEl.textContent = `Your plan: max ${_pMaxMb} MB per file.`;
       _maxMbInput.appendChild(_hintEl);
     }
     body.appendChild(_maxMbInput);
@@ -1560,7 +1607,7 @@ function renderSettingsPanel() {
           <span class="toggle-track"></span>
         </label>
       </label>
-      ${!planFeatures().removeWatermark ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk menghapus watermark. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
+      ${!planFeatures().removeWatermark ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher to remove the watermark. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>` : ""}
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1580,13 +1627,13 @@ function renderSettingsPanel() {
       <div id="s-slug-preview" style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-size:13px;${!planFeatures().customUrl ? "opacity:.55;cursor:not-allowed" : ""}">
         <span style="color:var(--text-muted);white-space:nowrap" id="s-slug-prefix">${window.location.host}/</span>
         <input type="text" id="s-slug" value="${planFeatures().customUrl ? esc(formSlug) : ""}" maxlength="40" minlength="4"
-          placeholder="${planFeatures().customUrl ? esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx")) : "Upgrade ke Plus untuk custom URL"}"
+          placeholder="${planFeatures().customUrl ? esc((wsShortId || "xxxx") + "/" + (formData?.short_id || "xxxx")) : "Upgrade to Plus for a custom URL"}"
           pattern="[A-Za-z0-9._~-]+" autocapitalize="off" autocorrect="off" spellcheck="false"
           ${!planFeatures().customUrl ? "disabled" : ""}
           style="border:none;background:transparent;padding:0;outline:none;font-size:13px;width:100%;color:var(--text)${!planFeatures().customUrl ? ";cursor:not-allowed" : ""}">
       </div>
       <div id="s-slug-hint" style="font-size:12px;margin-top:5px;min-height:18px;display:flex;align-items:center;gap:5px"></div>
-      ${!planFeatures().customUrl ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk custom URL. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
+      ${!planFeatures().customUrl ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher for a custom URL. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>` : ""}
     </div>
     <div class="settings-sep"></div>
     <div class="field">
@@ -1658,8 +1705,8 @@ function renderSettingsPanel() {
       </label>
       <textarea id="s-closed-msg" rows="3" ${!planFeatures().closedMessage ? "disabled" : ""}
         style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;line-height:1.5${!planFeatures().closedMessage ? ";opacity:.55;cursor:not-allowed" : ""}"
-        placeholder="${!planFeatures().closedMessage ? "Upgrade ke Plus untuk mengatur pesan penutup form…" : ""}">${planFeatures().closedMessage ? esc(s.closedMessage||"") : ""}</textarea>
-      ${!planFeatures().closedMessage ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade ke <strong>Plus</strong> atau lebih tinggi untuk mengatur pesan penutup. <a href="dashboard/subscription.html" style="color:var(--teal)">Lihat paket →</a></div>` : ""}
+        placeholder="${!planFeatures().closedMessage ? "Upgrade to Plus to set a closed message for the form…" : ""}">${planFeatures().closedMessage ? esc(s.closedMessage||"") : ""}</textarea>
+      ${!planFeatures().closedMessage ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher to set a closed message. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>` : ""}
     </div>
   `;
 
@@ -1708,7 +1755,7 @@ function renderSettingsPanel() {
         if (hint) {
           if (data) {
             // Already taken
-            hint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
+            hint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL already taken, try another';
             hint.style.color = "var(--red)";
             document.getElementById("s-slug")?.classList.add("input-error");
           } else {
@@ -1825,7 +1872,7 @@ async function saveSetting() {
           .maybeSingle();
         if (existingSlug) {
           if (slugHint) {
-            slugHint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL sudah dipakai, coba yang lain';
+            slugHint.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;vertical-align:middle"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg> URL already taken, try another';
             slugHint.style.color = "var(--red)";
           }
           slugInput?.classList.add("input-error");
@@ -2024,7 +2071,7 @@ function buildPreviewField(q, i) {
   if (q.type === "file_upload") control = `<div style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='28' height='28' style='opacity:.5;margin:0 auto 8px;display:block'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/></svg>${esc(q.placeholder || "Upload your file")}<br><span style='font-size:11px'>${q.allowedFileTypes ? q.allowedFileTypes.replace(/,/g,", ") : "Any file"} · Max ${q.maxFileSizeMb||10}MB</span></div>`;
   if (q.type === "url_input") { const _href=esc(q.urlHref||""); const _lbl=esc(q.urlLabel||q.urlHref||""); control = _href ? `<a href="${_href}" target="_blank" rel="noopener noreferrer" style="color:#6366f1;text-decoration:underline;font-size:14px;word-break:break-all">${_lbl||_href}</a>` : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Belum ada URL yang diset</span>`; }
   if (q.type === "color")       control = `<div style="display:flex;align-items:center;gap:12px"><input type="color" value="${esc(q.colorDefault||"#2BBDA4")}" style="width:48px;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer"><span style="font-size:13px;color:var(--text-muted)">HEX · RGB · HSL will be shown</span></div>`;
-  if (q.type === "password")    control = `<div style="position:relative"><input type="password" placeholder="Enter password…" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);letter-spacing:.1em"><div style="font-size:11px;color:var(--text-muted);margin-top:4px">🔒 Users must enter the correct password to submit</div></div>`;
+  if (q.type === "password")    control = `<div style="position:relative"><input type="password" placeholder="Enter password…" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);letter-spacing:.1em"><div style="font-size:11px;color:var(--text-muted);margin-top:4px">Users must enter the correct password to submit</div></div>`;
   if (q.type === "toggle") control = `<div style="display:flex;align-items:center;gap:12px"><div style="width:50px;height:26px;border-radius:13px;background:var(--border);position:relative;cursor:pointer"><div style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${q.toggleDefault?"24px":"2px"};box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:14px">${esc(q.toggleDefault?q.toggleOnLabel||"Yes":q.toggleOffLabel||"No")}</span></div>`;
   if (q.type === "multiselect") { const mso = (q.multiselectOptions||[]).slice(0,5); control = `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 12px 8px;background:var(--bg-raised)"><div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${esc(q.multiselectPlaceholder||"Select options…")}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${mso.map(o=>`<span style="padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer">${esc(o)}</span>`).join("")}${(q.multiselectOptions||[]).length>5?`<span style="font-size:12px;color:var(--text-muted);padding:3px 6px">+${(q.multiselectOptions||[]).length-5} more</span>`:""}</div></div>`; }
   if (q.type === "likert") { const scale = q.likertScale||5; const rows = (q.likertRows||[""]).filter(Boolean); control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--text-muted)">${esc(q.likertStartLabel||"Strongly Disagree")}</th>${Array.from({length:scale},(_,i)=>`<th style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text-muted)">${i+1}</th>`).join("")}<th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--text-muted)">${esc(q.likertEndLabel||"Strongly Agree")}</th></tr></thead><tbody>${(rows.length?rows:["Statement 1","Statement 2"]).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:8px;font-size:13px">${esc(r)}</td>${Array.from({length:scale},(_,i)=>`<td style="padding:8px 4px;text-align:center"><input type="radio" name="l${i}" style="accent-color:var(--teal)"></td>`).join("")}<td></td></tr>`).join("")}</tbody></table></div>`; }

@@ -586,7 +586,7 @@ function showScheduled(state, openTime, closeTime, closedMessage) {
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--teal);margin-bottom:20px">
           <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
         </svg>
-        <h2>Form belum dibuka</h2>
+        <h2>Form not open yet</h2>
         <p style="margin-bottom:20px">Form akan dibuka pada<br><strong>${fmt(openTime)}</strong></p>
         <div id="countdown-wrap" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
           <div class="cd-unit"><div class="cd-val" id="cd-d">--</div><div class="cd-lbl">Hari</div></div>
@@ -1064,7 +1064,7 @@ function renderForm(form) {
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                ${esc(_uLabel)}
              </a>`
-          : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Link belum diset oleh pemilik form.</span>`;
+          : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Link has not been set by the form owner.</span>`;
         break;
       }
       case "file_upload": {
@@ -1970,7 +1970,7 @@ function renderForm(form) {
             if (block) {
               const errEl = block.querySelector(".q-err");
               if (errEl) {
-                errEl.textContent = "Pemilik form sudah kehabisan storage. File tidak dapat diunggah.";
+                errEl.textContent = "The form owner has run out of storage. The file cannot be uploaded.";
                 errEl.style.display = "";
               }
               const area = block.querySelector(`#fua-${q.id}`);

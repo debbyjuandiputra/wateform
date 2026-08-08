@@ -167,10 +167,10 @@ async function init() {
   }
 }
 
-// ── Storage bar ──────────────────────────────────────────────
+// ── Storage label ────────────────────────────────────────────
 async function loadStorageBar() {
-  const fill = document.getElementById("ham-storage-fill");
-  if (!fill) return;
+  const label = document.getElementById("ham-storage-label");
+  if (!label) return;
 
   const { data } = await _sb
     .from("storage_usage")
@@ -178,17 +178,13 @@ async function loadStorageBar() {
     .eq("user_id", currentUser.id)
     .maybeSingle();
 
-  if (!data) return;
+  // Jika tidak ada data (user lama sebelum migration 011/018), tampilkan default free tier.
+  const usedBytes  = data?.used_bytes  ?? 0;
+  const quotaBytes = data?.quota_bytes ?? 52428800;
 
-  const pct = data.quota_bytes > 0
-    ? Math.min(100, Math.round((data.used_bytes / data.quota_bytes) * 100))
-    : 0;
-
-  fill.style.width = pct + "%";
-
-  if (pct >= 90)      fill.style.background = "var(--red)";
-  else if (pct >= 70) fill.style.background = "var(--amber, #f59e0b)";
-  else                fill.style.background = "var(--accent)";
+  const usedMb  = (usedBytes / 1048576).toFixed(1);
+  const quotaMb = Math.round(quotaBytes / 1048576);
+  label.textContent = `${usedMb}/${quotaMb} MB digunakan`;
 }
 
 // ── Load workspaces ───────────────────────────────────────────

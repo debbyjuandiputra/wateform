@@ -153,6 +153,14 @@ async function uploadFormMedia(file) {
     throw error;
   }
   const { data } = _sb.storage.from("form-media").getPublicUrl(path);
+
+  // Hitung storage usage ke currentUser (= workspace creator saat buka builder)
+  // Tidak await agar upload tidak terblok jika RPC gagal
+  _sb.rpc("increment_storage_usage", {
+    p_owner_id: currentUser?.id,
+    p_bytes:    file.size,
+  }).catch(e => console.warn("increment_storage_usage failed:", e));
+
   return data?.publicUrl || "";
 }
 

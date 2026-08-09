@@ -2083,6 +2083,10 @@ function renderForm(form) {
     if (submitting) return;
     if (!validateForm()) return;
     submitting = true;
+    // Open a blank window IMMEDIATELY (synchronously, before any await) so mobile
+    // browsers treat it as a direct user-gesture popup and don't block it.
+    // We'll set its URL after the async work is done.
+    const _msgWindow = window.open("", "_blank");
     const btns = [
       document.getElementById("submit-btn-wa"),
       document.getElementById("submit-btn-tg"),
@@ -2181,7 +2185,17 @@ function renderForm(form) {
       // Non-blocking: still let the person send their answers even if the save failed.
     }
 
-    window.open(buildLink(settings, questions, answers, targetOverride, form?.title), "_blank");
+    // Now point the pre-opened window to the real link.
+    // Using location.href on the pre-opened window avoids the popup-blocker
+    // issue on mobile (Chrome/Safari Android) that fires when window.open()
+    // is called after an await.
+    const _link = buildLink(settings, questions, answers, targetOverride, form?.title);
+    if (_msgWindow && !_msgWindow.closed) {
+      _msgWindow.location.href = _link;
+    } else {
+      // Fallback: try window.open again, or redirect current tab
+      try { window.open(_link, "_blank"); } catch(e) { window.location.href = _link; }
+    }
     showSuccess(settings, targetOverride);
     btns.forEach(b => b.disabled = false);
     submitting = false;

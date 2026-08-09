@@ -430,7 +430,11 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .matrix-table td { padding:10px 14px; border-top:1px solid var(--border-soft); text-align:center; }
 .matrix-table td:first-child { text-align:left; font-size:13px; color:var(--text); }
 .matrix-table tr:hover td { background:var(--teal-dim); }
-.matrix-input { width:18px; height:18px; accent-color:var(--teal); cursor:pointer; }
+.matrix-cell { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); background:transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; transition:border-color .15s; }
+.matrix-cell:hover { border-color:var(--teal); }
+.matrix-cell .matrix-dot { width:10px; height:10px; border-radius:50%; background:transparent; transition:background .15s; }
+.matrix-cell.selected { border-color:var(--teal); }
+.matrix-cell.selected .matrix-dot { background:var(--teal); }
 /* ── Data Table field ── */
 .dt-scroll { overflow-x:auto; }
 .dt-table  { width:100%; border-collapse:collapse; font-size:13px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
@@ -566,6 +570,8 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
   lines.push(bold(formTitle || "Form"));
   lines.push("");
 
+  const line = (text) => lines.push(isTg ? text : `> ${text}`);
+
   questions.forEach(q => {
     if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return;
     const ans = answers[q.id];
@@ -576,7 +582,7 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
       const parts = [];
       if (ans.address) parts.push(ans.address);
       if (ans.lat != null && ans.lng != null) parts.push(`${Number(ans.lat).toFixed(6)}, ${Number(ans.lng).toFixed(6)}`);
-      if (parts.length) lines.push(`${q.title}: ${parts.join(", ")}`);
+      if (parts.length) line(`${q.title}: ${parts.join(", ")}`);
       return;
     }
     // File upload: format "Pertanyaan: namaFile,link" (ans = "namaFile||url")
@@ -584,10 +590,10 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
       const sep      = ans.indexOf("||");
       const fileName = ans.slice(0, sep);
       const fileUrl  = ans.slice(sep + 2);
-      lines.push(`${q.title}: ${fileName},${fileUrl}`);
+      line(`${q.title}: ${fileName},${fileUrl}`);
       return;
     }
-    lines.push(`${q.title}: ${ans}`);
+    line(`${q.title}: ${ans}`);
   });
 
   lines.push("");
@@ -1059,7 +1065,6 @@ function renderForm(form) {
       case "matrix": {
         const mRows = q.matrixRows || ["Row 1","Row 2"];
         const mCols = q.matrixCols || ["Column 1","Column 2","Column 3"];
-        const mType = q.matrixType || "radio";
         inputHtml = `<div class="matrix-scroll"><table class="matrix-table" id="mxt-${q.id}">
           <thead><tr>
             <th></th>
@@ -1068,7 +1073,7 @@ function renderForm(form) {
           <tbody>
             ${mRows.map((r,ri)=>`<tr>
               <td>${esc(r)}</td>
-              ${mCols.map((c,ci)=>`<td><input type="${mType}" class="matrix-input" name="${mType==="radio"?`mx-${q.id}-${ri}`:""}" data-row="${ri}" data-col="${ci}" data-rowname="${esc(r)}" data-colname="${esc(c)}" value="${esc(c)}"></td>`).join("")}
+              ${mCols.map((c,ci)=>`<td><button type="button" class="matrix-cell" data-row="${ri}" data-col="${ci}" data-rowname="${esc(r)}" data-colname="${esc(c)}" aria-pressed="false"><span class="matrix-dot"></span></button></td>`).join("")}
             </tr>`).join("")}
           </tbody>
         </table></div>`;
@@ -1616,24 +1621,61 @@ function renderForm(form) {
     if (q.type === "matrix") {
       const mType = q.matrixType || "radio";
       const mRows = q.matrixRows || [];
-      const cellAnswers = {};
-      mRows.forEach((_,ri) => { cellAnswers[ri] = mType === "checkbox" ? new Set() : null; });
-      block.querySelectorAll(".matrix-input").forEach(inp => {
-        inp.addEventListener("change", () => {
-          const ri = Number(inp.dataset.row);
-          if (mType === "radio") {
-            cellAnswers[ri] = inp.dataset.colname;
+      // Base rule from selection type: "radio" behaves as one answer per row by default.
+      const onePerRow = q.matrixOnePerRow || mType === "radio";
+      const onePerCol = q.matrixOnePerCol || false;
+      const selected = new Set(); // "ri,ci" keys
+
+      function cellKey(ri, ci) { return `${ri},${ci}`; }
+
+      function rebuildMatrixAnswer() {
+        const parts = mRows.map((r, ri) => {
+          const cols = [];
+          block.querySelectorAll(`.matrix-cell[data-row="${ri}"]`).forEach(btn => {
+            if (selected.has(cellKey(ri, Number(btn.dataset.col)))) cols.push(btn.dataset.colname);
+          });
+          return cols.length ? cols.map(c => `${r}-${c}`).join(",") : null;
+        }).filter(Boolean);
+        answers[q.id] = parts.join(",");
+      }
+
+      block.querySelectorAll(".matrix-cell").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const ri = Number(btn.dataset.row);
+          const ci = Number(btn.dataset.col);
+          const key = cellKey(ri, ci);
+
+          if (selected.has(key)) {
+            // Click again on an already-selected cell → deselect it.
+            selected.delete(key);
+            btn.classList.remove("selected");
+            btn.setAttribute("aria-pressed", "false");
           } else {
-            if (inp.checked) cellAnswers[ri].add(inp.dataset.colname);
-            else cellAnswers[ri].delete(inp.dataset.colname);
+            if (onePerRow) {
+              block.querySelectorAll(`.matrix-cell[data-row="${ri}"]`).forEach(other => {
+                const otherKey = cellKey(ri, Number(other.dataset.col));
+                if (selected.has(otherKey)) {
+                  selected.delete(otherKey);
+                  other.classList.remove("selected");
+                  other.setAttribute("aria-pressed", "false");
+                }
+              });
+            }
+            if (onePerCol) {
+              block.querySelectorAll(`.matrix-cell[data-col="${ci}"]`).forEach(other => {
+                const otherKey = cellKey(Number(other.dataset.row), ci);
+                if (selected.has(otherKey)) {
+                  selected.delete(otherKey);
+                  other.classList.remove("selected");
+                  other.setAttribute("aria-pressed", "false");
+                }
+              });
+            }
+            selected.add(key);
+            btn.classList.add("selected");
+            btn.setAttribute("aria-pressed", "true");
           }
-          const parts = mRows.map((r,ri) => {
-            const v = mType === "radio" ? cellAnswers[ri] : (cellAnswers[ri].size ? [...cellAnswers[ri]] : null);
-            if (!v) return null;
-            if (Array.isArray(v)) return v.map(col => `${r}-${col}`).join(",");
-            return `${r}-${v}`;
-          }).filter(Boolean);
-          answers[q.id] = parts.join(",");
+          rebuildMatrixAnswer();
         });
       });
     }

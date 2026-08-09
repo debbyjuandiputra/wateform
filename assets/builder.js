@@ -1082,6 +1082,8 @@ function openEditModal(idx) {
     });
     mtTypeWrap.appendChild(mtTypeSel);
     body.appendChild(mtTypeWrap);
+    body.appendChild(makeToggleField("Satu jawaban satu kolom", "em-matrix-one-per-col", q.matrixOnePerCol));
+    body.appendChild(makeToggleField("Satu jawaban satu baris", "em-matrix-one-per-row", q.matrixOnePerRow));
   }
 
   // ── Data Table fields
@@ -1599,6 +1601,8 @@ function saveEditToMemory() {
     q.matrixRows = (get("em-matrix-rows")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixCols = (get("em-matrix-cols")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixType = get("em-matrix-type")?.value || "radio";
+    q.matrixOnePerCol = get("em-matrix-one-per-col")?.checked || false;
+    q.matrixOnePerRow = get("em-matrix-one-per-row")?.checked || false;
   }
   // data_table
   if (q.type === "data_table") {

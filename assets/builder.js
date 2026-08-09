@@ -249,6 +249,7 @@ async function init() {
     if (wsOwnerId) {
       // Pastikan plan owner yang sudah expired ter-downgrade dulu sebelum dibaca
       try { await _sb.rpc("check_and_expire_plan", { p_user_id: wsOwnerId }); } catch(_) {}
+      try { await _sb.rpc("check_and_lock_premium_forms", { p_user_id: wsOwnerId }); } catch(_) {}
       const { data: subData } = await _sb.from("subscriptions")
         .select("plan")
         .eq("user_id", wsOwnerId)

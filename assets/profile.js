@@ -156,6 +156,7 @@ async function init() {
   // Pastikan plan yang sudah expired langsung di-downgrade ke free
   // (foto profil dihapus, frame direset) sebelum data profile diambil.
   try { await _sb.rpc("check_and_expire_plan", { p_user_id: _currentUser.id }); } catch(_) {}
+  try { await _sb.rpc("check_and_lock_premium_forms", { p_user_id: _currentUser.id }); } catch(_) {}
 
   const { data: profile } = await _sb.from("profiles")
     .select("*").eq("id", _currentUser.id).single();

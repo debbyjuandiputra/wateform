@@ -175,6 +175,7 @@ async function init() {
   // (foto profil dihapus, frame direset) SEBELUM data profile/subscription diambil,
   // supaya yang dirender di UI sudah versi yang up to date.
   try { await _sb.rpc("check_and_expire_plan", { p_user_id: currentUser.id }); } catch(_) {}
+  try { await _sb.rpc("check_and_lock_premium_forms", { p_user_id: currentUser.id }); } catch(_) {}
 
   const { data: profile } = await _sb.from("profiles").select("*").eq("id", currentUser.id).single();
   currentProfile = profile;

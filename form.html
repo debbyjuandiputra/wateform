@@ -2319,11 +2319,11 @@ function renderForm(form) {
     return;
   }
 
-  // ── Check premium_status — block access if frozen or locked ──────────────
-  // This is the authoritative gate: it does NOT rely on isActive or is_published
-  // because those may not be updated yet when check_and_lock_premium_forms() runs.
-  if (form.premium_status === "locked" || form.premium_status === "frozen") {
-    showLocked(form.premium_status);
+  // ── Check premium_status ─────────────────────────────────────────────────
+  // frozen (30–60 hari): pemilik tidak bisa edit, tapi form TETAP bisa diakses responden.
+  // locked (60+ hari)  : pemilik tidak bisa edit DAN form tertutup untuk responden.
+  if (form.premium_status === "locked") {
+    showLocked("locked");
     return;
   }
 

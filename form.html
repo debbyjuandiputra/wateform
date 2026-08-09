@@ -1710,8 +1710,11 @@ function renderForm(form) {
       const userVals = {};
       function rebuildDtAnswer() {
         const parts = [];
-        dtRows.forEach((r, ri) => {
-          dtCols.forEach((c, ci) => {
+        // Use index-suffixed names as fallback so output is always unambiguous
+        const rowLabels = dtRows.map((r, ri) => r || `Row ${ri + 1}`);
+        const colLabels = dtCols.map((c, ci) => c || `Column ${ci + 1}`);
+        rowLabels.forEach((r, ri) => {
+          colLabels.forEach((c, ci) => {
             const ownerV = (dtCells[ri]||[])[ci] ?? "";
             const userV  = userVals[`${ri},${ci}`] || "";
             const val    = ownerV !== "" ? ownerV : userV;

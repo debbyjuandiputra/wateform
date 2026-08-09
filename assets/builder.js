@@ -1082,12 +1082,7 @@ function openEditModal(idx) {
     });
     mtTypeWrap.appendChild(mtTypeSel);
     body.appendChild(mtTypeWrap);
-    const mtAmWrap = document.createElement("div"); mtAmWrap.className = "field"; mtAmWrap.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 0";
-    const mtAmChk = document.createElement("input"); mtAmChk.type = "checkbox"; mtAmChk.id = "em-matrix-allow-multiple"; mtAmChk.checked = !!(q.matrixAllowMultiple);
-    mtAmChk.style.cssText = "width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0";
-    const mtAmLbl = document.createElement("label"); mtAmLbl.htmlFor = "em-matrix-allow-multiple"; mtAmLbl.textContent = "Allow multiple answers"; mtAmLbl.style.cssText = "font-size:13px;cursor:pointer;margin:0";
-    mtAmWrap.appendChild(mtAmChk); mtAmWrap.appendChild(mtAmLbl);
-    body.appendChild(mtAmWrap);
+    body.appendChild(makeToggleField("Allow multiple answers", "em-matrix-allow-multiple", !!(q.matrixAllowMultiple)));
   }
 
   // ── Data Table fields
@@ -1611,8 +1606,8 @@ function saveEditToMemory() {
   if (q.type === "data_table") {
     const wrap = get("em-datatable-wrap");
     if (wrap) {
-      q.tableColumns = [...wrap.querySelectorAll(".dt-col-header")].map(i => i.value.trim() || "Column");
-      q.tableRows    = [...wrap.querySelectorAll(".dt-row-label")].map(i => i.value.trim() || "Row");
+      q.tableColumns = [...wrap.querySelectorAll(".dt-col-header")].map((i, ci) => i.value.trim() || `Column ${ci + 1}`);
+      q.tableRows    = [...wrap.querySelectorAll(".dt-row-label")].map((i, ri) => i.value.trim() || `Row ${ri + 1}`);
       const nR = q.tableRows.length, nC = q.tableColumns.length;
       q.tableCells = Array.from({length: nR}, (_, ri) =>
         Array.from({length: nC}, (_, ci) => {

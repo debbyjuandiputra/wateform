@@ -20,6 +20,13 @@ let currentStorageFull = false; // true jika storage user sudah penuh
 let workspaces     = [];
 let activeWsId     = null;
 let pendingAction  = null; // for confirm modal
+let _currentForms  = []; // cache for pin re-render
+
+// ── Pin state (persisted in localStorage) ─────────────────────
+function getPinnedWs()    { try { return JSON.parse(localStorage.getItem("wf-pinned-ws")  || "[]"); } catch(_){ return []; } }
+function getPinnedForms() { try { return JSON.parse(localStorage.getItem("wf-pinned-forms") || "[]"); } catch(_){ return []; } }
+function togglePinWs(id)    { const p = getPinnedWs();    const i = p.indexOf(id); if (i >= 0) p.splice(i,1); else p.push(id); try { localStorage.setItem("wf-pinned-ws", JSON.stringify(p)); } catch(_){} }
+function togglePinForm(id)  { const p = getPinnedForms(); const i = p.indexOf(id); if (i >= 0) p.splice(i,1); else p.push(id); try { localStorage.setItem("wf-pinned-forms", JSON.stringify(p)); } catch(_){} }
 
 // ── Plan limits ───────────────────────────────────────────────
 // "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
@@ -72,7 +79,11 @@ function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
   const menu = document.getElementById("ham-menu");
   if (!btn || !menu) return;
 
-  function open()  { menu.classList.add("open");  btn.classList.add("open");  btn.setAttribute("aria-expanded","true"); }
+  function open()  {
+    // Close profile dropdown first
+    document.getElementById("user-menu")?.classList.remove("open");
+    menu.classList.add("open");  btn.classList.add("open");  btn.setAttribute("aria-expanded","true");
+  }
   function close() { menu.classList.remove("open"); btn.classList.remove("open"); btn.setAttribute("aria-expanded","false"); }
   function toggle(){ menu.classList.contains("open") ? close() : open(); }
 
@@ -81,6 +92,8 @@ function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
     if (!btn.contains(e.target) && !menu.contains(e.target)) close();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  // Expose so profile dropdown can close hamburger
+  window._closeHamburger = close;
 
   // Subscription & Leaderboard placeholders
   document.getElementById("ham-subscription")?.addEventListener("click", () => {
@@ -173,12 +186,24 @@ async function init() {
 
   // Render user info
   const initials = (profile?.full_name || "?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  document.getElementById("user-avatar").textContent = initials;
+  const avatarEl = document.getElementById("user-avatar");
+  if (profile?.photo_url) {
+    avatarEl.innerHTML = `<img src="${profile.photo_url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
+    avatarEl.style.padding = "0";
+    avatarEl.style.overflow = "hidden";
+  } else {
+    avatarEl.textContent = initials;
+  }
+  const frameRingEl = document.getElementById("user-avatar-frame");
+  if (frameRingEl) {
+    frameRingEl.className = "avatar-frame-ring" + (profile?.avatar_frame ? " " + profile.avatar_frame : "");
+  }
   document.getElementById("user-name").textContent   = profile?.full_name || "User";
   document.getElementById("user-handle").textContent = "@" + (profile?.username || "");
 
   await loadWorkspaces();
   loadStorageBar();
+  loadWallet();
 
   // Auto-open workspace if redirected from builder (?ws=<id>)
   const urlParams = new URLSearchParams(location.search);
@@ -273,7 +298,16 @@ function renderHome() {
 function renderWsGrid() {
   const grid = document.getElementById("ws-grid");
   grid.innerHTML = "";
-  workspaces.forEach(ws => {
+  const showWsPin = workspaces.length >= 5;
+  const pinnedWs  = getPinnedWs();
+  const sorted    = showWsPin
+    ? [...workspaces].sort((a, b) => {
+        const aP = pinnedWs.includes(a.id) ? 0 : 1;
+        const bP = pinnedWs.includes(b.id) ? 0 : 1;
+        return aP - bP;
+      })
+    : workspaces;
+  sorted.forEach(ws => {
     const myRole = ws.workspace_members?.find(m => m.user_id === currentUser.id)?.role || "member";
     const isOwner = myRole === "owner";
     const formCount = ws.forms?.[0]?.count || 0;
@@ -292,6 +326,9 @@ function renderWsGrid() {
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="role-badge ${myRole === 'owner' ? 'role-owner' : 'role-member'}">${myRole}</span>
+          ${showWsPin ? `<button class="btn-icon ws-pin-btn${pinnedWs.includes(ws.id) ? ' ws-pinned' : ''}" data-ws-pin="${ws.id}" title="${pinnedWs.includes(ws.id) ? 'Unpin workspace' : 'Pin workspace'}" style="width:28px;height:28px;border-radius:var(--radius);color:${pinnedWs.includes(ws.id) ? 'var(--teal)' : 'var(--text-muted)'}">
+            <svg viewBox="0 0 24 24" fill="${pinnedWs.includes(ws.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 2L9.5 9H2l6 4.5-2.5 7.5L12 17l6.5 4-2.5-7.5L22 9h-7.5Z"/></svg>
+          </button>` : ""}
           <div class="dropdown ws-card-menu">
             <button class="btn-icon ws-menu-btn" data-ws-menu="${ws.id}" title="More options" style="width:28px;height:28px;border-radius:var(--radius)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -353,6 +390,12 @@ function renderWsGrid() {
       if (action === "invite") { openWorkspace(wsId).then(() => { document.getElementById("invite-btn")?.click(); }); return; }
       if (action === "edit")   { openEditWsModal(wsObj); return; }
       if (action === "delete") { openDeleteWsModal(wsObj); return; }
+    });
+    // Pin button handler
+    card.querySelector("[data-ws-pin]")?.addEventListener("click", e => {
+      e.stopPropagation();
+      togglePinWs(ws.id);
+      renderWsGrid();
     });
     grid.appendChild(card);
   });
@@ -455,13 +498,14 @@ async function openWorkspace(wsId) {
     </div>
   `;
 
-  document.getElementById("back-btn").addEventListener("click", () => { loadWorkspaces().then(renderHome); });
-  document.getElementById("new-form-btn").addEventListener("click", () => openNewFormModal(wsId));
+  document.getElementById("back-btn")?.addEventListener("click", () => { loadWorkspaces().then(renderHome); });
+  document.getElementById("new-form-btn")?.addEventListener("click", () => openNewFormModal(wsId));
   document.getElementById("ws-settings-btn")?.addEventListener("click", () => openEditWsModal(ws));
   document.getElementById("ws-delete-btn")?.addEventListener("click", () => openDeleteWsModal(ws));
   document.getElementById("invite-btn")?.addEventListener("click", () => openInviteModal(wsId));
 
-  renderFormList(forms || [], wsId, isOwner);
+  _currentForms = forms || [];
+  renderFormList(_currentForms, wsId, isOwner);
   if (perms.can_see_members) renderMemberList(members || [], wsId, isOwner, currentUser.id);
 }
 
@@ -475,7 +519,16 @@ function renderFormList(forms, wsId, isOwner) {
     return;
   }
   list.innerHTML = "";
-  forms.forEach(form => {
+  const showFormPin = forms.length >= 5;
+  const pinnedForms = getPinnedForms();
+  const sortedForms = showFormPin
+    ? [...forms].sort((a, b) => {
+        const aP = pinnedForms.includes(a.id) ? 0 : 1;
+        const bP = pinnedForms.includes(b.id) ? 0 : 1;
+        return aP - bP;
+      })
+    : forms;
+  sortedForms.forEach(form => {
     const wsShortId = workspaces.find(w=>w.id===wsId)?.short_id || "";
     const url = form.slug
       ? `${BASE_URL}/${form.slug}`
@@ -507,6 +560,9 @@ function renderFormList(forms, wsId, isOwner) {
         ${(()=>{ const s=form.settings||{}; const now=new Date(); const fmtShort=dt=>new Date(dt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); if(s.openAt&&new Date(s.openAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Opens ${fmtShort(s.openAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Closes ${fmtShort(s.closeAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)<=now&&form.is_published) return `<span class="pill" style="background:rgba(239,68,68,.1);color:var(--red);font-size:11px">Closed</span>`; return ""; })()}
       </div>
       <div class="form-row-actions">
+        ${showFormPin ? `<button class="btn-icon form-pin-btn${pinnedForms.includes(form.id) ? ' form-pinned' : ''}" data-action="pin-form" data-id="${form.id}" title="${pinnedForms.includes(form.id) ? 'Unpin form' : 'Pin form'}" style="color:${pinnedForms.includes(form.id) ? 'var(--teal)' : 'var(--text-muted)'}">
+          <svg viewBox="0 0 24 24" fill="${pinnedForms.includes(form.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 2L9.5 9H2l6 4.5-2.5 7.5L12 17l6.5 4-2.5-7.5L22 9h-7.5Z"/></svg>
+        </button>` : ""}
         <div class="dropdown">
           <button class="btn-icon" data-action="menu-toggle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -570,6 +626,16 @@ function renderFormList(forms, wsId, isOwner) {
     if (action === "copy-link") {
       navigator.clipboard.writeText(btn.dataset.url);
       toast("Link copied");
+      e.stopPropagation();
+      return;
+    }
+
+    // Pin form toggle
+    if (action === "pin-form") {
+      togglePinForm(id);
+      const ws = workspaces.find(w => w.id === wsId);
+      const myRole = ws?.workspace_members?.find(m => m.user_id === currentUser.id)?.role || "member";
+      renderFormList(_currentForms, wsId, myRole === "owner");
       e.stopPropagation();
       return;
     }
@@ -1080,7 +1146,7 @@ async function openResponses(formId) {
       </table></div>`}
     </div>
   `;
-  document.getElementById("back-from-resp").addEventListener("click", () => {
+  document.getElementById("back-from-resp")?.addEventListener("click", () => {
     if (_responsesChannel) { _sb.removeChannel(_responsesChannel); _responsesChannel = null; }
     openWorkspace(activeWsId);
   });
@@ -1194,14 +1260,16 @@ function openConfirm(title, body, onOk, okLabel) {
 }
 
 // ── User menu ──────────────────────────────────────────────────
-document.getElementById("user-btn").addEventListener("click", e => {
+document.getElementById("user-btn")?.addEventListener("click", e => {
   e.stopPropagation();
-  document.getElementById("user-menu").classList.toggle("open");
+  // Close hamburger first
+  if (typeof window._closeHamburger === "function") window._closeHamburger();
+  document.getElementById("user-menu")?.classList.toggle("open");
 });
 document.addEventListener("click", () => {
   document.querySelectorAll(".dropdown-menu.open").forEach(m => m.classList.remove("open"));
 });
-document.getElementById("logout-btn").addEventListener("click", async () => {
+document.getElementById("logout-btn")?.addEventListener("click", async () => {
   await _sb.auth.signOut();
   window.location.href = "../login.html";
 });
@@ -1279,6 +1347,179 @@ function renderAnswerCell(q, val) {
       if (openModal) { openModal.classList.remove("open"); }
     }
   });
+})();
+
+// ── Wallet ────────────────────────────────────────────────────
+let _wallet = null;        // cache wallet row
+let _pendingWithdrawal = null; // cache withdrawal pending aktif (jika ada)
+
+function fmtIdr(amount) {
+  return "IDR " + Number(amount || 0).toLocaleString("id-ID");
+}
+
+async function loadWallet() {
+  const [{ data: walletData }, { data: pendingData }] = await Promise.all([
+    _sb.from("wallets").select("*").eq("user_id", currentUser.id).single(),
+    _sb.from("withdrawal_requests")
+       .select("*")
+       .eq("user_id", currentUser.id)
+       .eq("status", "pending")
+       .order("created_at", { ascending: false })
+       .limit(1)
+       .maybeSingle()
+  ]);
+
+  if (walletData) {
+    _wallet = walletData;
+    const label = document.getElementById("wallet-balance-label");
+    if (label) label.textContent = fmtIdr(walletData.balance);
+  }
+  _pendingWithdrawal = pendingData || null;
+}
+
+function renderPendingBanner() {
+  const container = document.getElementById("wallet-pending-banner");
+  if (!container) return;
+  if (_pendingWithdrawal) {
+    const created = new Date(_pendingWithdrawal.created_at)
+      .toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    container.innerHTML = `
+      <div style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;color:#92400e;display:flex;align-items:flex-start;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="flex-shrink:0;margin-top:1px;color:#b45309"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <div>
+          <div style="font-weight:600;margin-bottom:2px">Penarikan sedang diproses</div>
+          <div>${fmtIdr(_pendingWithdrawal.amount)} · Diajukan ${created}</div>
+          <div style="margin-top:4px;color:#78716c">Saldo akan dikembalikan jika permintaan ditolak.</div>
+        </div>
+      </div>`;
+    container.style.display = "block";
+  } else {
+    container.innerHTML = "";
+    container.style.display = "none";
+  }
+}
+
+function openWalletModal() {
+  if (!_wallet) return;
+
+  const balEl = document.getElementById("wallet-modal-balance");
+  if (balEl) balEl.textContent = fmtIdr(_wallet.balance);
+
+  const bankSel = document.getElementById("wallet-bank");
+  const norekEl = document.getElementById("wallet-account-number");
+  const nameEl  = document.getElementById("wallet-account-name");
+  if (_wallet.bank_code)      bankSel.value = _wallet.bank_code;
+  if (_wallet.account_number) norekEl.value = _wallet.account_number;
+  if (_wallet.account_name)   nameEl.value  = _wallet.account_name;
+
+  renderPendingBanner();
+  updateWithdrawBtn();
+  document.getElementById("wallet-modal-error").style.display = "none";
+  document.getElementById("wallet-modal-error").textContent   = "";
+  openModal("wallet-modal");
+}
+
+function updateWithdrawBtn() {
+  const btn    = document.getElementById("wallet-withdraw-btn");
+  const bank   = document.getElementById("wallet-bank")?.value?.trim();
+  const norek  = document.getElementById("wallet-account-number")?.value?.trim();
+  const name   = document.getElementById("wallet-account-name")?.value?.trim();
+  const bal    = _wallet?.balance || 0;
+  const hasPending = !!_pendingWithdrawal;
+  const ready  = bank && norek && name && bal >= 5000 && !hasPending;
+  btn.disabled = !ready;
+  btn.style.opacity = ready ? "1" : ".4";
+  btn.style.cursor  = ready ? "pointer" : "not-allowed";
+  btn.title = hasPending ? "Ada penarikan pending — tunggu diproses terlebih dahulu" : "";
+}
+
+// Wire up wallet modal events
+(function initWalletListeners() {
+  // Script berada di bawah body, DOM sudah siap
+  document.getElementById("wallet-btn")?.addEventListener("click", openWalletModal);
+
+  // Re-evaluate withdraw button on any field change
+  ["wallet-bank", "wallet-account-number", "wallet-account-name"].forEach(id => {
+    document.getElementById(id)?.addEventListener("input", updateWithdrawBtn);
+    document.getElementById(id)?.addEventListener("change", updateWithdrawBtn);
+  });
+
+    // Simpan rekening
+    document.getElementById("wallet-save-bank-btn")?.addEventListener("click", async () => {
+      const errEl  = document.getElementById("wallet-modal-error");
+      const bank   = document.getElementById("wallet-bank").value.trim();
+      const norek  = document.getElementById("wallet-account-number").value.trim();
+      const name   = document.getElementById("wallet-account-name").value.trim();
+      const bankLabel = document.getElementById("wallet-bank").options[document.getElementById("wallet-bank").selectedIndex]?.text || bank;
+
+      errEl.style.display = "none";
+      errEl.textContent   = "";
+
+      if (!bank || !norek || !name) {
+        errEl.textContent   = "Harap lengkapi semua field rekening bank.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      const btn = document.getElementById("wallet-save-bank-btn");
+      btn.disabled = true;
+      btn.textContent = "Menyimpan…";
+
+      const { error } = await _sb
+        .from("wallets")
+        .update({ bank_code: bank, bank_name: bankLabel, account_number: norek, account_name: name })
+        .eq("user_id", currentUser.id);
+
+      btn.disabled = false;
+      btn.textContent = "Simpan rekening";
+
+      if (error) {
+        errEl.textContent   = "Gagal menyimpan: " + error.message;
+        errEl.style.display = "block";
+        return;
+      }
+
+      _wallet = { ..._wallet, bank_code: bank, bank_name: bankLabel, account_number: norek, account_name: name };
+      toast("Rekening berhasil disimpan");
+      updateWithdrawBtn();
+    });
+
+    // Tarik dana
+    document.getElementById("wallet-withdraw-btn")?.addEventListener("click", async () => {
+      if (document.getElementById("wallet-withdraw-btn").disabled) return;
+
+      const errEl = document.getElementById("wallet-modal-error");
+      errEl.style.display = "none";
+      errEl.textContent   = "";
+
+      // Konfirmasi jumlah penarikan = seluruh saldo
+      const amount = _wallet?.balance || 0;
+      if (amount < 5000) return;
+
+      const btn = document.getElementById("wallet-withdraw-btn");
+      btn.disabled = true;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Memproses…`;
+
+      const { data, error } = await _sb.rpc("request_withdrawal", { p_amount: amount });
+
+      btn.disabled = false;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Tarik dana`;
+
+      if (error || !data?.ok) {
+        errEl.textContent   = data?.error || error?.message || "Terjadi kesalahan.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      // Update lokal
+      _wallet.balance = data.new_balance;
+      _pendingWithdrawal = { amount, created_at: new Date().toISOString() };
+      document.getElementById("wallet-modal-balance").textContent = fmtIdr(_wallet.balance);
+      document.getElementById("wallet-balance-label").textContent = fmtIdr(_wallet.balance);
+      renderPendingBanner();
+      updateWithdrawBtn();
+      toast("Permintaan penarikan " + fmtIdr(amount) + " telah dikirim");
+    });
 })();
 
 // ── Boot ──────────────────────────────────────────────────────

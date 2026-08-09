@@ -100,7 +100,7 @@ const FIELD_TIERS = {
   datetime:      "plus",
   ranking:       "plus",
   slider:        "plus",
-  nps_score:     "plus",
+  nps_score:     "pro",
   // Pro-only fields
   map:           "pro",
   button_link:   "pro",
@@ -1220,18 +1220,20 @@ function openEditModal(idx) {
       btnRow.appendChild(addColBtn); btnRow.appendChild(addRowBtn);
       dtWrap.appendChild(btnRow);
 
-      // Allow multiple answers toggle
-      const amRow = document.createElement("div");
-      amRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius)";
-      const amChk = document.createElement("input");
-      amChk.type = "checkbox"; amChk.id = "em-dt-allow-multiple"; amChk.checked = prevAM;
-      amChk.style.cssText = "width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0";
-      const amLbl = document.createElement("label");
-      amLbl.htmlFor = "em-dt-allow-multiple";
-      amLbl.style.cssText = "font-size:13px;cursor:pointer;line-height:1.4";
-      amLbl.innerHTML = "<strong>Allow multiple answers</strong>";
-      amRow.appendChild(amChk); amRow.appendChild(amLbl);
-      dtWrap.appendChild(amRow);
+      // Allow multiple answers toggle — Pro+ only
+      if (planFeatures().fieldPro) {
+        const amRow = document.createElement("div");
+        amRow.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius)";
+        const amChk = document.createElement("input");
+        amChk.type = "checkbox"; amChk.id = "em-dt-allow-multiple"; amChk.checked = prevAM;
+        amChk.style.cssText = "width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0";
+        const amLbl = document.createElement("label");
+        amLbl.htmlFor = "em-dt-allow-multiple";
+        amLbl.style.cssText = "font-size:13px;cursor:pointer;line-height:1.4";
+        amLbl.innerHTML = "<strong>Allow multiple answers</strong>";
+        amRow.appendChild(amChk); amRow.appendChild(amLbl);
+        dtWrap.appendChild(amRow);
+      }
     }
 
     renderDtEditor();

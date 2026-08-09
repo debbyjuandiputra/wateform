@@ -374,8 +374,8 @@ function generateBackupCodes(count = 12) {
       else clearFieldError(fullnameField);
 
       const uField = usernameEl.closest(".field");
-      if (!/^[a-zA-Z0-9_.]{3,20}$/.test(usernameEl.value.trim())) {
-        setFieldError(uField, "3–20 characters: letters, numbers, _ or ."); valid = false;
+      if (!/^[a-zA-Z0-9_.]{4,20}$/.test(usernameEl.value.trim())) {
+        setFieldError(uField, "4–20 characters: letters, numbers, _ or ."); valid = false;
       } else clearFieldError(uField);
 
       const emailField = emailEl.closest(".field");

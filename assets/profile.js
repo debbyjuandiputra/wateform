@@ -723,6 +723,21 @@ document.getElementById("cp-save-btn").addEventListener("click", async () => {
 
   errEl.style.display = "none";
 
+  // ── Rate limit: max 2 changes per 24 hours ──
+  const PW_LIMIT_KEY = "wf-pw-changes-" + (_currentUser?.id || "");
+  const now24 = Date.now();
+  let pwLog = [];
+  try { pwLog = JSON.parse(localStorage.getItem(PW_LIMIT_KEY) || "[]"); } catch(_) {}
+  // Keep only entries within last 24h
+  pwLog = pwLog.filter(t => now24 - t < 24 * 60 * 60 * 1000);
+  if (pwLog.length >= 2) {
+    const oldest = pwLog[0];
+    const resetIn = Math.ceil((24 * 60 * 60 * 1000 - (now24 - oldest)) / (60 * 60 * 1000));
+    errEl.textContent = `Password change limit reached (2 per 24 hours). Try again in ${resetIn} hour${resetIn === 1 ? "" : "s"}.`;
+    errEl.style.display = "block";
+    return;
+  }
+
   if (!oldPass || !newPass || !confirm) {
     errEl.textContent = "Please fill in all fields.";
     errEl.style.display = "block";
@@ -777,6 +792,14 @@ document.getElementById("cp-save-btn").addEventListener("click", async () => {
     return;
   }
 
+  // Record this change for rate limiting
+  const PW_LIMIT_KEY2 = "wf-pw-changes-" + (_currentUser?.id || "");
+  let pwLog2 = [];
+  try { pwLog2 = JSON.parse(localStorage.getItem(PW_LIMIT_KEY2) || "[]"); } catch(_) {}
+  pwLog2 = pwLog2.filter(t => Date.now() - t < 24 * 60 * 60 * 1000);
+  pwLog2.push(Date.now());
+  try { localStorage.setItem(PW_LIMIT_KEY2, JSON.stringify(pwLog2)); } catch(_) {}
+
   // Clear fields
   document.getElementById("cp-old").value     = "";
   document.getElementById("cp-new").value     = "";
@@ -785,3 +808,153 @@ document.getElementById("cp-save-btn").addEventListener("click", async () => {
   btn.textContent = "Update password";
   toast("Password updated successfully!");
 });
+// ══════════════════════════════════════════════════════════════
+//  USERNAME EDIT (14-day cooldown)
+// ══════════════════════════════════════════════════════════════
+(function initUsernameEdit() {
+  const input       = document.getElementById("profile-username-input");
+  const editBtn     = document.getElementById("username-edit-btn");
+  const saveBtn     = document.getElementById("username-save-btn");
+  const cancelBtn   = document.getElementById("username-cancel-btn");
+  const cooldownEl  = document.getElementById("username-cooldown-notice");
+  const errorEl     = document.getElementById("username-error");
+
+  let originalUsername = "";
+
+  // Wait until profile is loaded (input value is populated)
+  const checkReady = setInterval(async () => {
+    if (!_currentUser) return;
+    clearInterval(checkReady);
+
+    const { data: profile } = await _sb.from("profiles")
+      .select("username, username_changed_at")
+      .eq("id", _currentUser.id)
+      .single();
+
+    originalUsername = profile?.username || "";
+
+    const changedAt = profile?.username_changed_at ? new Date(profile.username_changed_at) : null;
+    const now       = new Date();
+    const daysSince = changedAt ? (now - changedAt) / (1000 * 60 * 60 * 24) : Infinity;
+    const daysLeft  = Math.ceil(14 - daysSince);
+    const onCooldown = daysLeft > 0;
+
+    if (onCooldown) {
+      editBtn.disabled = true;
+      editBtn.style.opacity = ".45";
+      editBtn.style.cursor  = "not-allowed";
+      editBtn.title = `You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`;
+      cooldownEl.textContent = `Username can be changed once every 14 days. Next change available in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`;
+      cooldownEl.style.display = "";
+    }
+  }, 100);
+
+  editBtn.addEventListener("click", () => {
+    // Show confirmation alert before editing
+    const ok = confirm(
+      "Are you sure you want to change your username?\n\n" +
+      "⚠️ You can only change your username once every 14 days.\n\n" +
+      "Your current username: @" + (input.value || originalUsername)
+    );
+    if (!ok) return;
+
+    originalUsername = input.value;
+    input.removeAttribute("readonly");
+    input.focus();
+    input.select();
+    editBtn.style.display   = "none";
+    saveBtn.style.display   = "";
+    cancelBtn.style.display = "";
+    errorEl.style.display   = "none";
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    input.value = originalUsername;
+    input.setAttribute("readonly", "");
+    editBtn.style.display   = "";
+    saveBtn.style.display   = "none";
+    cancelBtn.style.display = "none";
+    errorEl.style.display   = "none";
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const newUsername = input.value.trim();
+    errorEl.style.display = "none";
+
+    if (!newUsername) {
+      errorEl.textContent = "Username cannot be empty.";
+      errorEl.style.display = "";
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.]{4,20}$/.test(newUsername)) {
+      errorEl.textContent = "Username must be 4–20 characters: letters, digits, underscore, or dot only.";
+      errorEl.style.display = "";
+      return;
+    }
+    if (newUsername === originalUsername) {
+      // No change — just cancel edit mode
+      cancelBtn.click();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving…";
+
+    // Check cooldown again server-side
+    const { data: profile } = await _sb.from("profiles")
+      .select("username_changed_at")
+      .eq("id", _currentUser.id)
+      .single();
+
+    const changedAt = profile?.username_changed_at ? new Date(profile.username_changed_at) : null;
+    const now       = new Date();
+    const daysSince = changedAt ? (now - changedAt) / (1000 * 60 * 60 * 24) : Infinity;
+    if (daysSince < 14) {
+      const daysLeft = Math.ceil(14 - daysSince);
+      errorEl.textContent = `You can change your username again in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`;
+      errorEl.style.display = "";
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
+      return;
+    }
+
+    // Save to DB
+    const { error } = await _sb.from("profiles")
+      .update({ username: newUsername, username_changed_at: now.toISOString() })
+      .eq("id", _currentUser.id);
+
+    if (error) {
+      if (error.code === "23505") {
+        errorEl.textContent = "This username is already taken. Please choose another.";
+      } else {
+        errorEl.textContent = "Failed to update username. Please try again.";
+      }
+      errorEl.style.display = "";
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
+      return;
+    }
+
+    // Success
+    originalUsername = newUsername;
+    input.setAttribute("readonly", "");
+    editBtn.style.display   = "";
+    saveBtn.style.display   = "none";
+    cancelBtn.style.display = "none";
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save";
+
+    // Update handle display
+    document.getElementById("profile-handle").firstChild.textContent = "@" + newUsername + " ";
+
+    // Show cooldown notice
+    cooldownEl.textContent = "Username updated! You can change it again in 14 days.";
+    cooldownEl.style.display = "";
+    editBtn.disabled = true;
+    editBtn.style.opacity = ".45";
+    editBtn.style.cursor  = "not-allowed";
+    editBtn.title = "You can change your username again in 14 days.";
+
+    toast("Username updated successfully!");
+  });
+})();

@@ -1060,7 +1060,8 @@ function renderForm(form) {
         const dtCols  = q.tableColumns || ["Column 1","Column 2","Column 3"];
         const dtRows  = q.tableRows    || ["Row 1","Row 2"];
         const dtCells = q.tableCells   || dtRows.map(() => dtCols.map(() => ""));
-        inputHtml = `<div class="dt-scroll"><table class="dt-table" id="dtt-${q.id}">
+        const dtAM    = q.tableAllowMultiple !== false; // default true if not set
+        inputHtml = `<div class="dt-scroll"><table class="dt-table" id="dtt-${q.id}" data-allow-multiple="${dtAM}">
           <thead><tr>
             <th class="dt-th-corner"></th>
             ${dtCols.map((c,ci)=>`<th data-ci="${ci}">${esc(c)}</th>`).join("")}
@@ -1622,6 +1623,7 @@ function renderForm(form) {
       const dtRows  = q.tableRows    || [];
       const dtCols  = q.tableColumns || [];
       const dtCells = q.tableCells   || dtRows.map(() => dtCols.map(() => ""));
+      const allowMultiple = q.tableAllowMultiple !== false; // default true
       const userVals = {};
       function rebuildDtAnswer() {
         const parts = [];
@@ -1637,14 +1639,37 @@ function renderForm(form) {
         });
         answers[q.id] = parts.join(" | ");
       }
-      block.querySelectorAll(".dt-user-input").forEach(inp => {
+      const allInputs = [...block.querySelectorAll(".dt-user-input")];
+      function updateSingleAnswerLock() {
+        if (allowMultiple) return;
+        // Find the first input that has a value
+        const filledInp = allInputs.find(i => (userVals[i.dataset.ri + "," + i.dataset.ci] || "") !== "");
+        allInputs.forEach(i => {
+          const key = i.dataset.ri + "," + i.dataset.ci;
+          const isFilled = (userVals[key] || "") !== "";
+          if (filledInp && !isFilled) {
+            i.disabled = true;
+            i.style.opacity = "0.35";
+            i.style.cursor = "not-allowed";
+            i.placeholder = "";
+          } else {
+            i.disabled = false;
+            i.style.opacity = "";
+            i.style.cursor = "";
+            i.placeholder = "—";
+          }
+        });
+      }
+      allInputs.forEach(inp => {
         inp.addEventListener("input", () => {
           userVals[inp.dataset.ri + "," + inp.dataset.ci] = inp.value.trim();
           rebuildDtAnswer();
+          updateSingleAnswerLock();
         });
       });
       // Seed answer with owner-prefilled values
       rebuildDtAnswer();
+      updateSingleAnswerLock();
     }
 
     // Bind multi_input

@@ -551,9 +551,9 @@ function esc(s) {
 }
 
 // ── Build WhatsApp / Telegram link ────────────────────────────
-function buildLink(settings, questions, answers, targetOverride) {
+function buildLink(settings, questions, answers, targetOverride, formTitle) {
   const lines = [];
-  lines.push(`*${form?.title || "Form"}*`);
+  lines.push(`*${formTitle || "Form"}*`);
   lines.push("");
 
   questions.forEach(q => {
@@ -2130,7 +2130,7 @@ function renderForm(form) {
       // Non-blocking: still let the person send their answers even if the save failed.
     }
 
-    window.open(buildLink(settings, questions, answers, targetOverride), "_blank");
+    window.open(buildLink(settings, questions, answers, targetOverride, form?.title), "_blank");
     showSuccess(settings, targetOverride);
     btns.forEach(b => b.disabled = false);
     submitting = false;

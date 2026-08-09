@@ -47,20 +47,34 @@
 
     const currentPlan = subRow?.plan || "free";
 
-    // Highlight "Current plan" button
+    // Urutan rank plan (semakin tinggi index = semakin tinggi tier)
+    const PLAN_RANK = { free: 0, plus: 1, pro: 2, ultimate: 3 };
+    const currentRank = PLAN_RANK[currentPlan] ?? 0;
+
+    // Update semua tombol [data-plan]
     document.querySelectorAll("[data-plan]").forEach(btn => {
-      const p = btn.dataset.plan;
+      const p    = btn.dataset.plan;
+      const rank = PLAN_RANK[p] ?? 0;
+
       if (p === currentPlan) {
+        // Tombol plan aktif → "Current plan"
         btn.textContent = "✓ Current plan";
         btn.disabled = true;
         btn.className = "btn btn-ghost btn-sm";
-        btn.style.opacity = ".7";
-        // Highlight kolom
+        if (btn.style) btn.style.cssText = "width:100%;opacity:.7;cursor:default";
+        // Highlight kolom / card
         const head = btn.closest(".plan-head");
         if (head && !head.classList.contains("featured")) {
           head.style.background = "rgba(43,189,164,.08)";
         }
+      } else if (rank < currentRank) {
+        // Plan lebih rendah → disabled, tidak bisa diklik
+        btn.disabled = true;
+        btn.className = "btn btn-ghost btn-sm";
+        if (btn.style) btn.style.cssText = "width:100%;opacity:.35;cursor:not-allowed";
+        btn.title = "You are already on a higher plan";
       }
+      // Plan lebih tinggi → tetap aktif bisa diklik (tidak diubah)
     });
 
     // Tampilkan info plan aktif di bawah judul

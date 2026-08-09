@@ -593,6 +593,25 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
       line(`${q.title}: ${fileName},${fileUrl}`);
       return;
     }
+    // data_table: ans is already a pre-formatted string "Row1-Col1=val,Row2-Col2=val"
+    // built by rebuildDtAnswer(). If somehow it's still a 2-D array, reconstruct it.
+    if (q.type === "data_table") {
+      if (typeof ans === "string" && ans) {
+        line(`${q.title}: ${ans}`);
+      } else if (Array.isArray(ans)) {
+        const rows = q.tableRows    || [];
+        const cols = q.tableColumns || [];
+        const parts = [];
+        rows.forEach((r, ri) => {
+          cols.forEach((c, ci) => {
+            const cell = ans[ri]?.[ci];
+            if (cell) parts.push(`${r}-${c}=${cell}`);
+          });
+        });
+        if (parts.length) line(`${q.title}: ${parts.join(",")}`);
+      }
+      return;
+    }
     line(`${q.title}: ${ans}`);
   });
 
@@ -1622,8 +1641,10 @@ function renderForm(form) {
       const mType = q.matrixType || "radio";
       const mRows = q.matrixRows || [];
       // Base rule from selection type: "radio" behaves as one answer per row by default.
-      const onePerRow = q.matrixOnePerRow || mType === "radio";
-      const onePerCol = q.matrixOnePerCol || false;
+      // matrixAllowMultiple=true → free multi-select regardless of type.
+      // Otherwise fall back to radio default (one answer per row).
+      const onePerRow = q.matrixAllowMultiple ? false : (mType === "radio");
+      const onePerCol = false;
       const selected = new Set(); // "ri,ci" keys
 
       function cellKey(ri, ci) { return `${ri},${ci}`; }

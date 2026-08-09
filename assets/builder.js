@@ -1082,8 +1082,12 @@ function openEditModal(idx) {
     });
     mtTypeWrap.appendChild(mtTypeSel);
     body.appendChild(mtTypeWrap);
-    body.appendChild(makeToggleField("Satu jawaban satu kolom", "em-matrix-one-per-col", q.matrixOnePerCol));
-    body.appendChild(makeToggleField("Satu jawaban satu baris", "em-matrix-one-per-row", q.matrixOnePerRow));
+    const mtAmWrap = document.createElement("div"); mtAmWrap.className = "field"; mtAmWrap.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 0";
+    const mtAmChk = document.createElement("input"); mtAmChk.type = "checkbox"; mtAmChk.id = "em-matrix-allow-multiple"; mtAmChk.checked = !!(q.matrixAllowMultiple);
+    mtAmChk.style.cssText = "width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0";
+    const mtAmLbl = document.createElement("label"); mtAmLbl.htmlFor = "em-matrix-allow-multiple"; mtAmLbl.textContent = "Allow multiple answers"; mtAmLbl.style.cssText = "font-size:13px;cursor:pointer;margin:0";
+    mtAmWrap.appendChild(mtAmChk); mtAmWrap.appendChild(mtAmLbl);
+    body.appendChild(mtAmWrap);
   }
 
   // ── Data Table fields
@@ -1601,8 +1605,7 @@ function saveEditToMemory() {
     q.matrixRows = (get("em-matrix-rows")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixCols = (get("em-matrix-cols")?.value || "").split("\n").map(s=>s.trim()).filter(Boolean);
     q.matrixType = get("em-matrix-type")?.value || "radio";
-    q.matrixOnePerCol = get("em-matrix-one-per-col")?.checked || false;
-    q.matrixOnePerRow = get("em-matrix-one-per-row")?.checked || false;
+    q.matrixAllowMultiple = get("em-matrix-allow-multiple")?.checked || false;
   }
   // data_table
   if (q.type === "data_table") {

@@ -525,6 +525,23 @@ function showInactive() {
     </div>`;
 }
 
+function showLocked(status) {
+  root.className = "state-screen";
+  const isFrozen = status === "frozen";
+  root.innerHTML = `
+    <div class="state-box">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:20px">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <h2 style="color:var(--text-muted)">${isFrozen ? "Form is frozen" : "Form is unavailable"}</h2>
+      <p>${isFrozen
+        ? "This form uses premium features that are currently inactive. The owner needs to renew their subscription to re-enable it."
+        : "This form is no longer available because the owner's subscription has ended."
+      }</p>
+    </div>`;
+}
+
 function showError(msg) {
   root.className = "state-screen";
   root.innerHTML = `
@@ -2299,6 +2316,14 @@ function renderForm(form) {
 
   if (!form.is_published) {
     showError("This form is not published yet.");
+    return;
+  }
+
+  // ── Check premium_status — block access if frozen or locked ──────────────
+  // This is the authoritative gate: it does NOT rely on isActive or is_published
+  // because those may not be updated yet when check_and_lock_premium_forms() runs.
+  if (form.premium_status === "locked" || form.premium_status === "frozen") {
+    showLocked(form.premium_status);
     return;
   }
 

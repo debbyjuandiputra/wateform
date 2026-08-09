@@ -101,7 +101,7 @@ function formatAnswer(q, raw, isTg = false) {
 
     // ── Checkbox: Ans1, Ans2 ─────────────────────────────────
     case "checkbox":
-      if (Array.isArray(raw)) return raw.map(esc).join(", ") || esc("-");
+      if (Array.isArray(raw)) return raw.map(esc).join(",") || esc("-");
       return esc(raw);
 
     // ── Multiple choice ───────────────────────────────────────
@@ -114,7 +114,7 @@ function formatAnswer(q, raw, isTg = false) {
 
     // ── MultiSelect Dropdown: Ans1, Ans2 ─────────────────────
     case "multiselect":
-      if (Array.isArray(raw)) return raw.map(esc).join(", ") || esc("-");
+      if (Array.isArray(raw)) return raw.map(esc).join(",") || esc("-");
       return esc(raw);
 
     // ── Toggle Switch ─────────────────────────────────────────
@@ -135,7 +135,7 @@ function formatAnswer(q, raw, isTg = false) {
         return raw.map(f => {
           const name = f.name || f.fileName || "file";
           const url  = f.url  || f.publicUrl || "";
-          return url ? `${esc(name)}, ${esc(url)}` : esc(name);
+          return url ? `${esc(name)},${esc(url)}` : esc(name);
         }).join("\n") || esc("-");
       }
       return esc(raw);
@@ -147,7 +147,7 @@ function formatAnswer(q, raw, isTg = false) {
         const hex = raw.hex || "";
         const rgb = raw.rgb ? `RGB(${raw.rgb.r},${raw.rgb.g},${raw.rgb.b})` : "";
         const hsl = raw.hsl ? `HSL(${Math.round(raw.hsl.h)},${Math.round(raw.hsl.s)}%,${Math.round(raw.hsl.l)}%)` : "";
-        return [hex, rgb, hsl].filter(Boolean).map(esc).join(", ");
+        return [hex, rgb, hsl].filter(Boolean).map(esc).join(",");
       }
       return esc(raw);
     }
@@ -177,9 +177,9 @@ function formatAnswer(q, raw, isTg = false) {
     // ── Multi Input: Val1, Val2 ───────────────────────────────
     case "multi_input": {
       if (typeof raw === "object" && raw !== null) {
-        return Object.values(raw).map(esc).join(", ");
+        return Object.values(raw).map(esc).join(",");
       }
-      if (Array.isArray(raw)) return raw.map(esc).join(", ");
+      if (Array.isArray(raw)) return raw.map(esc).join(",");
       return esc(raw);
     }
 
@@ -204,12 +204,12 @@ function formatAnswer(q, raw, isTg = false) {
             parts.push(`${esc(row)}-${esc(cols)}`);
           }
         }
-        return parts.join(", ") || esc("-");
+        return parts.join(",") || esc("-");
       }
       return esc(raw);
     }
 
-    // ── Table: Row1-Col1=Val, Row2-Col2=Val ──────────────────
+    // ── Table: Row1-Col1=Val,Row2-Col2=Val ────────────────────
     case "table": {
       if (Array.isArray(raw)) {
         const parts = [];
@@ -219,7 +219,7 @@ function formatAnswer(q, raw, isTg = false) {
             if (cell) parts.push(`${esc(row)}-${esc(col)}=${esc(cell)}`);
           });
         });
-        return parts.join(", ") || esc("-");
+        return parts.join(",") || esc("-");
       }
       return esc(raw);
     }

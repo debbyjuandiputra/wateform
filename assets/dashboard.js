@@ -1387,8 +1387,8 @@ function renderPendingBanner() {
       <div style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;color:#92400e;display:flex;align-items:flex-start;gap:8px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="flex-shrink:0;margin-top:1px;color:#b45309"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <div>
-          <div style="font-weight:600;margin-bottom:2px">Penarikan sedang diproses</div>
-          <div>${fmtIdr(_pendingWithdrawal.amount)} · Diajukan ${created}</div>
+          <div style="font-weight:600;margin-bottom:2px">Withdrawal in progress</div>
+          <div>${fmtIdr(_pendingWithdrawal.amount)} · Submitted ${created}</div>
           <div style="margin-top:4px;color:#78716c">Saldo akan dikembalikan jika permintaan ditolak.</div>
         </div>
       </div>`;
@@ -1430,7 +1430,7 @@ function updateWithdrawBtn() {
   btn.disabled = !ready;
   btn.style.opacity = ready ? "1" : ".4";
   btn.style.cursor  = ready ? "pointer" : "not-allowed";
-  btn.title = hasPending ? "Ada penarikan pending — tunggu diproses terlebih dahulu" : "";
+  btn.title = hasPending ? "A withdrawal is pending — please wait until it's processed" : "";
 }
 
 // Wire up wallet modal events
@@ -1456,7 +1456,7 @@ function updateWithdrawBtn() {
       errEl.textContent   = "";
 
       if (!bank || !norek || !name) {
-        errEl.textContent   = "Harap lengkapi semua field rekening bank.";
+        errEl.textContent   = "Please fill in all bank account fields.";
         errEl.style.display = "block";
         return;
       }
@@ -1471,7 +1471,7 @@ function updateWithdrawBtn() {
         .eq("user_id", currentUser.id);
 
       btn.disabled = false;
-      btn.textContent = "Simpan rekening";
+      btn.textContent = "Save account";
 
       if (error) {
         errEl.textContent   = "Gagal menyimpan: " + error.message;
@@ -1480,7 +1480,7 @@ function updateWithdrawBtn() {
       }
 
       _wallet = { ..._wallet, bank_code: bank, bank_name: bankLabel, account_number: norek, account_name: name };
-      toast("Rekening berhasil disimpan");
+      toast("Bank account saved successfully");
       updateWithdrawBtn();
     });
 
@@ -1498,15 +1498,15 @@ function updateWithdrawBtn() {
 
       const btn = document.getElementById("wallet-withdraw-btn");
       btn.disabled = true;
-      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Memproses…`;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Processing…`;
 
       const { data, error } = await _sb.rpc("request_withdrawal", { p_amount: amount });
 
       btn.disabled = false;
-      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Tarik dana`;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Withdraw`;
 
       if (error || !data?.ok) {
-        errEl.textContent   = data?.error || error?.message || "Terjadi kesalahan.";
+        errEl.textContent   = data?.error || error?.message || "Something went wrong.";
         errEl.style.display = "block";
         return;
       }
@@ -1518,7 +1518,7 @@ function updateWithdrawBtn() {
       document.getElementById("wallet-balance-label").textContent = fmtIdr(_wallet.balance);
       renderPendingBanner();
       updateWithdrawBtn();
-      toast("Permintaan penarikan " + fmtIdr(amount) + " telah dikirim");
+      toast("Withdrawal request of " + fmtIdr(amount) + " has been submitted");
     });
 })();
 

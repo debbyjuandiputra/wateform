@@ -291,6 +291,22 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .topbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
 .topbar-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
 .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topbar-wallet {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0 11px; height: 34px;
+  border-radius: var(--radius);
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.topbar-wallet:hover { background: var(--bg-mid); border-color: var(--teal); }
+.topbar-wallet svg { flex-shrink: 0; color: var(--text-muted); }
+
 .topbar-user {
   display: flex; align-items: center; gap: 8px;
   padding: 4px 8px 4px 4px; border-radius: var(--radius);

@@ -22,9 +22,9 @@
     <span class="topbar-title" id="topbar-ws-name">Dashboard</span>
     <div class="topbar-right">
       <!-- Wallet button — hanya di dashboard -->
-      <button class="btn-icon topbar-wallet" id="wallet-btn" title="Dompet saya" style="display:flex;align-items:center;gap:6px;padding:0 10px;height:36px;border-radius:var(--radius-md);font-size:13px;font-weight:600;color:var(--text);border:1px solid var(--border);background:var(--bg-card)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
-        <span id="wallet-balance-label">IDR …</span>
+      <button class="topbar-wallet" id="wallet-btn" title="My wallet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" flex-shrink="0"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+        <span id="wallet-balance-label">IDR 0</span>
       </button>
       <div class="dropdown">
         <button class="topbar-user" id="user-btn">
@@ -229,11 +229,11 @@
   </div>
 </div>
 
-<!-- Wallet / Dompet -->
+<!-- Wallet -->
 <div class="modal-backdrop" id="wallet-modal">
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
-      <h3>Dompet</h3>
+      <h3>Wallet</h3>
       <button class="modal-close" data-close="wallet-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="modal-body" style="gap:20px">
@@ -241,7 +241,7 @@
       <!-- Saldo -->
       <div style="background:var(--bg-mid);border-radius:var(--radius-md);padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Saldo</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Balance</div>
           <div id="wallet-modal-balance" style="font-size:24px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace">IDR 0</div>
         </div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="color:var(--teal);opacity:.6"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
@@ -250,60 +250,60 @@
       <!-- Info bank -->
       <div>
         <div id="wallet-pending-banner" style="display:none;margin-bottom:12px"></div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Rekening bank</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Bank account</div>
         <div id="wallet-modal-error" class="error-banner"></div>
         <div class="field">
           <label for="wallet-bank">Bank <span style="color:var(--red)">*</span></label>
           <select id="wallet-bank" style="width:100%;padding:8px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px">
-            <option value="">— Pilih bank —</option>
+            <option value="">— Select bank —</option>
             <option value="bca">BCA — Bank Central Asia</option>
             <option value="mandiri">Mandiri</option>
             <option value="bni">BNI — Bank Negara Indonesia</option>
             <option value="bri">BRI — Bank Rakyat Indonesia</option>
             <option value="cimb">CIMB Niaga</option>
-            <option value="danamon">Bank Danamon</option>
-            <option value="permata">Bank Permata</option>
-            <option value="panin">Bank Panin</option>
+            <option value="danamon">Danamon</option>
+            <option value="permata">Permata</option>
+            <option value="panin">Panin</option>
             <option value="maybank">Maybank Indonesia</option>
             <option value="ocbc">OCBC NISP</option>
             <option value="btn">BTN — Bank Tabungan Negara</option>
             <option value="bsi">BSI — Bank Syariah Indonesia</option>
-            <option value="muamalat">Bank Muamalat</option>
-            <option value="bukopin">Bank Bukopin</option>
-            <option value="mega">Bank Mega</option>
-            <option value="sinarmas">Bank Sinarmas</option>
+            <option value="muamalat">Muamalat</option>
+            <option value="bukopin">Bukopin</option>
+            <option value="mega">Mega</option>
+            <option value="sinarmas">Sinarmas</option>
             <option value="jenius">Jenius (BTPN)</option>
-            <option value="jago">Bank Jago</option>
-            <option value="neo">Bank Neo Commerce</option>
+            <option value="jago">Jago</option>
+            <option value="neo">Neo Commerce</option>
             <option value="blu">blu by BCA Digital</option>
             <option value="seabank">SeaBank</option>
             <option value="allo">Allo Bank</option>
             <option value="line">LINE Bank</option>
             <option value="dana">DANA</option>
             <option value="gopay">GoPay (Bank Jago)</option>
-            <option value="ovo">OVO (Tarik ke bank)</option>
+            <option value="ovo">OVO (withdraw to bank)</option>
             <option value="shopeepay">ShopeePay</option>
             <option value="linkaja">LinkAja</option>
           </select>
         </div>
         <div class="field">
-          <label for="wallet-account-number">Nomor rekening <span style="color:var(--red)">*</span></label>
-          <input type="text" id="wallet-account-number" placeholder="Contoh: 1234567890" maxlength="30" inputmode="numeric">
+          <label for="wallet-account-number">Account number <span style="color:var(--red)">*</span></label>
+          <input type="text" id="wallet-account-number" placeholder="e.g. 1234567890" maxlength="30" inputmode="numeric">
         </div>
         <div class="field">
-          <label for="wallet-account-name">Nama pemilik rekening <span style="color:var(--red)">*</span></label>
-          <input type="text" id="wallet-account-name" placeholder="Sesuai nama di buku tabungan" maxlength="80">
+          <label for="wallet-account-name">Account holder name <span style="color:var(--red)">*</span></label>
+          <input type="text" id="wallet-account-name" placeholder="As shown on your bank account" maxlength="80">
         </div>
       </div>
 
     </div>
     <div class="modal-footer" style="justify-content:space-between">
-      <button class="btn btn-solid btn-sm" id="wallet-save-bank-btn">Simpan rekening</button>
+      <button class="btn btn-solid btn-sm" id="wallet-save-bank-btn">Save account</button>
       <button class="btn btn-sm" id="wallet-withdraw-btn"
         style="display:flex;align-items:center;gap:6px;background:var(--teal);color:#fff;border:none;opacity:.4;cursor:not-allowed"
         disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-        Tarik dana
+        Withdraw
       </button>
     </div>
   </div>

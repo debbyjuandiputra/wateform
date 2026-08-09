@@ -551,9 +551,19 @@ function esc(s) {
 }
 
 // ── Build WhatsApp / Telegram link ────────────────────────────
+// NOTE: WhatsApp applies *bold*/_italic_ formatting to text sent via wa.me
+// links. Telegram does NOT parse Markdown for text pre-filled via t.me
+// deep links (that only works with the Bot API's parse_mode) — so for
+// Telegram we send plain text without markdown syntax, otherwise the
+// literal asterisks/underscores show up in the message.
 function buildLink(settings, questions, answers, targetOverride, formTitle) {
+  const target = targetOverride || settings.target || "wa";
+  const isTg = target === "tg";
+  const bold   = (s) => isTg ? s : `*${s}*`;
+  const italic = (s) => isTg ? s : `_${s}_`;
+
   const lines = [];
-  lines.push(`*${formTitle || "Form"}*`);
+  lines.push(bold(formTitle || "Form"));
   lines.push("");
 
   questions.forEach(q => {
@@ -581,10 +591,9 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
   });
 
   lines.push("");
-  lines.push("_Created by wateform.my.id_");
+  lines.push(italic("Created by wateform.my.id"));
 
   const body = lines.join("\n");
-  const target = targetOverride || settings.target || "wa";
 
   if (target === "tg") {
     const user = settings.tgUsername || "";

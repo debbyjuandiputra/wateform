@@ -210,16 +210,25 @@ function formatAnswer(q, raw, isTg = false) {
     }
 
     // ── Table: Row1-Col1=Val,Row2-Col2=Val ────────────────────
-    case "table": {
+    case "table":
+    case "data_table": {
+      // answers[id] is already a pre-formatted string: "Row1-Col1=val,Row2-Col2=val"
+      // built by rebuildDtAnswer() in form.html. Just return it as-is.
+      if (typeof raw === "string" && raw) return isTg ? escapeTg(raw) : raw;
+      // Fallback: raw is still a 2-D array (e.g. from older saves)
       if (Array.isArray(raw)) {
         const parts = [];
-        (q.tableRows || []).forEach((row, ri) => {
-          (q.tableCols || []).forEach((col, ci) => {
+        const rows = q.tableRows    || [];
+        const cols = q.tableColumns || q.tableCols || []; // tableColumns is the correct key
+        rows.forEach((row, ri) => {
+          cols.forEach((col, ci) => {
             const cell = raw[ri]?.[ci];
-            if (cell) parts.push(`${esc(row)}-${esc(col)}=${esc(cell)}`);
+            if (cell) parts.push(isTg
+              ? `${escapeTg(row)}-${escapeTg(col)}=${escapeTg(cell)}`
+              : `${row}-${col}=${cell}`);
           });
         });
-        return parts.join(",") || esc("-");
+        return parts.join(",") || (isTg ? escapeTg("-") : "-");
       }
       return esc(raw);
     }

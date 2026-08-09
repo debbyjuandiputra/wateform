@@ -558,6 +558,8 @@ function renderFormList(forms, wsId, isOwner) {
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         ${form.is_published ? `<span class="pill" style="background:rgba(43,189,164,.12);color:var(--teal-deep)">Published</span>` : `<span class="pill" style="background:var(--bg-mid);color:var(--text-muted)">Draft</span>`}
+        ${form.premium_status === "frozen" ? `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309" title="Subscription grace period ended — form can't be edited unless you resubscribe">Frozen</span>` : ""}
+        ${form.premium_status === "locked" ? `<span class="pill" style="background:rgba(239,68,68,.12);color:var(--red)" title="Deactivated — resubscribe to unlock">Locked</span>` : ""}
         ${(()=>{ const s=form.settings||{}; const now=new Date(); const fmtShort=dt=>new Date(dt).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); if(s.openAt&&new Date(s.openAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Opens ${fmtShort(s.openAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)>now) return `<span class="pill" style="background:rgba(234,179,8,.12);color:#b45309;font-size:11px">Closes ${fmtShort(s.closeAt)}</span>`; if(s.closeAt&&new Date(s.closeAt)<=now&&form.is_published) return `<span class="pill" style="background:rgba(239,68,68,.1);color:var(--red);font-size:11px">Closed</span>`; return ""; })()}
       </div>
       <div class="form-row-actions">
@@ -612,6 +614,10 @@ function renderFormList(forms, wsId, isOwner) {
     row.style.cursor = "pointer";
     row.addEventListener("click", e => {
       if (e.target.closest("[data-action]") || e.target.closest(".dropdown")) return;
+      if (form.premium_status && form.premium_status !== "active") {
+        toast("This form is frozen — subscription grace period ended. Resubscribe to open the editor.", "error");
+        return;
+      }
       window.location.href = `../builder.html?form=${form.id}`;
     });
     list.appendChild(row);
@@ -650,9 +656,18 @@ function renderFormList(forms, wsId, isOwner) {
       return;
     }
 
-    if (action === "open-builder") { window.location.href = `../builder.html?form=${id}`; return; }
+    if (action === "open-builder" || action === "settings") {
+      const _f = _currentForms.find(f => f.id === id);
+      if (_f?.premium_status && _f.premium_status !== "active") {
+        toast("This form is frozen — subscription grace period ended. Resubscribe to open the editor.", "error");
+        return;
+      }
+      window.location.href = action === "settings"
+        ? `../builder.html?form=${id}&panel=settings`
+        : `../builder.html?form=${id}`;
+      return;
+    }
     if (action === "preview")    { window.open(btn.dataset.url, "_blank"); return; }
-    if (action === "settings")   { window.location.href = `../builder.html?form=${id}&panel=settings`; return; }
     if (action === "responses")  {
       // Cek apakah plan owner workspace mengizinkan view responses
       const _ws = workspaces.find(w => w.id === activeWsId);

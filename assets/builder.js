@@ -250,6 +250,17 @@ async function init() {
       // Pastikan plan owner yang sudah expired ter-downgrade dulu sebelum dibaca
       try { await _sb.rpc("check_and_expire_plan", { p_user_id: wsOwnerId }); } catch(_) {}
       try { await _sb.rpc("check_and_lock_premium_forms", { p_user_id: wsOwnerId }); } catch(_) {}
+
+      // ── Re-fetch form: premium_status/is_published mungkin baru saja
+      //    diubah oleh check_and_lock_premium_forms di atas ──
+      const { data: freshForm } = await _sb.from("forms").select("premium_status, is_published").eq("id", formId).maybeSingle();
+      if (freshForm) { formData.premium_status = freshForm.premium_status; formData.is_published = freshForm.is_published; }
+
+      if (formData.premium_status && formData.premium_status !== "active") {
+        alert("This form is frozen or has been deactivated because the workspace owner's subscription grace period has ended. Resubscribe to edit or reactivate it.");
+        window.location.href = "dashboard/";
+        return;
+      }
       const { data: subData } = await _sb.from("subscriptions")
         .select("plan")
         .eq("user_id", wsOwnerId)

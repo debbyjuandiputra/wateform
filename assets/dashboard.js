@@ -1432,6 +1432,11 @@ function openWalletModal() {
   updateWithdrawBtn();
   document.getElementById("wallet-modal-error").style.display = "none";
   document.getElementById("wallet-modal-error").textContent   = "";
+  // Reset password field tiap kali modal dibuka
+  const pwInp   = document.getElementById("wallet-password");
+  const pwErr   = document.getElementById("wallet-password-error");
+  if (pwInp)   { pwInp.value = ""; pwInp.style.borderColor = ""; }
+  if (pwErr)   { pwErr.textContent = ""; pwErr.style.display = "none"; }
   openModal("wallet-modal");
 }
 
@@ -1447,6 +1452,7 @@ function updateWithdrawBtn() {
   btn.style.opacity = ready ? "1" : ".4";
   btn.style.cursor  = ready ? "pointer" : "not-allowed";
   btn.title = hasPending ? "A withdrawal is pending — please wait until it's processed" : "";
+
 }
 
 // Wire up wallet modal events
@@ -1458,6 +1464,26 @@ function updateWithdrawBtn() {
   ["wallet-bank", "wallet-account-number", "wallet-account-name"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", updateWithdrawBtn);
     document.getElementById(id)?.addEventListener("change", updateWithdrawBtn);
+  });
+
+  // Toggle show/hide password
+  document.getElementById("wallet-password-toggle")?.addEventListener("click", () => {
+    const inp    = document.getElementById("wallet-password");
+    const eyeOn  = document.getElementById("wpt-eye");
+    const eyeOff = document.getElementById("wpt-eye-off");
+    if (!inp) return;
+    const isHidden = inp.type === "password";
+    inp.type = isHidden ? "text" : "password";
+    if (eyeOn)  eyeOn.style.display  = isHidden ? "none" : "";
+    if (eyeOff) eyeOff.style.display = isHidden ? ""     : "none";
+  });
+
+  // Bersihkan error password saat user mulai mengetik
+  document.getElementById("wallet-password")?.addEventListener("input", () => {
+    const pwErr = document.getElementById("wallet-password-error");
+    const pwInp = document.getElementById("wallet-password");
+    if (pwErr) { pwErr.textContent = ""; pwErr.style.display = "none"; }
+    if (pwInp) pwInp.style.borderColor = "";
   });
 
     // Simpan rekening
@@ -1510,7 +1536,32 @@ function updateWithdrawBtn() {
 
       // Konfirmasi jumlah penarikan = seluruh saldo
       const amount = _wallet?.balance || 0;
-      if (amount < 5000) return;
+      if (amount < 5000) {
+        errEl.textContent   = "Minimum withdrawal is IDR 5,000. Your current balance is too low.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      // ── Verifikasi password sebelum lanjut ────────────────────
+      const pwInp = document.getElementById("wallet-password");
+      const pwErr = document.getElementById("wallet-password-error");
+      const password = pwInp?.value || "";
+      if (!password) {
+        if (pwInp) { pwInp.style.borderColor = "var(--red)"; pwInp.focus(); }
+        if (pwErr) { pwErr.textContent = "Please enter your password to confirm."; pwErr.style.display = ""; }
+        return;
+      }
+      // Verifikasi lewat Supabase Auth (re-authenticate)
+      const userEmail = currentUser?.email || "";
+      const { error: authErr } = await _sb.auth.signInWithPassword({ email: userEmail, password });
+      if (authErr) {
+        if (pwInp) { pwInp.style.borderColor = "var(--red)"; pwInp.select(); }
+        if (pwErr) { pwErr.textContent = "Incorrect password. Please try again."; pwErr.style.display = ""; }
+        return;
+      }
+      // Password benar — bersihkan error
+      if (pwInp) { pwInp.style.borderColor = ""; pwInp.value = ""; }
+      if (pwErr) { pwErr.textContent = ""; pwErr.style.display = "none"; }
 
       const btn = document.getElementById("wallet-withdraw-btn");
       btn.disabled = true;

@@ -552,29 +552,38 @@ function esc(s) {
 
 // ── Build WhatsApp / Telegram link ────────────────────────────
 function buildLink(settings, questions, answers, targetOverride) {
-  const lines = questions.map(q => {
-    if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return null;
+  const lines = [];
+  lines.push(`*${form?.title || "Form"}*`);
+  lines.push("");
+
+  questions.forEach(q => {
+    if (["divider","spacer","button_link","title","image","video","page_break"].includes(q.type)) return;
     const ans = answers[q.id];
-    if (ans === undefined || ans === null || ans === "") return null;
+    if (ans === undefined || ans === null || ans === "") return;
+
     // Map: format as readable text
     if (q.type === "map" && typeof ans === "object") {
       const parts = [];
       if (ans.address) parts.push(ans.address);
       if (ans.lat != null && ans.lng != null) parts.push(`${Number(ans.lat).toFixed(6)}, ${Number(ans.lng).toFixed(6)}`);
-      const ansStr = parts.join("\n");
-      return ansStr ? `*${q.title}*\n${ansStr}` : null;
+      if (parts.length) lines.push(`${q.title}: ${parts.join(", ")}`);
+      return;
     }
     // File upload: format "Pertanyaan: namaFile,link" (ans = "namaFile||url")
     if (q.type === "file_upload" && typeof ans === "string" && ans.includes("||")) {
       const sep      = ans.indexOf("||");
       const fileName = ans.slice(0, sep);
       const fileUrl  = ans.slice(sep + 2);
-      return `${q.title}: ${fileName},${fileUrl}`;
+      lines.push(`${q.title}: ${fileName},${fileUrl}`);
+      return;
     }
-    return `*${q.title}*\n${ans}`;
-  }).filter(Boolean);
+    lines.push(`${q.title}: ${ans}`);
+  });
 
-  const body = lines.join("\n\n");
+  lines.push("");
+  lines.push("_Created by wateform.my.id_");
+
+  const body = lines.join("\n");
   const target = targetOverride || settings.target || "wa";
 
   if (target === "tg") {
@@ -1252,7 +1261,7 @@ function renderForm(form) {
               parts.push(v);
             }
           });
-          answers[q.id] = parts.join(", ");
+          answers[q.id] = parts.join(",");
         });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
@@ -1264,7 +1273,7 @@ function renderForm(form) {
             parts.push(v);
           }
         });
-        answers[q.id] = parts.join(", ");
+        answers[q.id] = parts.join(",");
       });
     }
 
@@ -1296,7 +1305,7 @@ function renderForm(form) {
         star.addEventListener("click", () => {
           const val = Number(star.dataset.val);
           starState[q.id] = val;
-          answers[q.id] = val + " / " + (q.maxRating || 5) + " stars";
+          answers[q.id] = val + "/" + (q.maxRating || 5);
           block.querySelectorAll(".star-opt").forEach((s, i) => {
             s.classList.toggle("lit", i < val);
           });
@@ -1432,7 +1441,7 @@ function renderForm(form) {
         if (!skipHexInput) hexInput.value = hex.toUpperCase();
         rgbInput.value = `${r}, ${g}, ${b}`;
         hslInput.value = `${h}°, ${s}%, ${l}%`;
-        answers[q.id] = `${hex.toUpperCase()} | RGB(${r},${g},${b}) | HSL(${h}°,${s}%,${l}%)`;
+        answers[q.id] = `${hex.toUpperCase()},RGB(${r},${g},${b}),HSL(${h}°,${s}%,${l}%)`;
       }
 
       updateFromHex(colorInp.value);
@@ -1540,7 +1549,7 @@ function renderForm(form) {
                 if (o.dataset.val === btn.dataset.val) o.classList.remove("selected");
               });
               updateTrigger();
-              answers[q.id] = [...selected].join(", ");
+              answers[q.id] = [...selected].join(",");
             });
           });
         }
@@ -1574,7 +1583,7 @@ function renderForm(form) {
             selected.add(val); opt.classList.add("selected");
           }
           updateTrigger();
-          answers[q.id] = [...selected].join(", ");
+          answers[q.id] = [...selected].join(",");
         });
       });
       answers[q.id] = "";
@@ -1588,8 +1597,8 @@ function renderForm(form) {
       block.querySelectorAll(`.likert-radio`).forEach(inp => {
         inp.addEventListener("change", () => {
           rowAnswers[inp.dataset.row] = inp.dataset.val;
-          const parts = lkRows.map((r,ri) => rowAnswers[ri] ? `${r}: ${rowAnswers[ri]}` : null).filter(Boolean);
-          answers[q.id] = parts.join(" | ");
+          const parts = lkRows.map((r,ri) => rowAnswers[ri] ? `${r}-${rowAnswers[ri]}` : null).filter(Boolean);
+          answers[q.id] = parts.join(",");
         });
       });
     }
@@ -1610,10 +1619,12 @@ function renderForm(form) {
             else cellAnswers[ri].delete(inp.dataset.colname);
           }
           const parts = mRows.map((r,ri) => {
-            const v = mType === "radio" ? cellAnswers[ri] : (cellAnswers[ri].size ? [...cellAnswers[ri]].join("+") : null);
-            return v ? `${r}: ${v}` : null;
+            const v = mType === "radio" ? cellAnswers[ri] : (cellAnswers[ri].size ? [...cellAnswers[ri]] : null);
+            if (!v) return null;
+            if (Array.isArray(v)) return v.map(col => `${r}-${col}`).join(",");
+            return `${r}-${v}`;
           }).filter(Boolean);
-          answers[q.id] = parts.join(" | ");
+          answers[q.id] = parts.join(",");
         });
       });
     }
@@ -1628,16 +1639,14 @@ function renderForm(form) {
       function rebuildDtAnswer() {
         const parts = [];
         dtRows.forEach((r, ri) => {
-          const rowParts = [];
           dtCols.forEach((c, ci) => {
             const ownerV = (dtCells[ri]||[])[ci] ?? "";
             const userV  = userVals[`${ri},${ci}`] || "";
             const val    = ownerV !== "" ? ownerV : userV;
-            if (val) rowParts.push(c + ": " + val);
+            if (val) parts.push(`${r}-${c}=${val}`);
           });
-          if (rowParts.length) parts.push(r + " → " + rowParts.join(", "));
         });
-        answers[q.id] = parts.join(" | ");
+        answers[q.id] = parts.join(",");
       }
       const allInputs = [...block.querySelectorAll(".dt-user-input")];
       function updateSingleAnswerLock() {
@@ -1682,8 +1691,8 @@ function renderForm(form) {
         const f = miFields[fi];
         inp.addEventListener("input", () => {
           fieldVals[fi] = inp.value.trim();
-          const parts = miFields.map((f,fi) => fieldVals[fi] ? `${f.label||("Field "+(fi+1))}: ${fieldVals[fi]}` : null).filter(Boolean);
-          answers[q.id] = parts.join(" | ");
+          const parts = miFields.map((f,fi) => fieldVals[fi] || null).filter(Boolean);
+          answers[q.id] = parts.join(",");
         });
       });
     }
@@ -1702,7 +1711,7 @@ function renderForm(form) {
           item.querySelector(".rank-num").textContent = i + 1;
           order.push(item.querySelector(".rank-text").textContent);
         });
-        answers[q.id] = order.join(", ");
+        answers[q.id] = order.map((o, i) => `${i + 1}.${o}`).join(", ");
       }
       rkList.querySelectorAll(".rank-item").forEach(item => {
         item.addEventListener("dragstart", e => { dragSrc = item; item.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
@@ -1723,7 +1732,7 @@ function renderForm(form) {
       });
       // Initial answer
       const initOpts = q.rankingOptions || [];
-      answers[q.id] = initOpts.join(", ");
+      answers[q.id] = initOpts.map((o, i) => `${i + 1}.${o}`).join(", ");
     }
 
     // Bind emoji rating
@@ -1732,7 +1741,7 @@ function renderForm(form) {
         btn.addEventListener("click", () => {
           block.querySelectorAll(".emoji-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
-          answers[q.id] = btn.dataset.emoji + " (" + btn.dataset.val + "/" + block.querySelectorAll(".emoji-btn").length + ")";
+          answers[q.id] = btn.dataset.emoji;
         });
       });
     }
@@ -1742,8 +1751,9 @@ function renderForm(form) {
       const sl = block.querySelector(`#q-${q.id}`);
       const sv = block.querySelector(`#sv-${q.id}`);
       if (sl) {
-        answers[q.id] = sl.value;
-        sl.addEventListener("input", () => { if (sv) sv.textContent = sl.value; answers[q.id] = sl.value; });
+        const sMax = q.sliderMax != null ? q.sliderMax : 100;
+        answers[q.id] = sl.value + "/" + sMax;
+        sl.addEventListener("input", () => { if (sv) sv.textContent = sl.value; answers[q.id] = sl.value + "/" + sMax; });
       }
     }
 
@@ -1753,7 +1763,7 @@ function renderForm(form) {
         btn.addEventListener("click", () => {
           block.querySelectorAll(".nps-btn").forEach(b => b.classList.remove("selected"));
           btn.classList.add("selected");
-          answers[q.id] = btn.dataset.val;
+          answers[q.id] = btn.dataset.val + "/10";
         });
       });
     }

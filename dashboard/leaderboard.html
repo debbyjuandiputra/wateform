@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<title>Leaderboard — WateForm</title>
+<link rel="icon" href="../assets/logo.webp" type="image/webp">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+/* ── Page layout ─────────────────────────────────────────────── */
+.lb-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.lb-intro { display: flex; flex-direction: column; gap: 4px; }
+.lb-intro h1 { font-size: 22px; font-weight: 800; margin: 0; }
+.lb-intro p  { font-size: 13.5px; color: var(--text-soft); margin: 0; }
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+.lb-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.lb-tabs::-webkit-scrollbar { display: none; }
+
+.lb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-soft);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.lb-tab svg { width: 14px; height: 14px; flex-shrink: 0; }
+.lb-tab:hover { background: var(--bg-mid); color: var(--text); }
+.lb-tab.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #04231C;
+}
+[data-theme="dark"] .lb-tab.active { color: #fff; }
+
+/* ── Table card ──────────────────────────────────────────────── */
+.lb-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.lb-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.lb-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.lb-card-title svg { width: 16px; height: 16px; color: var(--teal); }
+.lb-card-subtitle { font-size: 12px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+.lb-refresh-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--text-soft);
+  cursor: pointer; transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.lb-refresh-btn svg { width: 13px; height: 13px; }
+.lb-refresh-btn:hover { background: var(--bg-mid); color: var(--text); }
+.lb-refresh-btn.spinning svg { animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Table ───────────────────────────────────────────────────── */
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lb-table th {
+  padding: 10px 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  text-align: left;
+  background: var(--bg-mid);
+  border-bottom: 1px solid var(--border);
+}
+.lb-table th:last-child { text-align: right; }
+.lb-table td {
+  padding: 11px 20px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+.lb-table tr:last-child td { border-bottom: none; }
+.lb-table tr:hover td { background: var(--bg-mid); }
+
+/* Rank column */
+.lb-rank {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  width: 36px;
+  text-align: center;
+  display: inline-block;
+}
+.lb-rank.top1 { color: #F59E0B; font-size: 18px; }
+.lb-rank.top2 { color: #94A3B8; font-size: 16px; }
+.lb-rank.top3 { color: #D97706; font-size: 15px; }
+
+/* User cell */
+.lb-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* "You" badge */
+.lb-you {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--teal-dim);
+  color: var(--teal-deep);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+[data-theme="dark"] .lb-you { color: var(--teal); }
+
+.lb-user-name { font-weight: 600; font-size: 13.5px; }
+.lb-user-handle { font-size: 12px; color: var(--text-muted); }
+
+/* Value column */
+.lb-value {
+  text-align: right;
+  font-weight: 700;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lb-value.money { color: var(--teal-deep); }
+[data-theme="dark"] .lb-value.money { color: var(--teal); }
+.lb-value.count { color: var(--text); }
+
+/* Your rank footer */
+.lb-your-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--teal-dim);
+  border-top: 1px solid rgba(43,189,164,.2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal-deep);
+}
+[data-theme="dark"] .lb-your-rank { color: var(--teal); }
+.lb-your-rank span { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* Skeleton */
+.lb-skeleton-row td { padding: 14px 20px; }
+.lb-skel {
+  height: 14px;
+  border-radius: 6px;
+  background: var(--bg-mid);
+  animation: skel-pulse 1.2s ease-in-out infinite;
+}
+@keyframes skel-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}
+
+/* Empty / error state */
+.lb-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+.lb-empty svg {
+  width: 36px; height: 36px;
+  margin: 0 auto 10px;
+  opacity: .35;
+}
+
+/* ── Back nav ────────────────────────────────────────────────── */
+.lb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-decoration: none;
+  margin-bottom: -8px;
+}
+.lb-back:hover { color: var(--teal); }
+.lb-back svg { width: 16px; height: 16px; }
+
+/* ── Topbar ───────────────────────────────────────────────────── */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topbar-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.topbar-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.topbar-title { font-size: 14px; font-weight: 700; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.app-content {
+  padding: 28px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .app-content { padding: 20px 14px; }
+  .lb-tab { padding: 7px 12px; font-size: 12.5px; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ── Topbar ───────────────────────────────────────────────── -->
+<header class="app-topbar">
+  <a href="./" class="brand topbar-brand">
+    <img src="../assets/logo.webp" alt="WateForm" style="height:28px">
+    <span class="brand-word" translate="no"><span class="w1">Wate</span><span class="w2">Form</span></span>
+  </a>
+  <div class="topbar-sep"></div>
+  <span class="topbar-title">Leaderboard</span>
+  <div class="topbar-right">
+    <button class="btn btn-ghost btn-sm" id="theme-toggle" data-theme-toggle aria-pressed="false" title="Toggle theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── Content ──────────────────────────────────────────────── -->
+<div class="app-content">
+<div class="lb-wrap">
+
+  <div>
+    <a href="./" class="lb-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to dashboard
+    </a>
+  </div>
+
+  <div class="lb-intro">
+    <h1>🏆 Leaderboard</h1>
+
+  </div>
+
+  <!-- Tabs -->
+  <div class="lb-tabs" id="lb-tabs" role="tablist">
+    <button class="lb-tab active" data-tab="balance" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+      Top Balance
+    </button>
+    <button class="lb-tab" data-tab="total_withdraw" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Total Withdraw
+    </button>
+    <button class="lb-tab" data-tab="highest_withdraw" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      Highest Withdraw
+    </button>
+    <button class="lb-tab" data-tab="workspaces" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Workspaces
+    </button>
+    <button class="lb-tab" data-tab="active_forms" role="tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+      Active Forms
+    </button>
+  </div>
+
+  <!-- Leaderboard card -->
+  <div class="lb-card" id="lb-card">
+    <div class="lb-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+      Loading leaderboard…
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  // ── Config ──────────────────────────────────────────────────
+  const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
+
+  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, storageKey: "wf-session", autoRefreshToken: true, detectSessionInUrl: false },
+  });
+
+  // ── Theme ────────────────────────────────────────────────────
+  (function initTheme() {
+    const root = document.documentElement;
+    const btn  = document.getElementById("theme-toggle");
+    const moon = btn?.querySelector(".icon-moon");
+    const sun  = btn?.querySelector(".icon-sun");
+    function set(t) {
+      const isDark = t === "dark";
+      isDark ? root.setAttribute("data-theme", "dark") : root.removeAttribute("data-theme");
+      if (btn) btn.setAttribute("aria-pressed", String(isDark));
+      if (moon) moon.style.display = isDark ? "none" : "";
+      if (sun)  sun.style.display  = isDark ? "" : "none";
+      try { localStorage.setItem("wf-theme", t); } catch (_) {}
+    }
+    let saved; try { saved = localStorage.getItem("wf-theme"); } catch (_) {}
+    set(saved === "dark" ? "dark" : "light");
+    btn?.addEventListener("click", () =>
+      set(root.getAttribute("data-theme") === "dark" ? "light" : "dark")
+    );
+  })();
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function fmtIdr(amount) {
+    return "IDR " + Number(amount || 0).toLocaleString("id-ID");
+  }
+  function initials(name) {
+    return (name || "?").split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+  }
+  function escHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function rankIcon(n) {
+    if (n === 1) return '<span class="lb-rank top1">🥇</span>';
+    if (n === 2) return '<span class="lb-rank top2">🥈</span>';
+    if (n === 3) return '<span class="lb-rank top3">🥉</span>';
+    return `<span class="lb-rank">${n}</span>`;
+  }
+  // Render avatar with photo + frame, matching existing .avatar-wrap pattern
+  function avatarHtml(row, size = 36) {
+    const frame = row.avatar_frame || "";
+    const photo = row.photo_url || "";
+    const inner = photo
+      ? `<img src="${escHtml(photo)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+      : `<span style="font-size:${Math.round(size * 0.35)}px;font-weight:700;text-transform:uppercase;color:var(--teal-deep)">${initials(row.name)}</span>`;
+    const ring = frame
+      ? `<div class="avatar-frame-ring ${escHtml(frame)}"></div>`
+      : "";
+    return `
+      <div class="avatar-wrap" style="width:${size}px;height:${size}px">
+        <div class="avatar" style="width:${size}px;height:${size}px;background:var(--teal-dim);border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+          ${inner}
+        </div>
+        ${ring}
+      </div>`;
+  }
+
+  // ── State ────────────────────────────────────────────────────
+  let currentUserId = null;
+  let activeTab     = "balance";
+  let cache         = {};
+  let cacheTime     = {};
+  const CACHE_TTL   = 5 * 60 * 1000;
+
+  // ── Enrich rows with photo_url & avatar_frame ────────────────
+  async function enrichWithProfiles(rows) {
+    if (!rows || rows.length === 0) return rows;
+    const ids = rows.map(r => r.user_id);
+    const { data: profiles } = await _sb
+      .from("profiles")
+      .select("id, full_name, username, photo_url, avatar_frame")
+      .in("id", ids);
+    const map = {};
+    (profiles || []).forEach(p => { map[p.id] = p; });
+    return rows.map(r => {
+      const p = map[r.user_id] || {};
+      return {
+        ...r,
+        name:         p.full_name    || r.name     || "Unknown",
+        username:     p.username     || r.username  || "",
+        photo_url:    p.photo_url    || null,
+        avatar_frame: p.avatar_frame || null,
+      };
+    });
+  }
+
+  // ── Tab definitions ──────────────────────────────────────────
+  const TABS = {
+    balance: {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><circle cx="17" cy="12" r="1" fill="currentColor" stroke="none"/></svg>`,
+      title: "Top Balance",
+      subtitle: "Current wallet balance (not yet withdrawn)",
+      valueLabel: "Balance",
+      valueClass: "money",
+      fetch: fetchBalance,
+      format: fmtIdr,
+      myRankQuery: myBalanceRank,
+    },
+    total_withdraw: {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+      title: "Total Withdraw",
+      subtitle: "Sum of all completed withdrawals",
+      valueLabel: "Total Withdrawn",
+      valueClass: "money",
+      fetch: fetchTotalWithdraw,
+      format: fmtIdr,
+      myRankQuery: myTotalWithdrawRank,
+    },
+    highest_withdraw: {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+      title: "Highest Single Withdraw",
+      subtitle: "Largest single completed withdrawal",
+      valueLabel: "Highest",
+      valueClass: "money",
+      fetch: fetchHighestWithdraw,
+      format: fmtIdr,
+      myRankQuery: myHighestWithdrawRank,
+    },
+    workspaces: {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+      title: "Most Workspaces",
+      subtitle: "Total workspaces owned",
+      valueLabel: "Workspaces",
+      valueClass: "count",
+      fetch: fetchWorkspaces,
+      format: n => `${Number(n).toLocaleString("id-ID")} ws`,
+      myRankQuery: myWorkspacesRank,
+    },
+    active_forms: {
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`,
+      title: "Most Active Forms",
+      subtitle: "Total published (active) forms across all workspaces",
+      valueLabel: "Active Forms",
+      valueClass: "count",
+      fetch: fetchActiveForms,
+      format: n => `${Number(n).toLocaleString("id-ID")} forms`,
+      myRankQuery: myActiveFormsRank,
+    },
+  };
+
+  // ── Data fetchers ────────────────────────────────────────────
+
+  async function fetchBalance() {
+    // No FK between wallets and profiles — query wallets first, then enrich
+    const { data, error } = await _sb
+      .from("wallets")
+      .select("user_id, balance")
+      .gt("balance", 0)
+      .order("balance", { ascending: false })
+      .limit(10);
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      user_id: r.user_id,
+      name: "", username: "",
+      photo_url: null, avatar_frame: null,
+      value: r.balance,
+    }));
+    return enrichWithProfiles(rows);
+  }
+
+  async function fetchTotalWithdraw() {
+    const { data, error } = await _sb.rpc("leaderboard_total_withdraw", { p_limit: 10 });
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      user_id: r.user_id, name: r.full_name || "", username: r.username || "",
+      photo_url: null, avatar_frame: null, value: r.total_withdrawn,
+    }));
+    return enrichWithProfiles(rows);
+  }
+
+  async function fetchHighestWithdraw() {
+    const { data, error } = await _sb.rpc("leaderboard_highest_withdraw", { p_limit: 10 });
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      user_id: r.user_id, name: r.full_name || "", username: r.username || "",
+      photo_url: null, avatar_frame: null, value: r.max_amount,
+    }));
+    return enrichWithProfiles(rows);
+  }
+
+  async function fetchWorkspaces() {
+    const { data, error } = await _sb.rpc("leaderboard_workspaces", { p_limit: 10 });
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      user_id: r.user_id, name: r.full_name || "", username: r.username || "",
+      photo_url: null, avatar_frame: null, value: r.workspace_count,
+    }));
+    return enrichWithProfiles(rows);
+  }
+
+  async function fetchActiveForms() {
+    const { data, error } = await _sb.rpc("leaderboard_active_forms", { p_limit: 10 });
+    if (error) throw error;
+    const rows = (data || []).map(r => ({
+      user_id: r.user_id, name: r.full_name || "", username: r.username || "",
+      photo_url: null, avatar_frame: null, value: r.active_form_count,
+    }));
+    return enrichWithProfiles(rows);
+  }
+
+  // ── My rank queries ──────────────────────────────────────────
+
+  async function myBalanceRank(userId) {
+    const { data } = await _sb.from("wallets").select("balance").eq("user_id", userId).single();
+    if (!data) return null;
+    const { count } = await _sb.from("wallets")
+      .select("*", { count: "exact", head: true }).gt("balance", data.balance);
+    return { rank: (count || 0) + 1, value: data.balance };
+  }
+
+  async function myTotalWithdrawRank(userId) {
+    const { data } = await _sb.rpc("my_total_withdraw", { p_user_id: userId });
+    if (!data || !data[0]) return null;
+    const r = Array.isArray(data) ? data[0] : data;
+    return { rank: r.rank, value: r.total_withdrawn };
+  }
+
+  async function myHighestWithdrawRank(userId) {
+    const { data } = await _sb.rpc("my_highest_withdraw", { p_user_id: userId });
+    if (!data || !data[0]) return null;
+    const r = Array.isArray(data) ? data[0] : data;
+    return { rank: r.rank, value: r.max_amount };
+  }
+
+  async function myWorkspacesRank(userId) {
+    const { data } = await _sb.rpc("my_workspace_rank", { p_user_id: userId });
+    if (!data || !data[0]) return null;
+    const r = Array.isArray(data) ? data[0] : data;
+    return { rank: r.rank, value: r.workspace_count };
+  }
+
+  async function myActiveFormsRank(userId) {
+    const { data } = await _sb.rpc("my_active_forms_rank", { p_user_id: userId });
+    if (!data || !data[0]) return null;
+    const r = Array.isArray(data) ? data[0] : data;
+    return { rank: r.rank, value: r.active_form_count };
+  }
+
+  // ── Render ───────────────────────────────────────────────────
+
+  function refreshBtn(loading) {
+    return `
+      <button class="lb-refresh-btn${loading ? " spinning" : ""}" id="refresh-btn" ${loading ? "disabled" : ""}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        ${loading ? "Loading" : "Refresh"}
+      </button>`;
+  }
+
+  function renderSkeleton(tab) {
+    const def = TABS[tab];
+    return `
+      <div class="lb-card-head">
+        <div class="lb-card-title">
+          ${def.icon}
+          <div>${def.title}<div class="lb-card-subtitle">${def.subtitle}</div></div>
+        </div>
+        ${refreshBtn(true)}
+      </div>
+      <table class="lb-table">
+        <thead><tr>
+          <th style="width:44px">#</th>
+          <th>User</th>
+          <th style="width:160px;text-align:right">${def.valueLabel}</th>
+        </tr></thead>
+        <tbody>
+          ${Array.from({ length: 10 }, (_, i) => `
+            <tr class="lb-skeleton-row">
+              <td><div class="lb-skel" style="width:24px;height:14px;margin:0 auto;border-radius:4px"></div></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="lb-skel" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div>
+                  <div class="lb-skel" style="width:${120 + (i % 3) * 50}px;height:13px;border-radius:4px"></div>
+                </div>
+              </td>
+              <td><div class="lb-skel" style="width:90px;height:13px;margin-left:auto;border-radius:4px"></div></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+  }
+
+  function renderTable(tab, rows, myRank) {
+    const def = TABS[tab];
+
+    if (!rows || rows.length === 0) {
+      return `
+        <div class="lb-card-head">
+          <div class="lb-card-title">
+            ${def.icon}
+            <div>${def.title}<div class="lb-card-subtitle">${def.subtitle}</div></div>
+          </div>
+          ${refreshBtn(false)}
+        </div>
+        <div class="lb-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg>
+          No data yet. Be the first!
+        </div>`;
+    }
+
+    const isInTop10 = rows.some(r => r.user_id === currentUserId);
+
+    const bodyRows = rows.map((row, i) => {
+      const rank = i + 1;
+      const isMe = row.user_id === currentUserId;
+      return `
+        <tr${isMe ? ' style="background:var(--teal-dim)"' : ""}>
+          <td style="text-align:center">${rankIcon(rank)}</td>
+          <td>
+            <div class="lb-user">
+              ${avatarHtml(row, 36)}
+              <div>
+                <div class="lb-user-name">
+                  ${escHtml(row.name)}
+                  ${isMe ? '<span class="lb-you">You</span>' : ""}
+                </div>
+                <div class="lb-user-handle">@${escHtml(row.username)}</div>
+              </div>
+            </div>
+          </td>
+          <td class="lb-value ${def.valueClass}">${def.format(row.value)}</td>
+        </tr>`;
+    }).join("");
+
+    let myRankFooter = "";
+    if (!isInTop10 && myRank) {
+      myRankFooter = `
+        <div class="lb-your-rank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Your rank: #${myRank.rank}
+          <span>${def.format(myRank.value)}</span>
+        </div>`;
+    }
+
+    return `
+      <div class="lb-card-head">
+        <div class="lb-card-title">
+          ${def.icon}
+          <div>${def.title}<div class="lb-card-subtitle">${def.subtitle}</div></div>
+        </div>
+        ${refreshBtn(false)}
+      </div>
+      <table class="lb-table">
+        <thead><tr>
+          <th style="width:44px">#</th>
+          <th>User</th>
+          <th style="width:160px;text-align:right">${def.valueLabel}</th>
+        </tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+      ${myRankFooter}`;
+  }
+
+  function renderError(tab, msg) {
+    const def = TABS[tab];
+    return `
+      <div class="lb-card-head">
+        <div class="lb-card-title">
+          ${def.icon}
+          <div>${def.title}<div class="lb-card-subtitle">${def.subtitle}</div></div>
+        </div>
+        ${refreshBtn(false)}
+      </div>
+      <div class="lb-empty" style="color:var(--red)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        ${escHtml(msg || "Failed to load data. Please try again.")}
+      </div>`;
+  }
+
+  // ── Load tab data ────────────────────────────────────────────
+
+  async function loadTab(tab, forceRefresh = false) {
+    const card = document.getElementById("lb-card");
+    const def  = TABS[tab];
+
+    if (!forceRefresh && cache[tab] && (Date.now() - cacheTime[tab] < CACHE_TTL)) {
+      card.innerHTML = renderTable(tab, cache[tab].rows, cache[tab].myRank);
+      attachRefresh();
+      return;
+    }
+
+    card.innerHTML = renderSkeleton(tab);
+
+    try {
+      const [rowsResult, myRankResult] = await Promise.allSettled([
+        def.fetch(),
+        currentUserId ? def.myRankQuery(currentUserId).catch(() => null) : Promise.resolve(null),
+      ]);
+
+      if (rowsResult.status === "rejected") throw rowsResult.reason;
+
+      const rowData  = rowsResult.value  || [];
+      const rankData = myRankResult.status === "fulfilled" ? myRankResult.value : null;
+
+      cache[tab]     = { rows: rowData, myRank: rankData };
+      cacheTime[tab] = Date.now();
+
+      card.innerHTML = renderTable(tab, rowData, rankData);
+    } catch (err) {
+      console.error("Leaderboard error:", err);
+      const msg = err?.message?.includes("does not exist")
+        ? "SQL functions not set up yet. Run migration 20260809_041_leaderboard_functions.sql first."
+        : (err?.message || "Failed to load data.");
+      card.innerHTML = renderError(tab, msg);
+    }
+
+    attachRefresh();
+  }
+
+  function attachRefresh() {
+    document.getElementById("refresh-btn")?.addEventListener("click", () => {
+      delete cache[activeTab];
+      loadTab(activeTab, true);
+    });
+  }
+
+  // ── Tab switching ────────────────────────────────────────────
+  document.getElementById("lb-tabs").addEventListener("click", e => {
+    const btn = e.target.closest(".lb-tab");
+    if (!btn || !TABS[btn.dataset.tab]) return;
+    document.querySelectorAll(".lb-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeTab = btn.dataset.tab;
+    loadTab(activeTab);
+  });
+
+  // ── Init ─────────────────────────────────────────────────────
+  (async () => {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session) currentUserId = session.user.id;
+    loadTab("balance");
+  })();
+
+  _sb.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+      window.location.replace("../login.html");
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

@@ -103,7 +103,7 @@ function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
   });
   document.getElementById("ham-leaderboard")?.addEventListener("click", () => {
     close();
-    // TODO: open leaderboard panel
+    window.location.href = "leaderboard.html";
   });
   document.getElementById("ham-notification")?.addEventListener("click", () => {
     close();

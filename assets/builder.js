@@ -954,7 +954,7 @@ function openEditModal(idx) {
 
   // ── URL Input fields
   if (q.type === "url_input") {
-    body.appendChild(makeField("URL", "input",
+    body.appendChild(makeField("URL *", "input",
       { type:"url", id:"em-url-href", value: q.urlHref || "", placeholder:"https://…", maxlength:"500" }
     ));
     body.appendChild(makeField("Teks link (opsional)", "input",
@@ -1697,7 +1697,26 @@ function saveEditToMemory() {
   }
   // url_input
   if (q.type === "url_input") {
-    q.urlHref  = get("em-url-href")?.value.trim()  || "";
+    const urlVal = get("em-url-href")?.value.trim() || "";
+    if (!urlVal) {
+      const urlInpEl = get("em-url-href");
+      if (urlInpEl) {
+        urlInpEl.style.borderColor = "var(--red)";
+        urlInpEl.focus();
+        if (!urlInpEl.parentElement?.querySelector(".url-required-hint")) {
+          const h = document.createElement("div");
+          h.className = "url-required-hint";
+          h.style.cssText = "font-size:12px;color:var(--red);margin-top:4px";
+          h.textContent = "URL is required before saving.";
+          urlInpEl.parentElement?.appendChild(h);
+        }
+      }
+      return; // abort save
+    }
+    q.urlHref  = urlVal;
+    const urlInpEl = get("em-url-href");
+    if (urlInpEl) { urlInpEl.style.borderColor = ""; }
+    document.querySelector(".url-required-hint")?.remove();
     q.urlLabel = get("em-url-label")?.value.trim() || "";
   }
   // color

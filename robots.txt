@@ -1,0 +1,24 @@
+# robots.txt for wateform.my.id
+# Generated for Google Search Console
+
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /login.html
+
+# Block private/authenticated pages from being indexed
+Disallow: /dashboard/
+Disallow: /builder.html
+Disallow: /storage.html
+Disallow: /form.html
+
+# Block backend & config files
+Disallow: /supabase/
+Disallow: /assets/
+Disallow: /package.json
+Disallow: /package-lock.json
+Disallow: /jsconfig.json
+Disallow: /.gitignore
+
+# Sitemap location
+Sitemap: https://wateform.my.id/sitemap.xml

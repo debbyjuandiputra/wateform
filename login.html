@@ -52,6 +52,23 @@
 .tfa-back-btn svg { width: 14px; height: 14px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
+<style>
+/* ── Turnstile CAPTCHA wrapper ── */
+.turnstile-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 8px;
+}
+.turnstile-error {
+  font-size: 13px;
+  color: var(--red, #e53e3e);
+  text-align: center;
+  margin-top: -4px;
+  margin-bottom: 4px;
+  display: none;
+}
+</style>
 </head>
 <body>
 
@@ -95,6 +112,10 @@
               <label for="login-password">Password</label>
               <input type="password" id="login-password" autocomplete="current-password">
             </div>
+            <div class="turnstile-wrap">
+              <div id="turnstile-login"></div>
+            </div>
+            <div class="turnstile-error" id="turnstile-login-error">Please complete the verification above.</div>
             <button type="submit" class="btn btn-solid auth-submit">Log in</button>
           </form>
 
@@ -141,6 +162,10 @@
               <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
               <div class="error-text">Passwords don't match.</div>
             </div>
+            <div class="turnstile-wrap">
+              <div id="turnstile-register"></div>
+            </div>
+            <div class="turnstile-error" id="turnstile-register-error">Please complete the verification above.</div>
             <button type="submit" class="btn btn-solid auth-submit">Create account</button>
           </form>
 

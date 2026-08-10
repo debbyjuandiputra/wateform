@@ -9,6 +9,54 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const EDGE_BASE = `${SUPABASE_URL}/functions/v1`;
 const DASH_URL  = "https://wateform.my.id/dashboard/";
 
+// ── Cloudflare Turnstile ──────────────────────────────────────
+// Ganti dengan Site Key dari Cloudflare Dashboard → Turnstile
+const TURNSTILE_SITE_KEY = "0x4AAAAAAELyVd6jnMoCnIqm";
+
+// Widget IDs untuk reset token saat tab berganti
+let turnstileLoginId    = null;
+let turnstileRegisterId = null;
+
+// Dipanggil saat script Turnstile selesai dimuat
+window.onTurnstileLoad = function () {
+  if (document.getElementById("turnstile-login")) {
+    turnstileLoginId = window.turnstile.render("#turnstile-login", {
+      sitekey:  TURNSTILE_SITE_KEY,
+      theme:    document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
+      callback: function () {
+        // Sembunyikan pesan error jika sudah verified
+        const errEl = document.getElementById("turnstile-login-error");
+        if (errEl) errEl.style.display = "none";
+      },
+    });
+  }
+  if (document.getElementById("turnstile-register")) {
+    turnstileRegisterId = window.turnstile.render("#turnstile-register", {
+      sitekey:  TURNSTILE_SITE_KEY,
+      theme:    document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light",
+      callback: function () {
+        const errEl = document.getElementById("turnstile-register-error");
+        if (errEl) errEl.style.display = "none";
+      },
+    });
+  }
+};
+
+// Helper: ambil token Turnstile dari widget tertentu
+function getTurnstileToken(widgetId) {
+  if (widgetId !== null && window.turnstile) {
+    return window.turnstile.getResponse(widgetId) || null;
+  }
+  return null;
+}
+
+// Helper: reset widget setelah gagal submit
+function resetTurnstile(widgetId) {
+  if (widgetId !== null && window.turnstile) {
+    window.turnstile.reset(widgetId);
+  }
+}
+
 // ── Supabase client ───────────────────────────────────────────
 let _sb = null;
 function sb() {
@@ -37,6 +85,11 @@ function sb() {
       btn.setAttribute("aria-pressed", String(theme === "dark"))
     );
     try { localStorage.setItem("wf-theme", theme); } catch (_) {}
+    // Sync Turnstile theme — re-render widget agar sesuai dark/light
+    if (window.turnstile) {
+      if (turnstileLoginId !== null)    window.turnstile.reset(turnstileLoginId);
+      if (turnstileRegisterId !== null) window.turnstile.reset(turnstileRegisterId);
+    }
   }
   const saved = (() => { try { return localStorage.getItem("wf-theme"); } catch (_) { return null; } })();
   setTheme(saved === "dark" ? "dark" : "light");
@@ -199,7 +252,36 @@ function generateBackupCodes(count = 12) {
       const passEl  = document.getElementById("login-password");
       const btn     = loginForm.querySelector("[type=submit]");
 
+      // ── Validasi Turnstile ─────────────────────────────────
+      const cfToken = getTurnstileToken(turnstileLoginId);
+      if (!cfToken) {
+        const errEl = document.getElementById("turnstile-login-error");
+        if (errEl) errEl.style.display = "block";
+        return;
+      }
+
       setLoading(btn, true);
+
+      // Verifikasi token Turnstile ke Supabase Edge Function
+      try {
+        const cfRes = await fetch(`${EDGE_BASE}/verify-turnstile`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ token: cfToken }),
+        });
+        if (!cfRes.ok) {
+          const cfErr = await cfRes.json().catch(() => ({}));
+          setLoading(btn, false);
+          showError("login-general-error", cfErr.error ?? "Verification failed. Please try again.");
+          resetTurnstile(turnstileLoginId);
+          return;
+        }
+      } catch {
+        setLoading(btn, false);
+        showError("login-general-error", "Verification failed. Please check your connection.");
+        resetTurnstile(turnstileLoginId);
+        return;
+      }
 
       const { data, error } = await sb().auth.signInWithPassword({
         email:    emailEl.value.trim(),
@@ -214,6 +296,7 @@ function generateBackupCodes(count = 12) {
             ? "Email or password is incorrect."
             : error.message
         );
+        resetTurnstile(turnstileLoginId);
         return;
       }
 
@@ -423,7 +506,36 @@ function generateBackupCodes(count = 12) {
 
       if (!valid) return;
 
+      // ── Validasi Turnstile ─────────────────────────────────
+      const cfToken = getTurnstileToken(turnstileRegisterId);
+      if (!cfToken) {
+        const errEl = document.getElementById("turnstile-register-error");
+        if (errEl) errEl.style.display = "block";
+        return;
+      }
+
       setLoading(btn, true);
+
+      // Verifikasi token Turnstile ke Supabase Edge Function
+      try {
+        const cfRes = await fetch(`${EDGE_BASE}/verify-turnstile`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ token: cfToken }),
+        });
+        if (!cfRes.ok) {
+          const cfErr = await cfRes.json().catch(() => ({}));
+          setLoading(btn, false);
+          showError("register-general-error", cfErr.error ?? "Verification failed. Please try again.");
+          resetTurnstile(turnstileRegisterId);
+          return;
+        }
+      } catch {
+        setLoading(btn, false);
+        showError("register-general-error", "Verification failed. Please check your connection.");
+        resetTurnstile(turnstileRegisterId);
+        return;
+      }
 
       try {
         const availRes  = await fetch(`${EDGE_BASE}/check-username`, {
@@ -461,6 +573,7 @@ function generateBackupCodes(count = 12) {
             ? "An account with this email already exists."
             : signUpErr.message
         );
+        resetTurnstile(turnstileRegisterId);
         return;
       }
 

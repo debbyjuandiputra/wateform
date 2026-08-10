@@ -39,6 +39,7 @@ const PLAN_LIMITS = {
 };
 function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
 
+
 // ── Theme ─────────────────────────────────────────────────────
 (function initTheme() {
   const root = document.documentElement;

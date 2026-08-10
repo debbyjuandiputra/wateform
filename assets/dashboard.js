@@ -1069,6 +1069,31 @@ async function createForm(wsId) {
 async function duplicateForm(formId, wsId) {
   const { data: orig } = await _sb.from("forms").select("*").eq("id", formId).single();
   if (!orig) return;
+
+  // ── Cek batas form per plan sebelum duplicate ──
+  const ws = workspaces.find(w => w.id === wsId);
+  const wsOwnerId = ws?.workspace_members?.find(m => m.role === "owner")?.user_id || currentUser.id;
+  const ownerWsIds = workspaces
+    .filter(w => w.workspace_members?.some(m => m.user_id === wsOwnerId && m.role === "owner"))
+    .map(w => w.id);
+  const { data: ownerSub } = await _sb.from("subscriptions")
+    .select("plan").eq("user_id", wsOwnerId).maybeSingle();
+  const ownerPlan = ownerSub?.plan || "free";
+  const ownerLim  = PLAN_LIMITS[ownerPlan] || PLAN_LIMITS.free;
+  const { count: formCount } = await _sb
+    .from("forms")
+    .select("id", { count: "exact", head: true })
+    .in("workspace_id", ownerWsIds);
+  if (formCount !== null && formCount >= ownerLim.maxForms) {
+    const limLabel = ownerLim.maxForms === Infinity ? "unlimited" : ownerLim.maxForms;
+    toast(
+      `The ${ownerPlan} plan can only have ${limLabel} form(s). ` +
+      (wsOwnerId === currentUser.id ? "Upgrade to add more." : "Workspace owner needs to upgrade."),
+      "error"
+    );
+    return;
+  }
+
   const { error } = await _sb.from("forms").insert({
     workspace_id: wsId, created_by: currentUser.id,
     title: orig.title + " (copy)", short_id: "",

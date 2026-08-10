@@ -118,8 +118,9 @@ function generateBackupCodes(count = 12) {
   const panels = document.querySelectorAll("[data-panel]");
   if (!tabs.length) return;
 
-  let pendingEmail   = null;
-  let pendingPassword = null;
+  let pendingEmail      = null;
+  let pendingPassword   = null;
+  let pendingResetEmail = null;  // untuk forgot password flow
 
   // ── Tab switching ─────────────────────────────────────────
   function switchTab(name) {
@@ -612,6 +613,323 @@ function generateBackupCodes(count = 12) {
       }
 
       window.location.href = DASH_URL + "subscription.html";
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  FORGOT PASSWORD FLOW
+  // ══════════════════════════════════════════════════════════
+
+  // Tombol "Forgot password?" di login panel
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "forgot-pw-link") {
+      e.preventDefault();
+      showForgotPanel();
+    }
+  });
+
+  function showForgotPanel() {
+    const card = document.querySelector(".auth-card");
+    if (!card) return;
+    card.innerHTML = `
+      <div class="otp-panel">
+        <div class="otp-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h1>Reset password</h1>
+        <p class="sub"></p>
+
+        <div id="forgot-general-error" class="error-banner" style="display:none;"></div>
+
+        <form id="forgot-form" novalidate style="margin-top:20px;">
+          <div class="field">
+            <label for="forgot-email">Email</label>
+            <input type="email" id="forgot-email" autocomplete="email" placeholder="you@gmail.com">
+          </div>
+          <button type="submit" class="btn btn-solid auth-submit" id="forgot-submit-btn">Send reset code</button>
+        </form>
+
+        <p class="auth-foot" style="margin-top:16px;">
+          <a href="#" id="back-to-login-link">← Back to log in</a>
+        </p>
+      </div>
+    `;
+
+    document.getElementById("back-to-login-link").addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.reload();
+    });
+
+    document.getElementById("forgot-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError("forgot-general-error");
+
+      const emailEl = document.getElementById("forgot-email");
+      const btn     = document.getElementById("forgot-submit-btn");
+      const email   = emailEl.value.trim().toLowerCase();
+
+      if (!email) {
+        showError("forgot-general-error", "Please enter your email.");
+        return;
+      }
+
+      setLoading(btn, true);
+
+      const res = await fetch(`${EDGE_BASE}/send-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, full_name: "", purpose: "reset" }),
+      });
+
+      setLoading(btn, false);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError("forgot-general-error", err.error ?? "Failed to send reset code. Please try again.");
+        return;
+      }
+
+      // Selalu tampilkan panel kode (walaupun email tidak terdaftar, biar tidak bocor info)
+      pendingResetEmail = email;
+      showResetOtpPanel(email);
+    });
+  }
+
+  function showResetOtpPanel(email) {
+    const card = document.querySelector(".auth-card");
+    if (!card) return;
+    card.innerHTML = `
+      <div class="otp-panel">
+        <div class="otp-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="m2 7 10 7 10-7"/>
+          </svg>
+        </div>
+        <h1>Check your email</h1>
+        <p class="sub">
+          If an account exists for<br>
+          <strong>${escHtml(email)}</strong><br>
+          you'll receive a 6-digit reset code.
+        </p>
+
+        <div id="reset-otp-error" class="error-banner" style="display:none;"></div>
+
+        <form id="reset-otp-form" novalidate style="margin-top:20px;">
+          <div class="otp-inputs" role="group" aria-label="Reset code">
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 1" autocomplete="one-time-code">
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+            <span class="otp-sep" aria-hidden="true">—</span>
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+            <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+          </div>
+          <button type="submit" class="btn btn-solid auth-submit" id="reset-otp-submit-btn">Verify code</button>
+        </form>
+
+        <div class="otp-resend">
+          Didn't get it?
+          <button class="link-btn" id="reset-resend-btn">Resend code</button>
+          <span id="reset-resend-countdown" style="display:none;color:var(--text-soft);font-size:13px;"></span>
+        </div>
+      </div>
+    `;
+
+    initResetOtpInputs(email);
+    initResetResendButton(email);
+  }
+
+  function initResetOtpInputs(email) {
+    const digits  = document.querySelectorAll(".otp-digit");
+    const otpForm = document.getElementById("reset-otp-form");
+
+    digits.forEach((input, i) => {
+      input.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData)
+          .getData("text").replace(/\D/g, "").slice(0, 6);
+        [...pasted].forEach((ch, idx) => { if (digits[idx]) digits[idx].value = ch; });
+        const lastFilled = Math.min(pasted.length, digits.length) - 1;
+        if (digits[lastFilled]) digits[lastFilled].focus();
+        if (pasted.length === 6) tryAutoSubmit();
+      });
+      input.addEventListener("input", (e) => {
+        const val = e.target.value.replace(/\D/g, "");
+        e.target.value = val.slice(-1);
+        if (val && i < digits.length - 1) digits[i + 1].focus();
+        if (i === digits.length - 1 && val) tryAutoSubmit();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Backspace" && !input.value && i > 0) { digits[i-1].focus(); digits[i-1].value = ""; }
+        if (e.key === "ArrowLeft"  && i > 0)              { e.preventDefault(); digits[i-1].focus(); }
+        if (e.key === "ArrowRight" && i < digits.length-1){ e.preventDefault(); digits[i+1].focus(); }
+      });
+      input.addEventListener("click", () => input.select());
+    });
+    digits[0]?.focus();
+
+    function tryAutoSubmit() {
+      const code = [...digits].map((d) => d.value).join("");
+      if (code.length === 6) otpForm.requestSubmit();
+    }
+
+    otpForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const code = [...digits].map((d) => d.value).join("");
+      if (code.length < 6) { showError("reset-otp-error", "Please enter all 6 digits."); return; }
+
+      const btn = document.getElementById("reset-otp-submit-btn");
+      setLoading(btn, true);
+      showError("reset-otp-error", "");
+
+      // Verifikasi kode terlebih dahulu tanpa update password (dry-run check)
+      // Kita lakukan ini dengan menampilkan new password form setelah kode dianggap valid di sisi UI
+      // Verifikasi + update password dilakukan sekaligus di step berikutnya
+      setLoading(btn, false);
+      showNewPasswordPanel(email, code);
+    });
+  }
+
+  function initResetResendButton(email) {
+    const resendBtn   = document.getElementById("reset-resend-btn");
+    const countdownEl = document.getElementById("reset-resend-countdown");
+    let   timer       = null;
+    const COOLDOWN    = 60;
+
+    function startCooldown() {
+      let remaining = COOLDOWN;
+      resendBtn.disabled = true;
+      resendBtn.style.display = "none";
+      countdownEl.style.display = "inline";
+      function tick() {
+        countdownEl.textContent = `Resend in ${remaining}s`;
+        if (remaining <= 0) {
+          clearInterval(timer);
+          resendBtn.disabled = false;
+          resendBtn.style.display = "inline";
+          countdownEl.style.display = "none";
+        }
+        remaining--;
+      }
+      tick();
+      timer = setInterval(tick, 1000);
+    }
+
+    resendBtn?.addEventListener("click", async () => {
+      resendBtn.disabled = true;
+      const res = await fetch(`${EDGE_BASE}/send-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, full_name: "", purpose: "reset" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError("reset-otp-error",
+          err.error?.includes("Too many")
+            ? "Too many attempts. Please wait before requesting a new code."
+            : "Failed to resend — please try again."
+        );
+        resendBtn.disabled = false;
+        return;
+      }
+      document.querySelectorAll(".otp-digit").forEach((d) => (d.value = ""));
+      document.querySelectorAll(".otp-digit")[0]?.focus();
+      showError("reset-otp-error", "");
+      startCooldown();
+    });
+
+    startCooldown();
+  }
+
+  function showNewPasswordPanel(email, otpCode) {
+    const card = document.querySelector(".auth-card");
+    if (!card) return;
+    card.innerHTML = `
+      <div class="otp-panel">
+        <div class="otp-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h1>Create new password</h1>
+        <p class="sub">Choose a strong password for your account.</p>
+
+        <div id="newpw-error" class="error-banner" style="display:none;"></div>
+
+        <form id="newpw-form" novalidate style="margin-top:20px;">
+          <div class="field">
+            <label for="newpw-password">New password</label>
+            <input type="password" id="newpw-password" placeholder="At least 8 characters" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="newpw-confirm">Confirm new password</label>
+            <input type="password" id="newpw-confirm" placeholder="Repeat password" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-solid auth-submit" id="newpw-submit-btn">Save new password</button>
+        </form>
+      </div>
+    `;
+
+    document.getElementById("newpw-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError("newpw-error");
+
+      const pw1 = document.getElementById("newpw-password").value;
+      const pw2 = document.getElementById("newpw-confirm").value;
+      const btn = document.getElementById("newpw-submit-btn");
+
+      if (pw1.length < 8) {
+        showError("newpw-error", "Password must be at least 8 characters.");
+        return;
+      }
+      if (pw1 !== pw2) {
+        showError("newpw-error", "Passwords don't match.");
+        return;
+      }
+
+      setLoading(btn, true);
+
+      // Kirim kode + password baru ke edge function reset-password
+      const res = await fetch(`${EDGE_BASE}/reset-password`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, code: otpCode, new_password: pw1 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setLoading(btn, false);
+        // Kalau kode expired/salah, kembalikan ke step input kode
+        if (err.error?.includes("expired") || err.error?.includes("Incorrect") || err.error?.includes("Invalid")) {
+          showError("newpw-error", err.error + " Please request a new reset code.");
+          setTimeout(() => showForgotPanel(), 2500);
+        } else {
+          showError("newpw-error", err.error ?? "Failed to reset password. Please try again.");
+        }
+        return;
+      }
+
+      setLoading(btn, false);
+      pendingResetEmail = null;
+
+      // Password berhasil di-reset → auto login lalu redirect
+      const { error: signInErr } = await sb().auth.signInWithPassword({
+        email,
+        password: pw1,
+      });
+
+      if (signInErr) {
+        // Gagal auto login → redirect ke login manual
+        window.location.href = "login.html#login";
+        return;
+      }
+
+      window.location.href = DASH_URL;
     });
   }
 

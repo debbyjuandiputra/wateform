@@ -118,7 +118,8 @@ function generateBackupCodes(count = 12) {
   const panels = document.querySelectorAll("[data-panel]");
   if (!tabs.length) return;
 
-  let pendingEmail = null;
+  let pendingEmail   = null;
+  let pendingPassword = null;
 
   // ── Tab switching ─────────────────────────────────────────
   function switchTab(name) {
@@ -212,6 +213,28 @@ function generateBackupCodes(count = 12) {
             ? "Email or password is incorrect."
             : error.message
         );
+        return;
+      }
+
+      // Cek apakah email sudah diverifikasi via OTP kita
+      const emailVerified = data.user?.user_metadata?.email_verified;
+      if (emailVerified === false) {
+        // Belum verifikasi → sign out dulu, paksa OTP
+        await sb().auth.signOut();
+        pendingEmail    = emailEl.value.trim();
+        pendingPassword = passEl.value;
+        // Kirim OTP baru
+        const otpRes = await fetch(`${EDGE_BASE}/send-otp`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ email: pendingEmail, full_name: "" }),
+        });
+        if (!otpRes.ok) {
+          showError("login-general-error", "Please verify your email first. Failed to send code — try again.");
+          return;
+        }
+        document.getElementById("auth-tabs-wrap").style.display = "none";
+        showOtpPanel(pendingEmail);
         return;
       }
 
@@ -416,45 +439,64 @@ function generateBackupCodes(count = 12) {
         }
       } catch { /* non-fatal */ }
 
-      const { error } = await sb().auth.signUp({
+      // Step 1 — Daftarkan user di Supabase
+      const { error: signUpErr } = await sb().auth.signUp({
         email:    emailEl.value.trim(),
         password: pw1El.value,
         options: {
-          data: { full_name: fullnameEl.value.trim(), username: usernameEl.value.trim() },
+          data: {
+            full_name:      fullnameEl.value.trim(),
+            username:       usernameEl.value.trim(),
+            email_verified: false,
+          },
           emailRedirectTo: undefined,
         },
       });
 
-      setLoading(btn, false);
-
-      if (error) {
+      if (signUpErr) {
+        setLoading(btn, false);
         showError("register-general-error",
-          error.message.includes("already registered")
+          signUpErr.message.includes("already registered")
             ? "An account with this email already exists."
-            : error.message
+            : signUpErr.message
         );
         return;
       }
 
-      const { error: signInErr } = await sb().auth.signInWithPassword({
-        email: emailEl.value.trim(), password: pw1El.value,
+      // Step 2 — Kirim OTP 6 digit via Edge Function (Resend)
+      const otpRes = await fetch(`${EDGE_BASE}/send-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          email:     emailEl.value.trim(),
+          full_name: fullnameEl.value.trim(),
+        }),
       });
 
-      if (signInErr) {
-        showError("register-general-error", "Account created — please log in.");
-        document.querySelector("[data-tab='login']")?.click();
+      setLoading(btn, false);
+
+      if (!otpRes.ok) {
+        const otpErr = await otpRes.json().catch(() => ({}));
+        showError("register-general-error",
+          otpErr.error ?? "Failed to send verification email. Please try again."
+        );
         return;
       }
 
-      window.location.href = DASH_URL + "subscription.html";
+      // Step 3 — Simpan credentials & tampilkan OTP panel
+      pendingEmail    = emailEl.value.trim();
+      pendingPassword = pw1El.value;
+      document.getElementById("auth-tabs-wrap").style.display = "none";
+      showOtpPanel(pendingEmail);
     });
   }
 
   // ── OTP PANEL (email verification) ───────────────────────
   function showOtpPanel(email) {
-    const panel = document.querySelector("[data-panel='register']");
-    if (!panel) return;
-    panel.innerHTML = `
+    // Render langsung ke auth-card agar tidak terpengaruh display:none di auth-tabs-wrap
+    const card = document.querySelector(".auth-card");
+    if (!card) return;
+    card.innerHTML = `
       <div class="otp-panel">
         <div class="otp-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
@@ -536,19 +578,39 @@ function generateBackupCodes(count = 12) {
       const btn = document.getElementById("otp-submit-btn");
       setLoading(btn, true);
       showError("otp-general-error", "");
-      const { error } = await sb().auth.verifyOtp({ email: pendingEmail, token: code, type: "signup" });
+
+      // Verifikasi OTP via Edge Function
+      const verifyRes = await fetch(`${EDGE_BASE}/verify-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email: pendingEmail, code }),
+      });
+
       setLoading(btn, false);
-      if (error) {
+
+      if (!verifyRes.ok) {
+        const verifyErr = await verifyRes.json().catch(() => ({}));
         digits.forEach((d) => (d.value = ""));
         digits[0]?.focus();
-        showError("otp-general-error",
-          error.message.includes("expired")  ? "Code has expired — request a new one below." :
-          error.message.includes("invalid") || error.message.includes("Token")
-            ? "Incorrect code. Please check your email and try again." : error.message
-        );
+        showError("otp-general-error", verifyErr.error ?? "Verification failed. Please try again.");
         return;
       }
-      pendingEmail = null;
+
+      // OTP valid → sign in user (sekarang email sudah confirmed)
+      const { error: signInErr } = await sb().auth.signInWithPassword({
+        email:    pendingEmail,
+        password: pendingPassword,
+      });
+
+      pendingEmail    = null;
+      pendingPassword = null;
+
+      if (signInErr) {
+        // Email confirmed tapi sign in gagal → redirect ke login
+        window.location.href = "login.html#login";
+        return;
+      }
+
       window.location.href = DASH_URL + "subscription.html";
     });
   }
@@ -578,10 +640,15 @@ function generateBackupCodes(count = 12) {
     }
     resendBtn?.addEventListener("click", async () => {
       resendBtn.disabled = true;
-      const { error } = await sb().auth.resend({ type: "signup", email });
-      if (error) {
+      const resendRes = await fetch(`${EDGE_BASE}/send-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email, full_name: "" }),
+      });
+      if (!resendRes.ok) {
+        const resendErr = await resendRes.json().catch(() => ({}));
         showError("otp-general-error",
-          error.message.includes("rate")
+          resendErr.error?.includes("Too many")
             ? "Too many attempts. Please wait before requesting a new code."
             : "Failed to resend — please try again."
         );

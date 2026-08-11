@@ -114,6 +114,13 @@ function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
     close();
     // TODO: open storage panel
   });
+  document.getElementById("ham-support")?.addEventListener("click", () => {
+    close();
+    const plan = (typeof currentPlan !== "undefined" ? currentPlan : "free");
+    const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+    document.getElementById("ham-support").href =
+      `mailto:wateform@gmail.com?subject=${encodeURIComponent("[" + planLabel + "] Support Request")}`;
+  });
 })();
 
 // ── Toast ─────────────────────────────────────────────────────

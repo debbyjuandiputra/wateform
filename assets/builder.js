@@ -113,11 +113,11 @@ const FIELD_TIERS = {
 // ── Plan benefits per paket (sesuai tabel di dashboard/subscription.html) ──
 // "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
 const PLAN_FEATURES = {
-  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customMessageFormat: false, fieldPlus: false, fieldPro: false, viewResponses: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,   storageMb: 20    },
-  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: false, viewResponses: false, maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,   storageMb: 50    },
-  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: false, fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10,  storageMb: 100   },
-  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50,  storageMb: 500   },
-  admin:    { removeWatermark: true,  closedMessage: true,  customUrl: true,  customMessageFormat: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: Infinity, maxUploadMb: Infinity, storageMb: Infinity },
+  free:     { removeWatermark: false, closedMessage: false, customUrl: false, customSubmitButton: false, fieldPlus: false, fieldPro: false, viewResponses: false, maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,   maxUploadMb: 0,   storageMb: 20    },
+  plus:     { removeWatermark: true,  closedMessage: true,  customUrl: true,  customSubmitButton: true,  fieldPlus: true,  fieldPro: false, viewResponses: true,  maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,   maxUploadMb: 1,   storageMb: 50    },
+  pro:      { removeWatermark: true,  closedMessage: true,  customUrl: true,  customSubmitButton: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,   maxUploadMb: 10,  storageMb: 100   },
+  ultimate: { removeWatermark: true,  closedMessage: true,  customUrl: true,  customSubmitButton: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100, maxUploadMb: 50,  storageMb: 500   },
+  admin:    { removeWatermark: true,  closedMessage: true,  customUrl: true,  customSubmitButton: true,  fieldPlus: true,  fieldPro: true,  viewResponses: true,  maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: Infinity, maxUploadMb: Infinity, storageMb: Infinity },
 };
 function planFeatures() { return PLAN_FEATURES[currentPlan] || PLAN_FEATURES.free; }
 
@@ -1202,6 +1202,7 @@ function openEditModal(idx) {
       btnRow.style.cssText = "display:flex;gap:8px";
       const addColBtn = document.createElement("button");
       addColBtn.type = "button"; addColBtn.className = "add-option-btn";
+      addColBtn.style.textAlign = "center";
       addColBtn.textContent = "+ Column";
       addColBtn.addEventListener("click", () => {
         syncDtState();
@@ -1211,6 +1212,7 @@ function openEditModal(idx) {
       });
       const addRowBtn = document.createElement("button");
       addRowBtn.type = "button"; addRowBtn.className = "add-option-btn";
+      addRowBtn.style.textAlign = "center";
       addRowBtn.textContent = "+ Rows";
       addRowBtn.addEventListener("click", () => {
         syncDtState();
@@ -1774,6 +1776,8 @@ document.getElementById("center-add-btn")?.addEventListener("click", openQTypeMo
 function getSubmitPlaceholder(target) {
   if (target === "tg")   return "Send WateForm to Telegram";
   if (target === "both") return "Send WateForm to WhatsApp & Telegram";
+  if (target === "wa2")  return "Send WateForm to WhatsApp";
+  if (target === "tg2")  return "Send WateForm to Telegram";
   return "Send WateForm to WhatsApp";
 }
 
@@ -1840,11 +1844,13 @@ function renderSettingsPanel() {
         <option value="wa"   ${(s.target||"wa")==="wa"?"selected":""}>WhatsApp only</option>
         <option value="tg"   ${s.target==="tg"?"selected":""}>Telegram only</option>
         <option value="both" ${s.target==="both"?"selected":""}>WhatsApp & Telegram</option>
+        <option value="wa2"  ${s.target==="wa2"?"selected":""}>Double WhatsApp</option>
+        <option value="tg2"  ${s.target==="tg2"?"selected":""}>Double Telegram</option>
       </select>
     </div>
     <div id="s-wa-wrap">
       <div class="field">
-        <label>WhatsApp number</label>
+        <label id="s-wa-label">WhatsApp number</label>
         <div class="phone-wrap" style="max-width:340px">
           <select id="s-wa-prefix" class="phone-prefix">
             ${COUNTRY_CODES.map(c=>`<option value="${c.code}" ${(s.waPrefix||"+62")===c.code?"selected":""}>${c.code} ${c.label.split(" ")[0]}</option>`).join("")}
@@ -1853,12 +1859,34 @@ function renderSettingsPanel() {
         </div>
       </div>
     </div>
+    <div id="s-wa2-wrap" style="display:none">
+      <div class="field">
+        <label>WhatsApp number 2</label>
+        <div class="phone-wrap" style="max-width:340px">
+          <select id="s-wa2-prefix" class="phone-prefix">
+            ${COUNTRY_CODES.map(c=>`<option value="${c.code}" ${(s.waPrefix2||"+62")===c.code?"selected":""}>${c.code} ${c.label.split(" ")[0]}</option>`).join("")}
+          </select>
+          <input type="tel" id="s-wa2-number" inputmode="numeric" pattern="[0-9]*" value="${esc(s.waNumber2||"")}" style="min-width:0;flex:1">
+        </div>
+      </div>
+    </div>
     <div id="s-tg-wrap">
       <div class="field">
-        <label>Telegram username</label>
+        <label id="s-tg-label">Telegram username</label>
         <div style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px">
           <span style="color:var(--text-muted)">@</span>
           <input type="text" id="s-tg-user" value="${esc(s.tgUsername||"")}" placeholder="username"
+            pattern="[A-Za-z0-9_]+" maxlength="32" autocapitalize="off" autocorrect="off" spellcheck="false"
+            style="border:none;background:transparent;padding:0;outline:none;font-size:14px;width:100%;color:var(--text)">
+        </div>
+      </div>
+    </div>
+    <div id="s-tg2-wrap" style="display:none">
+      <div class="field">
+        <label>Telegram username 2</label>
+        <div style="display:flex;align-items:center;gap:4px;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px">
+          <span style="color:var(--text-muted)">@</span>
+          <input type="text" id="s-tg2-user" value="${esc(s.tgUsername2||"")}" placeholder="username"
             pattern="[A-Za-z0-9_]+" maxlength="32" autocapitalize="off" autocorrect="off" spellcheck="false"
             style="border:none;background:transparent;padding:0;outline:none;font-size:14px;width:100%;color:var(--text)">
         </div>
@@ -1916,7 +1944,7 @@ function renderSettingsPanel() {
   });
   document.getElementById("s-active")?.addEventListener("change", () => saveSetting());
   document.getElementById("s-watermark")?.addEventListener("change", () => saveSetting());
-  ["s-title","s-desc","s-slug","s-wa-number","s-tg-user"].forEach(id => {
+  ["s-title","s-desc","s-slug","s-wa-number","s-tg-user","s-wa2-number","s-tg2-user"].forEach(id => {
     document.getElementById(id)?.addEventListener("input", () => saveSetting());
   });
   // Public URL: strip anything that isn't a letter, digit, or a URL-safe symbol (no spaces)
@@ -1973,12 +2001,20 @@ function renderSettingsPanel() {
     const cleaned = e.target.value.replace(/[^0-9]/g, "");
     if (cleaned !== e.target.value) e.target.value = cleaned;
   });
+  document.getElementById("s-wa2-number")?.addEventListener("input", (e) => {
+    const cleaned = e.target.value.replace(/[^0-9]/g, "");
+    if (cleaned !== e.target.value) e.target.value = cleaned;
+  });
   // Telegram username: letters, digits, underscore only — no spaces or unsupported symbols
   document.getElementById("s-tg-user")?.addEventListener("input", (e) => {
     const cleaned = e.target.value.replace(/[^A-Za-z0-9_]/g, "");
     if (cleaned !== e.target.value) e.target.value = cleaned;
   });
-  ["s-wa-prefix","s-lang"].forEach(id => {
+  document.getElementById("s-tg2-user")?.addEventListener("input", (e) => {
+    const cleaned = e.target.value.replace(/[^A-Za-z0-9_]/g, "");
+    if (cleaned !== e.target.value) e.target.value = cleaned;
+  });
+  ["s-wa-prefix","s-wa2-prefix","s-lang"].forEach(id => {
     document.getElementById(id)?.addEventListener("change", () => saveSetting());
   });
   ["s-open-at","s-close-at"].forEach(id => {
@@ -1995,10 +2031,26 @@ function renderSettingsPanel() {
 
 function updateTargetVisibility() {
   const t = document.getElementById("s-target")?.value || "wa";
-  const waWrap = document.getElementById("s-wa-wrap");
-  const tgWrap = document.getElementById("s-tg-wrap");
-  if (waWrap) waWrap.style.display = t === "tg" ? "none" : "block";
-  if (tgWrap) tgWrap.style.display = t === "wa" ? "none" : "block";
+  const waWrap  = document.getElementById("s-wa-wrap");
+  const wa2Wrap = document.getElementById("s-wa2-wrap");
+  const tgWrap  = document.getElementById("s-tg-wrap");
+  const tg2Wrap = document.getElementById("s-tg2-wrap");
+  const waLabel = document.getElementById("s-wa-label");
+  const tgLabel = document.getElementById("s-tg-label");
+
+  // WA primary: shown for wa, both, wa2
+  if (waWrap)  waWrap.style.display  = (t === "tg" || t === "tg2") ? "none" : "block";
+  // WA secondary: shown only for wa2
+  if (wa2Wrap) wa2Wrap.style.display = t === "wa2" ? "block" : "none";
+  // TG primary: shown for tg, both, tg2
+  if (tgWrap)  tgWrap.style.display  = (t === "wa" || t === "wa2") ? "none" : "block";
+  // TG secondary: shown only for tg2
+  if (tg2Wrap) tg2Wrap.style.display = t === "tg2" ? "block" : "none";
+
+  // Update labels to distinguish WA1/WA2 or TG1/TG2 when in double mode
+  if (waLabel) waLabel.textContent = t === "wa2" ? "WhatsApp number 1" : "WhatsApp number";
+  if (tgLabel) tgLabel.textContent = t === "tg2" ? "Telegram username 1" : "Telegram username";
+
   renderSubmitFields(t);
 }
 
@@ -2006,24 +2058,79 @@ function renderSubmitFields(target) {
   const wrap = document.getElementById("s-submit-wrap");
   if (!wrap) return;
   const s = settings;
+  const canCustom = planFeatures().customSubmitButton;
+  const lockIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+  const upgradeHint = `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher to customize the submit button. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>`;
+
   if (target === "both") {
     wrap.innerHTML = `
       <div class="field">
-        <label>Submit button for WhatsApp</label>
-        <input type="text" id="s-submit-label-wa" value="${esc(s.submitLabelWa||"")}" placeholder="Send WateForm to WhatsApp">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for WhatsApp</label>
+        <input type="text" id="s-submit-label-wa" value="${canCustom ? esc(s.submitLabelWa||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to WhatsApp" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+        ${!canCustom ? upgradeHint : ""}
       </div>
       <div class="field">
-        <label>Submit button for Telegram</label>
-        <input type="text" id="s-submit-label-tg" value="${esc(s.submitLabelTg||"")}" placeholder="Send WateForm to Telegram">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for Telegram</label>
+        <input type="text" id="s-submit-label-tg" value="${canCustom ? esc(s.submitLabelTg||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to Telegram" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
       </div>
     `;
     document.getElementById("s-submit-label-wa")?.addEventListener("input", () => saveSetting());
     document.getElementById("s-submit-label-tg")?.addEventListener("input", () => saveSetting());
+  } else if (target === "wa2") {
+    wrap.innerHTML = `
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for WhatsApp 1</label>
+        <input type="text" id="s-submit-label-wa" value="${canCustom ? esc(s.submitLabelWa||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to WhatsApp 1" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+        ${!canCustom ? upgradeHint : ""}
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for WhatsApp 2</label>
+        <input type="text" id="s-submit-label-wa2" value="${canCustom ? esc(s.submitLabelWa2||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to WhatsApp 2" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+      </div>
+    `;
+    document.getElementById("s-submit-label-wa")?.addEventListener("input", () => saveSetting());
+    document.getElementById("s-submit-label-wa2")?.addEventListener("input", () => saveSetting());
+  } else if (target === "tg2") {
+    wrap.innerHTML = `
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for Telegram 1</label>
+        <input type="text" id="s-submit-label-tg" value="${canCustom ? esc(s.submitLabelTg||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to Telegram 1" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+        ${!canCustom ? upgradeHint : ""}
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for Telegram 2</label>
+        <input type="text" id="s-submit-label-tg2" value="${canCustom ? esc(s.submitLabelTg2||"") : ""}"
+          placeholder="${canCustom ? "Send WateForm to Telegram 2" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+      </div>
+    `;
+    document.getElementById("s-submit-label-tg")?.addEventListener("input", () => saveSetting());
+    document.getElementById("s-submit-label-tg2")?.addEventListener("input", () => saveSetting());
   } else {
     wrap.innerHTML = `
       <div class="field">
-        <label>Submit button text</label>
-        <input type="text" id="s-submit-label" value="${esc(s.submitLabel||"")}" placeholder="${getSubmitPlaceholder(target)}">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button text</label>
+        <input type="text" id="s-submit-label" value="${canCustom ? esc(s.submitLabel||"") : ""}"
+          placeholder="${canCustom ? getSubmitPlaceholder(target) : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+        ${!canCustom ? upgradeHint : ""}
       </div>
     `;
     document.getElementById("s-submit-label")?.addEventListener("input", () => saveSetting());
@@ -2099,7 +2206,10 @@ async function saveSetting() {
   settings.target      = document.getElementById("s-target")?.value || "wa";
   settings.waPrefix    = document.getElementById("s-wa-prefix")?.value || "+62";
   settings.waNumber    = (document.getElementById("s-wa-number")?.value || "").replace(/[^0-9]/g, "");
+  settings.waPrefix2   = document.getElementById("s-wa2-prefix")?.value || "+62";
+  settings.waNumber2   = (document.getElementById("s-wa2-number")?.value || "").replace(/[^0-9]/g, "");
   settings.tgUsername  = (document.getElementById("s-tg-user")?.value || "").replace(/[^A-Za-z0-9_]/g, "");
+  settings.tgUsername2 = (document.getElementById("s-tg2-user")?.value || "").replace(/[^A-Za-z0-9_]/g, "");
   settings.language    = document.getElementById("s-lang")?.value || "en";
   settings.openAt        = document.getElementById("s-open-at")?.value  || null;
   settings.closeAt       = document.getElementById("s-close-at")?.value || null;
@@ -2108,13 +2218,29 @@ async function saveSetting() {
     : null;
   const tgt = document.getElementById("s-target")?.value || "wa";
   if (tgt === "both") {
-    settings.submitLabelWa = document.getElementById("s-submit-label-wa")?.value.trim() || "";
-    settings.submitLabelTg = document.getElementById("s-submit-label-tg")?.value.trim() || "";
-    settings.submitLabel   = "";
+    settings.submitLabelWa  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-wa")?.value.trim() || "") : "";
+    settings.submitLabelTg  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-tg")?.value.trim() || "") : "";
+    settings.submitLabel    = "";
+    settings.submitLabelWa2 = "";
+    settings.submitLabelTg2 = "";
+  } else if (tgt === "wa2") {
+    settings.submitLabelWa  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-wa")?.value.trim() || "") : "";
+    settings.submitLabelWa2 = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-wa2")?.value.trim() || "") : "";
+    settings.submitLabel    = "";
+    settings.submitLabelTg  = "";
+    settings.submitLabelTg2 = "";
+  } else if (tgt === "tg2") {
+    settings.submitLabelTg  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-tg")?.value.trim() || "") : "";
+    settings.submitLabelTg2 = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-tg2")?.value.trim() || "") : "";
+    settings.submitLabel    = "";
+    settings.submitLabelWa  = "";
+    settings.submitLabelWa2 = "";
   } else {
-    settings.submitLabel   = document.getElementById("s-submit-label")?.value.trim() || "";
-    settings.submitLabelWa = "";
-    settings.submitLabelTg = "";
+    settings.submitLabel    = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label")?.value.trim() || "") : "";
+    settings.submitLabelWa  = "";
+    settings.submitLabelTg  = "";
+    settings.submitLabelWa2 = "";
+    settings.submitLabelTg2 = "";
   }
   scheduleSave();
 }
@@ -2153,9 +2279,11 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
     }
 
     // Cek nomor WA / username TG sesuai target
-    const target = settings.target || "wa";
-    const waNum  = (settings.waNumber || "").trim();
-    const tgUser = (settings.tgUsername || "").trim();
+    const target  = settings.target || "wa";
+    const waNum   = (settings.waNumber  || "").trim();
+    const waNum2  = (settings.waNumber2 || "").trim();
+    const tgUser  = (settings.tgUsername  || "").trim();
+    const tgUser2 = (settings.tgUsername2 || "").trim();
 
     if (target === "wa" && !waNum) {
       toast("Enter your WhatsApp number", "error");
@@ -2184,6 +2312,30 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
       toast("Enter your Telegram username", "error");
       document.getElementById("settings-panel").classList.add("open");
       setTimeout(() => document.getElementById("s-tg-user")?.focus(), 150);
+      return;
+    }
+    if (target === "wa2" && !waNum) {
+      toast("Enter WhatsApp number 1", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-wa-number")?.focus(), 150);
+      return;
+    }
+    if (target === "wa2" && !waNum2) {
+      toast("Enter WhatsApp number 2", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-wa2-number")?.focus(), 150);
+      return;
+    }
+    if (target === "tg2" && !tgUser) {
+      toast("Enter Telegram username 1", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-tg-user")?.focus(), 150);
+      return;
+    }
+    if (target === "tg2" && !tgUser2) {
+      toast("Enter Telegram username 2", "error");
+      document.getElementById("settings-panel").classList.add("open");
+      setTimeout(() => document.getElementById("s-tg2-user")?.focus(), 150);
       return;
     }
   }
@@ -2224,16 +2376,25 @@ document.getElementById("preview-btn").addEventListener("click", () => {
   let html = `<h2 style="font-size:18px;font-weight:800;margin:0 0 6px">${esc(formData?.title || "Form")}</h2>`;
   if (formData?.description) html += `<p style="font-size:13.5px;color:var(--text-soft);margin:0 0 20px">${esc(formData.description)}</p>`;
   questions.forEach((q, i) => { html += buildPreviewField(q, i); });
+  const waIcon = `<svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>`;
+  const tgIcon = `<svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>`;
+  let previewBtns = "";
+  if (target === "wa2") {
+    previewBtns = `
+      <button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || "Send WateForm to WhatsApp 1"}</button>
+      <button class="btn btn-solid" style="background:#128C7E;color:#fff;border-color:#128C7E;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa2 || "Send WateForm to WhatsApp 2"}</button>`;
+  } else if (target === "tg2") {
+    previewBtns = `
+      <button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || "Send WateForm to Telegram 1"}</button>
+      <button class="btn btn-solid" style="background:#1A7FAF;color:#fff;border-color:#1A7FAF;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg2 || "Send WateForm to Telegram 2"}</button>`;
+  } else {
+    previewBtns = `
+      ${target !== "tg" ? `<button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || s.submitLabel || "Send WateForm to WhatsApp"}</button>` : ""}
+      ${target !== "wa" ? `<button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || s.submitLabel || "Send WateForm to Telegram"}</button>` : ""}`;
+  }
   html += `
     <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
-      ${target !== "tg" ? `<button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">
-        <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>
-        ${s.submitLabelWa || s.submitLabel || "Send WateForm to WhatsApp"}
-      </button>` : ""}
-      ${target !== "wa" ? `<button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">
-        <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>
-        ${s.submitLabelTg || s.submitLabel || "Send WateForm to Telegram"}
-      </button>` : ""}
+      ${previewBtns}
     </div>
   `;
   body.innerHTML = html;

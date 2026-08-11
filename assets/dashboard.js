@@ -32,7 +32,7 @@ function togglePinForm(id)  { const p = getPinnedForms(); const i = p.indexOf(id
 // "admin" is an internal-only tier (not sold, set manually in Supabase) with unlimited everything.
 const PLAN_LIMITS = {
   free:     { maxWorkspaces: 1,        maxForms: 5,        maxMembers: 0,       viewResponses: false },
-  plus:     { maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,       viewResponses: false },
+  plus:     { maxWorkspaces: 5,        maxForms: 20,       maxMembers: 1,       viewResponses: true  },
   pro:      { maxWorkspaces: 15,       maxForms: 50,       maxMembers: 5,       viewResponses: true  },
   ultimate: { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: 100,     viewResponses: true  },
   admin:    { maxWorkspaces: Infinity, maxForms: Infinity, maxMembers: Infinity, viewResponses: true  },
@@ -113,6 +113,13 @@ function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
   document.getElementById("ham-storage")?.addEventListener("click", () => {
     close();
     // TODO: open storage panel
+  });
+  document.getElementById("ham-support")?.addEventListener("click", () => {
+    close();
+    const plan = (typeof currentPlan !== "undefined" ? currentPlan : "free");
+    const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+    document.getElementById("ham-support").href =
+      `mailto:wateform@gmail.com?subject=${encodeURIComponent("[" + planLabel + "] Support Request")}`;
   });
 })();
 

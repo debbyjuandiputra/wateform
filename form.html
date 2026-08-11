@@ -114,8 +114,12 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .btn-submit:hover { background: var(--teal-deep); color: #fff; }
 .btn-submit-wa { background: #25D366; color: #fff; }
 .btn-submit-wa:hover { background: #1da851; color: #fff; }
+.btn-submit-wa2 { background: #128C7E; color: #fff; }
+.btn-submit-wa2:hover { background: #0e6d62; color: #fff; }
 .btn-submit-tg { background: #229ED9; color: #fff; }
 .btn-submit-tg:hover { background: #1a7fad; color: #fff; }
+.btn-submit-tg2 { background: #1A7FAF; color: #fff; }
+.btn-submit-tg2:hover { background: #14618a; color: #fff; }
 
 /* ── Page navigation ──────────────────────────────────────── */
 .form-nav { margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }
@@ -563,7 +567,7 @@ function showSuccess(settings, targetOverride) {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
       </svg>
       <h2>Response sent!</h2>
-      <p>Check your ${target === "tg" ? "Telegram" : "WhatsApp"} for a confirmation message.</p>
+      <p>Check your ${(target === "tg" || target === "tg2" || target === "tg2-2") ? "Telegram" : "WhatsApp"} for a confirmation message.</p>
     </div>`;
 }
 
@@ -637,9 +641,15 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
 
   const body = lines.join("\n");
 
-  if (target === "tg") {
+  if (target === "tg" || target === "tg2") {
     const user = settings.tgUsername || "";
     return `https://t.me/${user}?text=${encodeURIComponent(body)}`;
+  } else if (target === "tg2-2") {
+    const user = settings.tgUsername2 || "";
+    return `https://t.me/${user}?text=${encodeURIComponent(body)}`;
+  } else if (target === "wa2-2") {
+    const number = (settings.waPrefix2 || "+62").replace("+","") + (settings.waNumber2 || "").replace(/\D/g,"");
+    return `https://wa.me/${number}?text=${encodeURIComponent(body)}`;
   } else {
     const number = (settings.waPrefix || "+62").replace("+","") + (settings.waNumber || "").replace(/\D/g,"");
     return `https://wa.me/${number}?text=${encodeURIComponent(body)}`;
@@ -1902,20 +1912,30 @@ function renderForm(form) {
   const totalPages = pages.length;
   let currentPage = 0;
 
+  // Shared SVG icons
+  const _waIcon = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>`;
+  const _tgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>`;
+
   // Build the submit buttons HTML
   const submitBtnsHtml = (() => {
     if (target === "both") {
       const labelWa = settings.submitLabelWa || "Send WateForm to WhatsApp";
       const labelTg = settings.submitLabelTg || "Send WateForm to Telegram";
       return `
-        <button class="btn-submit btn-submit-wa" id="submit-btn-wa">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>
-          ${esc(labelWa)}
-        </button>
-        <button class="btn-submit btn-submit-tg" id="submit-btn-tg">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>
-          ${esc(labelTg)}
-        </button>`;
+        <button class="btn-submit btn-submit-wa" id="submit-btn-wa">${_waIcon} ${esc(labelWa)}</button>
+        <button class="btn-submit btn-submit-tg" id="submit-btn-tg">${_tgIcon} ${esc(labelTg)}</button>`;
+    } else if (target === "wa2") {
+      const labelWa  = settings.submitLabelWa  || "Send WateForm to WhatsApp 1";
+      const labelWa2 = settings.submitLabelWa2 || "Send WateForm to WhatsApp 2";
+      return `
+        <button class="btn-submit btn-submit-wa"  id="submit-btn-wa">${_waIcon} ${esc(labelWa)}</button>
+        <button class="btn-submit btn-submit-wa2" id="submit-btn-wa2">${_waIcon} ${esc(labelWa2)}</button>`;
+    } else if (target === "tg2") {
+      const labelTg  = settings.submitLabelTg  || "Send WateForm to Telegram 1";
+      const labelTg2 = settings.submitLabelTg2 || "Send WateForm to Telegram 2";
+      return `
+        <button class="btn-submit btn-submit-tg"  id="submit-btn-tg">${_tgIcon} ${esc(labelTg)}</button>
+        <button class="btn-submit btn-submit-tg2" id="submit-btn-tg2">${_tgIcon} ${esc(labelTg2)}</button>`;
     } else {
       const submitLabel = settings.submitLabel || (
         target === "tg" ? "Send WateForm to Telegram" : "Send WateForm to WhatsApp"
@@ -1990,6 +2010,12 @@ function renderForm(form) {
     if (target === "both") {
       navDiv.querySelector("#submit-btn-wa")?.addEventListener("click", () => doSubmit("wa"));
       navDiv.querySelector("#submit-btn-tg")?.addEventListener("click", () => doSubmit("tg"));
+    } else if (target === "wa2") {
+      navDiv.querySelector("#submit-btn-wa")?.addEventListener("click",  () => doSubmit("wa"));
+      navDiv.querySelector("#submit-btn-wa2")?.addEventListener("click", () => doSubmit("wa2-2"));
+    } else if (target === "tg2") {
+      navDiv.querySelector("#submit-btn-tg")?.addEventListener("click",  () => doSubmit("tg"));
+      navDiv.querySelector("#submit-btn-tg2")?.addEventListener("click", () => doSubmit("tg2-2"));
     } else {
       navDiv.querySelector("#submit-btn")?.addEventListener("click", () => doSubmit());
     }
@@ -2130,7 +2156,9 @@ function renderForm(form) {
     const _msgWindow = window.open("", "_blank");
     const btns = [
       document.getElementById("submit-btn-wa"),
+      document.getElementById("submit-btn-wa2"),
       document.getElementById("submit-btn-tg"),
+      document.getElementById("submit-btn-tg2"),
       document.getElementById("submit-btn"),
     ].filter(Boolean);
     btns.forEach(b => b.disabled = true);
@@ -2252,8 +2280,10 @@ function renderForm(form) {
         const isLast = currentPage === totalPages - 1;
         if (!isLast) {
           navDiv.querySelector("#nav-next")?.click();
-        } else if (target === "both") {
-          navDiv.querySelector("#submit-btn-wa")?.click();
+        } else if (target === "both" || target === "wa2" || target === "tg2") {
+          // For multi-button targets, Enter triggers the first button
+          navDiv.querySelector("#submit-btn-wa")?.click() ||
+          navDiv.querySelector("#submit-btn-tg")?.click();
         } else {
           navDiv.querySelector("#submit-btn")?.click();
         }

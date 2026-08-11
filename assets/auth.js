@@ -175,6 +175,95 @@ function generateBackupCodes(count = 12) {
   let pendingPassword   = null;
   let pendingResetEmail = null;  // untuk forgot password flow
 
+  // ── Login rate limiting (per email, persisted in localStorage) ─
+  // Thresholds: 3 attempts → 30s, 5 attempts → 2 min, 8 attempts → 3 jam
+  const RL_KEY = "wf-login-rl";
+  const RL_THRESHOLDS = [
+    { attempts: 8, delayMs: 3 * 60 * 60 * 1000 },   // 8x → 3 jam
+    { attempts: 5, delayMs: 2 * 60 * 1000 },          // 5x → 2 menit
+    { attempts: 3, delayMs: 30 * 1000 },               // 3x → 30 detik
+  ];
+  let _rlCountdownTimer = null;
+
+  function _rlLoad() {
+    try { return JSON.parse(localStorage.getItem(RL_KEY) || "{}"); } catch (_) { return {}; }
+  }
+  function _rlSave(data) {
+    try { localStorage.setItem(RL_KEY, JSON.stringify(data)); } catch (_) {}
+  }
+  function _rlKey(email) {
+    return email.trim().toLowerCase();
+  }
+
+  /** Kembalikan { attempts, lockedUntil } untuk email tertentu */
+  function _rlGet(email) {
+    const store = _rlLoad();
+    return store[_rlKey(email)] || { attempts: 0, lockedUntil: 0 };
+  }
+
+  /** Rekam gagal login untuk email, kembalikan status terbaru */
+  function _rlRecordFail(email) {
+    const store = _rlLoad();
+    const k = _rlKey(email);
+    const entry = store[k] || { attempts: 0, lockedUntil: 0 };
+    entry.attempts += 1;
+    // Tentukan delay berdasarkan jumlah attempts
+    const threshold = RL_THRESHOLDS.find(t => entry.attempts >= t.attempts);
+    if (threshold) {
+      entry.lockedUntil = Date.now() + threshold.delayMs;
+    }
+    store[k] = entry;
+    _rlSave(store);
+    return entry;
+  }
+
+  /** Reset attempts setelah login berhasil */
+  function _rlReset(email) {
+    const store = _rlLoad();
+    delete store[_rlKey(email)];
+    _rlSave(store);
+  }
+
+  /** Cek apakah saat ini sedang terkunci; kembalikan sisa ms (0 = bebas) */
+  function _rlRemaining(email) {
+    const entry = _rlGet(email);
+    const rem = (entry.lockedUntil || 0) - Date.now();
+    return rem > 0 ? rem : 0;
+  }
+
+  /** Format ms → string "3 jam", "2 menit 30 detik", "45 detik" */
+  function _rlFormatMs(ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h} jam${m > 0 ? ` ${m} menit` : ""}`;
+    if (m > 0) return `${m} menit${s > 0 ? ` ${s} detik` : ""}`;
+    return `${s} detik`;
+  }
+
+  /** Mulai countdown di error label; disable btn selama terkunci */
+  function _rlStartCountdown(email, btn) {
+    clearInterval(_rlCountdownTimer);
+    const update = () => {
+      const rem = _rlRemaining(email);
+      if (rem <= 0) {
+        clearInterval(_rlCountdownTimer);
+        _rlCountdownTimer = null;
+        showError("login-general-error", "");
+        setLoading(btn, false);
+        btn.disabled = false;
+        return;
+      }
+      showError("login-general-error",
+        `Terlalu banyak percobaan gagal. Coba lagi dalam ${_rlFormatMs(rem)}.`
+      );
+      btn.disabled = true;
+    };
+    update();
+    _rlCountdownTimer = setInterval(update, 1000);
+  }
+
   // ── Tab switching ─────────────────────────────────────────
   function switchTab(name) {
     tabs.forEach((t)   => t.classList.toggle("active", t.dataset.tab === name));
@@ -244,6 +333,20 @@ function generateBackupCodes(count = 12) {
   // ══════════════════════════════════════════════════════════
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
+    // Cek jika masih ada lockout aktif saat halaman dimuat
+    (function _rlInitCheck() {
+      const emailEl = document.getElementById("login-email");
+      const btn     = loginForm.querySelector("[type=submit]");
+      // Pantau saat email berubah untuk mengecek lockout email tersebut
+      if (emailEl) {
+        emailEl.addEventListener("blur", () => {
+          const rem = _rlRemaining(emailEl.value.trim());
+          if (rem > 0) _rlStartCountdown(emailEl.value.trim(), btn);
+          else { clearInterval(_rlCountdownTimer); _rlCountdownTimer = null; }
+        });
+      }
+    })();
+
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearError("login-general-error");
@@ -251,6 +354,14 @@ function generateBackupCodes(count = 12) {
       const emailEl = document.getElementById("login-email");
       const passEl  = document.getElementById("login-password");
       const btn     = loginForm.querySelector("[type=submit]");
+      const email   = emailEl.value.trim();
+
+      // ── Cek rate limit sebelum proses apapun ──────────────
+      const remMs = _rlRemaining(email);
+      if (remMs > 0) {
+        _rlStartCountdown(email, btn);
+        return;
+      }
 
       // ── Validasi Turnstile ─────────────────────────────────
       const cfToken = getTurnstileToken(turnstileLoginId);
@@ -284,21 +395,36 @@ function generateBackupCodes(count = 12) {
       }
 
       const { data, error } = await sb().auth.signInWithPassword({
-        email:    emailEl.value.trim(),
+        email:    email,
         password: passEl.value,
       });
 
       setLoading(btn, false);
 
       if (error) {
-        showError("login-general-error",
-          error.message.includes("Invalid login")
-            ? "Email or password is incorrect."
-            : error.message
-        );
+        // Hanya catat percobaan gagal jika errornya "wrong password" (bukan error jaringan dll)
+        const isWrongPass = error.message.includes("Invalid login") ||
+                            error.message.includes("invalid_credentials") ||
+                            error.message.includes("Invalid credentials");
+        if (isWrongPass) {
+          const entry = _rlRecordFail(email);
+          const newRem = _rlRemaining(email);
+          if (newRem > 0) {
+            // Langsung masuk mode lockout
+            _rlStartCountdown(email, btn);
+          } else {
+            // Belum terkunci, tampilkan pesan gagal biasa
+            showError("login-general-error", "Email or password is incorrect.");
+          }
+        } else {
+          showError("login-general-error", error.message);
+        }
         resetTurnstile(turnstileLoginId);
         return;
       }
+
+      // Login berhasil → reset counter
+      _rlReset(email);
 
       // Cek apakah email sudah diverifikasi via OTP kita
       const emailVerified = data.user?.user_metadata?.email_verified;
@@ -463,6 +589,52 @@ function generateBackupCodes(count = 12) {
   // ══════════════════════════════════════════════════════════
   const registerForm = document.getElementById("register-form");
   if (registerForm) {
+    // ── Password strength checker ─────────────────────────────
+    const pwInp = document.getElementById("reg-password");
+    const pwWrap = document.getElementById("pw-strength-wrap");
+
+    function checkPwRules(pw) {
+      return {
+        len:    pw.length >= 8,
+        upper:  /[A-Z]/.test(pw),
+        lower:  /[a-z]/.test(pw),
+        number: /[0-9]/.test(pw),
+        symbol: /[^A-Za-z0-9]/.test(pw),
+      };
+    }
+
+    function updateStrengthUI(pw) {
+      if (!pwWrap) return;
+      pwWrap.style.display = pw.length > 0 ? "" : "none";
+      const r = checkPwRules(pw);
+      const rules = [
+        { id: "pwr-len",    ok: r.len,    pass: "✓ At least 8 characters",           fail: "✗ At least 8 characters" },
+        { id: "pwr-upper",  ok: r.upper,  pass: "✓ At least 1 uppercase letter (A–Z)", fail: "✗ At least 1 uppercase letter (A–Z)" },
+        { id: "pwr-lower",  ok: r.lower,  pass: "✓ At least 1 lowercase letter (a–z)", fail: "✗ At least 1 lowercase letter (a–z)" },
+        { id: "pwr-number", ok: r.number, pass: "✓ At least 1 number (0–9)",           fail: "✗ At least 1 number (0–9)" },
+        { id: "pwr-symbol", ok: r.symbol, pass: "✓ At least 1 symbol (!@#$…)",         fail: "✗ At least 1 symbol (!@#$…)" },
+      ];
+      rules.forEach(({ id, ok, pass, fail }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = ok ? pass : fail;
+        el.classList.toggle("met", ok);
+      });
+      // Strength bars: count how many rules pass
+      const score = Object.values(r).filter(Boolean).length; // 0–5
+      const barColors = ["#e53e3e","#e53e3e","#f6a623","#f6a623","#2bbda4","#2bbda4"];
+      for (let i = 1; i <= 4; i++) {
+        const bar = document.getElementById(`pw-bar-${i}`);
+        if (!bar) continue;
+        const filled = score >= i + 1;
+        bar.style.background = filled ? barColors[score] : "var(--border)";
+      }
+    }
+
+    if (pwInp) {
+      pwInp.addEventListener("input", () => updateStrengthUI(pwInp.value));
+    }
+
     registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearError("register-general-error");
@@ -496,13 +668,30 @@ function generateBackupCodes(count = 12) {
 
       const pw2Field = pw2El.closest(".field");
       const pw2ErrEl = pw2Field.querySelector(".error-text");
-      const pwMatch  = pw1El.value.length >= 8 && pw1El.value === pw2El.value;
-      if (!pwMatch) {
-        pw2Field.classList.add("invalid");
-        if (pw2ErrEl) pw2ErrEl.textContent =
-          pw1El.value.length < 8 ? "Password must be at least 8 characters." : "Passwords don't match.";
+      const pw1Val   = pw1El.value;
+      const pwRules  = checkPwRules(pw1Val);
+      const pwStrong = pwRules.len && pwRules.upper && pwRules.lower && pwRules.number && pwRules.symbol;
+      const pwMatch  = pw1Val === pw2El.value;
+
+      // Show/update strength UI on submit attempt too
+      updateStrengthUI(pw1Val);
+
+      if (!pwStrong) {
+        pw1El.closest(".field").classList.add("invalid");
+        // Highlight strength wrap to draw attention
+        if (pwWrap) pwWrap.style.display = "";
         valid = false;
-      } else clearFieldError(pw2Field);
+      } else {
+        pw1El.closest(".field").classList.remove("invalid");
+      }
+
+      if (pwStrong && !pwMatch) {
+        pw2Field.classList.add("invalid");
+        if (pw2ErrEl) pw2ErrEl.textContent = "Passwords don't match.";
+        valid = false;
+      } else if (pwStrong) {
+        clearFieldError(pw2Field);
+      }
 
       if (!valid) return;
 

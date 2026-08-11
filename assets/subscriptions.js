@@ -123,67 +123,212 @@
   })();
 
   // ── Inject modal ─────────────────────────────────────────────────────────
+  // ── Modal styles injection ────────────────────────────────────────────────
+  (function injectModalStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+      /* ── Confirm step: order summary card ── */
+      .qris-summary-card {
+        background: var(--bg-mid);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .qris-summary-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+      .qris-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 11px 16px;
+        font-size: 13.5px;
+      }
+      .qris-summary-row + .qris-summary-row {
+        border-top: 1px solid var(--border-soft);
+      }
+      .qris-summary-row span:first-child { color: var(--text-soft); }
+      .qris-summary-row span:last-child  { font-weight: 600; color: var(--text); }
+      .qris-plan-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 10px 2px 4px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 700;
+        background: rgba(43,189,164,.12);
+        color: var(--teal-deep);
+        text-transform: capitalize;
+      }
+      [data-theme="dark"] .qris-plan-pill { color: var(--teal); }
+      .qris-plan-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--teal);
+        flex-shrink: 0;
+      }
+      .qris-price-highlight {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .qris-billing-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--text-soft);
+        font-weight: 500;
+      }
+      .qris-info-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 14px;
+        background: rgba(43,189,164,.06);
+        border: 1px solid rgba(43,189,164,.18);
+        border-radius: var(--radius);
+        font-size: 12.5px;
+        color: var(--text-soft);
+        line-height: 1.55;
+      }
+      .qris-info-note svg { flex-shrink: 0; margin-top: 1px; color: var(--teal-deep); }
+      [data-theme="dark"] .qris-info-note svg { color: var(--teal); }
+
+      /* ── Pay step ── */
+      .qris-pay-card {
+        width: 100%;
+        background: var(--bg-mid);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .qris-pay-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .qris-pay-row + .qris-pay-row { border-top: 1px solid var(--border-soft); }
+      .qris-pay-row span:first-child { color: var(--text-soft); }
+      .qris-pay-amount-val {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .qris-pay-note {
+        padding: 9px 14px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--text-muted);
+        background: var(--bg-raised);
+      }
+      .qris-countdown-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--text-soft);
+        padding: 4px 0;
+      }
+      .qris-countdown-bar strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+      /* modal-header plan accent line */
+      .qris-modal-accent {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-top: 2px;
+      }
+    `;
+    document.head.appendChild(style);
+  })();
+
   (function injectModal() {
     const backdrop = document.createElement("div");
     backdrop.id        = "qris-modal";
     backdrop.className = "modal-backdrop";
     backdrop.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="qris-modal-title">
-        <div class="modal-header">
-          <h3 id="qris-modal-title">Subscribe</h3>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="qris-modal-title" style="max-width:440px">
+        <div class="modal-header" style="margin-bottom:16px">
+          <h3 id="qris-modal-title" style="font-size:17px;font-weight:800;margin:0">Subscribe</h3>
           <button class="modal-close" id="qris-modal-close" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
 
-        <div class="modal-body">
+        <div class="modal-body" style="gap:14px">
 
           <!-- Step 1: confirm before generating -->
-          <div id="qris-step-confirm">
-            <div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px;font-size:13.5px">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="color:var(--text-soft)">Plan</span>
-                <strong id="qris-plan-name" style="text-transform:capitalize"></strong>
+          <div id="qris-step-confirm" style="display:flex;flex-direction:column;gap:14px">
+
+            <div class="qris-summary-card">
+              <div class="qris-summary-header">Order Summary</div>
+              <div class="qris-summary-row">
+                <span>Plan</span>
+                <span id="qris-plan-name" style="font-weight:600;text-transform:capitalize"></span>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="color:var(--text-soft)">Price</span>
-                <span id="qris-plan-price"></span>
+              <div class="qris-summary-row">
+                <span>Price</span>
+                <span class="qris-price-highlight" id="qris-plan-price"></span>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="color:var(--text-soft)">Billing</span>
-                <span>30 days)</span>
+              <div class="qris-summary-row">
+                <span>Billing period</span>
+                <span>
+                  <div class="qris-billing-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    30 days
+                  </div>
+                </span>
               </div>
             </div>
+
+            <!-- <div class="qris-info-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <strong>Pay Now</strong> to generate a QRIS code. Scan and pay the exact amount shown.
+            </div> -->
+
           </div>
 
-                    <!-- Step 2: QRIS display -->
+          <!-- Step 2: QRIS display -->
           <div id="qris-step-pay" style="display:none;flex-direction:column;align-items:center;gap:14px">
-            <div id="qris-img-wrap" style="width:220px;height:220px;border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden">
+
+            <div id="qris-img-wrap" style="width:210px;height:210px;border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg-raised)">
               <img id="qris-img" src="" alt="QRIS payment code" style="width:100%;height:100%;object-fit:contain;display:none">
-              <span id="qris-img-loader" style="font-size:12.5px;color:var(--text-muted)">Loading...</span>
+              <span id="qris-img-loader" style="font-size:12.5px;color:var(--text-muted)">Loading…</span>
             </div>
 
-            <div style="width:100%;background:var(--bg-mid);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13px">
-              <div style="display:flex;justify-content:space-between">
-                <span style="color:var(--text-soft)">Plan</span>
-                <strong id="qris-pay-plan" style="text-transform:capitalize"></strong>
+            <div class="qris-pay-card">
+              <div class="qris-pay-row">
+                <span>Plan</span>
+                <strong id="qris-pay-plan" style="text-transform:capitalize;font-weight:700"></strong>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:baseline">
-                <span style="color:var(--text-soft)">Transfer exactly</span>
-                <strong id="qris-pay-amount" style="font-size:15px"></strong>
+              <div class="qris-pay-row">
+                <span>Transfer exactly</span>
+                <span class="qris-pay-amount-val" id="qris-pay-amount"></span>
               </div>
-              <div style="display:flex;justify-content:space-between;font-size:12.5px">
-                <span style="color:var(--text-muted)">Unique code</span>
-                <span id="qris-pay-unique" style="color:var(--text-muted)"></span>
+              <div class="qris-pay-row">
+                <span>Unique code</span>
+                <span id="qris-pay-unique" style="font-size:12px;color:var(--text-muted)"></span>
               </div>
-              <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;font-size:12px;color:var(--text-muted);line-height:1.6">
-                Pay the exact total shown — not the base price.
-              </div>
+
             </div>
 
-            <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-soft)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>Expires in <strong id="qris-countdown">5:00</strong></span>
+            <div class="qris-countdown-bar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Expires in <strong id="qris-countdown">5:00</strong>
             </div>
 
             <!-- Confirm button — enabled after 20 seconds -->
@@ -191,35 +336,39 @@
               <button id="qris-btn-confirm" class="btn btn-solid btn-sm" style="width:100%;opacity:.4;cursor:not-allowed" disabled>
                 Confirm payment
               </button>
-              <span id="qris-confirm-hint" style="font-size:11.5px;color:var(--text-muted)">Button available in <strong id="qris-confirm-countdown">20</strong>s</span>
+              <span id="qris-confirm-hint" style="font-size:11.5px;color:var(--text-muted)">Available in <strong id="qris-confirm-countdown">20</strong>s</span>
             </div>
 
-            <div id="qris-status-msg" style="font-size:13px;color:var(--text-soft);text-align:center;min-height:20px"></div>
+            <div id="qris-status-msg" style="font-size:13px;color:var(--text-soft);text-align:center;min-height:18px"></div>
           </div>
 
           <!-- Step 3: success -->
-          <div id="qris-step-success" style="display:none;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:8px 0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48" style="color:var(--teal)"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+          <div id="qris-step-success" style="display:none;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:12px 0">
+            <div style="width:56px;height:56px;border-radius:50%;background:rgba(43,189,164,.12);display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28" style="color:var(--teal)"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
             <div>
-              <div style="font-size:16px;font-weight:700;margin-bottom:4px">Payment confirmed</div>
-              <div id="qris-success-detail" style="font-size:13px;color:var(--text-soft)"></div>
+              <div style="font-size:17px;font-weight:800;margin-bottom:6px">Payment confirmed!</div>
+              <div id="qris-success-detail" style="font-size:13px;color:var(--text-soft);line-height:1.6"></div>
             </div>
           </div>
 
           <!-- Step 4: not found -->
-          <div id="qris-step-notfound" style="display:none;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:8px 0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48" style="color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div id="qris-step-notfound" style="display:none;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:12px 0">
+            <div style="width:56px;height:56px;border-radius:50%;background:rgba(229,83,75,.08);display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28" style="color:var(--red)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
             <div>
-              <div style="font-size:16px;font-weight:700;margin-bottom:4px">Payment not found</div>
+              <div style="font-size:17px;font-weight:800;margin-bottom:6px">Payment not found</div>
               <div style="font-size:13px;color:var(--text-soft);line-height:1.6">
-                Your transfer was not detected. If you already paid, wait a few minutes and try confirming again. Otherwise, close and try a new payment.
+                Your transfer was not detected. If you already paid, wait a few minutes and try confirming again.
               </div>
             </div>
           </div>
 
         </div>
 
-        <div class="modal-footer" id="qris-modal-footer">
+        <div class="modal-footer" id="qris-modal-footer" style="margin-top:20px">
           <button class="btn btn-ghost btn-sm" id="qris-btn-cancel">Cancel</button>
           <button class="btn btn-solid btn-sm" id="qris-btn-generate">Pay now</button>
         </div>
@@ -251,8 +400,8 @@
     document.getElementById("qris-status-msg").textContent     = "";
 
     const genBtn = document.getElementById("qris-btn-generate");
-    genBtn.disabled    = false;
-    genBtn.textContent = "Pay now";
+    genBtn.disabled     = false;
+    genBtn.textContent  = "Pay now";
 
     const confirmBtn = document.getElementById("qris-btn-confirm");
     confirmBtn.disabled      = true;
@@ -292,11 +441,11 @@
     if (!_activePlan) return;
 
     const genBtn = document.getElementById("qris-btn-generate");
-    genBtn.disabled    = true;
-    genBtn.textContent = "Generating...";
+    genBtn.disabled   = true;
+    genBtn.textContent = "Membuat kode…";
 
     const { data: { session } } = await _sb.auth.getSession();
-    if (!session) { showToast("Session expired. Please log in again.", "error"); genBtn.disabled = false; genBtn.textContent = "Generate QRIS"; return; }
+    if (!session) { showToast("Session expired. Please log in again.", "error"); genBtn.disabled = false; genBtn.textContent = "Pay now"; return; }
 
     try {
       const res  = await fetch(`${EDGE_BASE}/create-subscription-qris`, {
@@ -307,7 +456,7 @@
       const data = await res.json();
 
       if (!res.ok || !data.qris_data) {
-        showToast(data?.message || data?.error || "Failed to Pay now.", "error");
+        showToast(data?.message || data?.error || "Failed to generate payment.", "error");
         genBtn.disabled    = false;
         genBtn.textContent = "Pay now";
         return;
@@ -322,7 +471,7 @@
       renderQrisImage(data.qris_data);
       document.getElementById("qris-pay-plan").textContent   = data.plan_label;
       document.getElementById("qris-pay-amount").textContent = fmtIdr(data.amount);
-      document.getElementById("qris-pay-unique").textContent = `IDR ${data.unique_code} (unique code included)`;
+      document.getElementById("qris-pay-unique").textContent = `IDR ${data.unique_code}`;
 
       startCountdown(data.expires_in || 300);
       startConfirmCountdown();

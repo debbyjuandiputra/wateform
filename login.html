@@ -70,6 +70,35 @@
 }
 .pw-rule { color: var(--text-muted, #888); transition: color .2s; }
 .pw-rule.met { color: var(--teal, #2bbda4); }
+
+/* ── Password eye toggle ── */
+.pw-field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pw-field-wrap input {
+  width: 100%;
+  padding-right: 40px;
+  box-sizing: border-box;
+}
+.pw-eye-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+.pw-eye-btn:hover { color: var(--text); }
+.pw-eye-btn svg { width: 17px; height: 17px; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -112,7 +141,12 @@
             </div>
             <div class="field">
               <label for="login-password">Password</label>
-              <input type="password" id="login-password" autocomplete="current-password">
+              <div class="pw-field-wrap">
+                <input type="password" id="login-password" autocomplete="current-password">
+                <button type="button" class="pw-eye-btn" aria-label="Show password" data-pw-toggle="login-password">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
             </div>
             <div class="turnstile-wrap">
               <div id="turnstile-login"></div>
@@ -157,7 +191,12 @@
             </div>
             <div class="field">
               <label for="reg-password">Password</label>
-              <input type="password" id="reg-password" autocomplete="new-password">
+              <div class="pw-field-wrap">
+                <input type="password" id="reg-password" autocomplete="new-password">
+                <button type="button" class="pw-eye-btn" aria-label="Show password" data-pw-toggle="reg-password">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
               <div id="pw-strength-wrap" style="margin-top:8px;display:none">
                 <div style="display:flex;gap:4px;margin-bottom:6px">
                   <div class="pw-bar" id="pw-bar-1" style="height:4px;flex:1;border-radius:2px;background:var(--border);transition:background .2s"></div>
@@ -176,7 +215,12 @@
             </div>
             <div class="field">
               <label for="reg-password-confirm">Confirm password</label>
-              <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
+              <div class="pw-field-wrap">
+                <input type="password" id="reg-password-confirm" placeholder="Repeat password" autocomplete="new-password">
+                <button type="button" class="pw-eye-btn" aria-label="Show password" data-pw-toggle="reg-password-confirm">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
               <div class="error-text">Passwords don't match.</div>
             </div>
             <div class="turnstile-wrap">

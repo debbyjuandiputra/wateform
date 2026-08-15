@@ -778,3 +778,229 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   background: var(--teal);
   color: #04231C;
 }
+/* ── Calculation Feature ─────────────────────────────────────── */
+/* Option price input inside choice rows */
+.choice-opt-row .calc-opt-value {
+  width: 86px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-mid);
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  flex-shrink: 0;
+}
+.choice-opt-row .calc-opt-value::placeholder { color: var(--text-muted); }
+.choice-opt-row .calc-opt-value:focus { outline: none; border-color: var(--teal); }
+
+/* Extra operation rows in edit modal */
+.calc-op-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.calc-op-type {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-mid);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.calc-op-type:focus { outline: none; border-color: var(--teal); }
+.calc-op-value {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-mid);
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+}
+.calc-op-value:focus { outline: none; border-color: var(--teal); }
+
+/* Calculation display card (form responden + preview) */
+.calc-display {
+  background: var(--bg-raised);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.calc-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.calc-breakdown { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.calc-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.calc-var-name  { color: var(--text-soft); font-size: 13px; }
+.calc-var-value { color: var(--text); }
+.calc-divider   { border: none; border-top: 1px dashed var(--border); margin: 6px 0; }
+.calc-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1.5px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+.calc-total-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.calc-total-value { font-size: 18px; font-weight: 700; color: var(--teal-deep); }
+
+/* Calc live preview box */
+#em-calc-preview { transition: opacity .15s; line-height: 1.7; }
+
+/* Source field pills */
+.calc-opt-hdr {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  padding: 0 2px;
+}
+
+/* ── Avatar fix: solid teal background always visible ── */
+.topbar-user .avatar {
+  background: var(--teal);
+  color: #04231C;
+}
+/* ── Calculation Feature ─────────────────────────────────────── */
+/* Option value input inside choice rows */
+.choice-opt-row .calc-opt-value {
+  width: 90px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-mid);
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  flex-shrink: 0;
+}
+.choice-opt-row .calc-opt-value::placeholder { color: var(--text-muted); }
+.choice-opt-row .calc-opt-value:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+/* Calculation display card (form + preview) */
+.calc-display {
+  background: var(--bg-raised);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.calc-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.calc-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.calc-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 3px 0;
+  color: var(--text-soft);
+}
+.calc-var-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.calc-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1.5px solid var(--border);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+.calc-total-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.calc-total-value { font-size: 18px; font-weight: 700; color: var(--teal-deep); }
+
+/* Calc variable row inputs */
+#em-calc-vars > div { align-items: stretch; }
+#em-calc-vars select {
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-mid);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Formula textarea */
+#em-calc-formula {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+#em-calc-formula:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+/* Calc live preview box */
+#em-calc-preview {
+  transition: opacity .15s;
+  line-height: 1.7;
+}
+
+/* Chip buttons for available vars */
+#em-calc-chips button {
+  transition: background .15s, transform .1s;
+}
+#em-calc-chips button:hover {
+  background: rgba(43,189,164,.25);
+  transform: translateY(-1px);
+}
+
+/* Calc opt header row */
+.calc-opt-hdr {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  padding: 0 2px;
+}

@@ -180,6 +180,17 @@ function esc(str) {
 }
 function uid() { return Math.random().toString(36).slice(2,9); }
 
+// ── Calculation: normalize option to {label, value} ──────────
+function normOpt(opt) {
+  if (typeof opt === "string") return { label: opt, value: "" };
+  return { label: String(opt.label ?? opt), value: opt.value ?? "" };
+}
+function normOpts(opts) {
+  return (opts || []).map(normOpt);
+}
+
+// (buildCalcVarsFromQuestions and evalCalcFormula removed — replaced by evalCalcOps)
+
 // ── Media upload (Supabase Storage) ─────────────────────────────
 async function uploadFormMedia(file) {
   const ext  = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -509,6 +520,18 @@ function addQuestion(type) {
     spacerHeight: 32,
     // button_link
     buttonLabel: "Open link", buttonUrl: "", buttonStyle: "primary", buttonAlign: "left",
+    // calculation
+    calcLabel: "Order Summary",
+    calcOps: [],
+    calcPrefix: "$",
+    calcSuffix: "",
+    calcDecimals: 0,
+    calcShowBreakdown: true,
+    calcSendOnlyTotal: true,
+    // option value (for choice/checkbox/dropdown/toggle/multiselect)
+    optionWithValue: false,
+    toggleOnValue: "",
+    toggleOffValue: "",
   };
   questions.push(q);
   renderQuestionCards();
@@ -744,27 +767,73 @@ function openEditModal(idx) {
   }
 
   if (q.type === "choice" || q.type === "dropdown" || q.type === "checkbox") {
+    const hasCalc = questions.some(qq => qq.type === "calculation");
     const wrap = document.createElement("div");
     wrap.className = "field";
     const lbl = document.createElement("label");
     lbl.textContent = q.type === "checkbox" ? "Checkbox options (multi-select)" : "Options";
     wrap.appendChild(lbl);
+
+    // "Nilai Opsi" toggle — only shown when there's a calculation field
+    if (hasCalc) {
+      const valHint = document.createElement("div");
+      valHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-bottom:6px";
+      valHint.textContent = "This form has a Calculation field. You can assign a numeric price to each option.";
+      wrap.appendChild(valHint);
+      const valToggle = makeToggleField("Enable option pricing (for Calculation)", "em-option-with-value", q.optionWithValue || false);
+      wrap.appendChild(valToggle);
+    }
+
+    // Column header when nilai opsi active
+    if (q.optionWithValue && hasCalc) {
+      const hdr = document.createElement("div");
+      hdr.style.cssText = "display:flex;gap:8px;align-items:center;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;padding:0 2px";
+      hdr.innerHTML = `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
+      wrap.appendChild(hdr);
+    }
+
     const optsDiv = document.createElement("div");
     optsDiv.className = "choice-options"; optsDiv.id = "em-options";
     wrap.appendChild(optsDiv);
     const addOptBtn = document.createElement("button");
     addOptBtn.className = "add-option-btn"; addOptBtn.type = "button"; addOptBtn.textContent = "+ Add option";
     addOptBtn.addEventListener("click", () => {
-      const opts = collectOptions();
-      opts.push("Option " + (opts.length + 1));
-      renderOptions(opts, optsDiv);
+      const withVal = document.getElementById("em-option-with-value")?.checked || false;
+      const opts = collectOptions(withVal);
+      opts.push(withVal ? { label: "Option " + (opts.length + 1), value: "" } : "Option " + (opts.length + 1));
+      renderOptions(opts, optsDiv, withVal);
     });
     wrap.appendChild(addOptBtn);
     if (q.type === "choice" || q.type === "checkbox") {
       wrap.appendChild(makeToggleField('Allow "Other" option', "em-allow-other", q.type === "checkbox" ? q.checkboxAllowOther : q.allowOther));
     }
     body.appendChild(wrap);
-    renderOptions(q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || []), optsDiv);
+
+    const rawOpts = q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || []);
+    renderOptions(rawOpts, optsDiv, q.optionWithValue && hasCalc);
+
+    // Wire the toggle: re-render when switched
+    if (hasCalc) {
+      setTimeout(() => {
+        const tog = document.getElementById("em-option-with-value");
+        if (tog) tog.addEventListener("change", function() {
+          const cur = collectOptions(this.checked);
+          // Update header visibility
+          const existHdr = wrap.querySelector(".calc-opt-hdr");
+          if (this.checked && !existHdr) {
+            const hdr = document.createElement("div");
+            hdr.className = "calc-opt-hdr";
+            hdr.style.cssText = "display:flex;gap:8px;align-items:center;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;padding:0 2px";
+            hdr.innerHTML = `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
+            optsDiv.insertAdjacentElement("beforebegin", hdr);
+          } else if (!this.checked && existHdr) {
+            existHdr.remove();
+          }
+          renderOptions(cur, optsDiv, this.checked);
+        });
+      }, 0);
+    }
+
     // Max selections for checkbox (like multiselect)
     if (q.type === "checkbox") {
       body.appendChild(makeField("Max selections (0 = unlimited)", "input",
@@ -945,7 +1014,7 @@ function openEditModal(idx) {
     body.appendChild(makeField("URL", "input",
       { type:"url", id:"em-url-href", value: q.urlHref || "", placeholder:"https://…", maxlength:"500" }
     ));
-    body.appendChild(makeField("Teks link (opsional)", "input",
+    body.appendChild(makeField("Teks link (optional)", "input",
       { type:"text", id:"em-url-label", value: q.urlLabel || "", placeholder:"Kosongkan untuk tampilkan URL-nya", maxlength:"200" }
     ));
   }
@@ -990,6 +1059,7 @@ function openEditModal(idx) {
 
   // ── Toggle Switch fields
   if (q.type === "toggle") {
+    const hasCalc = questions.some(qq => qq.type === "calculation");
     const twrap = document.createElement("div"); twrap.className = "field";
     twrap.innerHTML = `<label>Labels</label><div style="display:flex;gap:8px;align-items:center">
       <input type="text" id="em-toggle-off" value="${esc(q.toggleOffLabel||"No")}" placeholder="Off label" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit">
@@ -998,25 +1068,56 @@ function openEditModal(idx) {
     </div>`;
     body.appendChild(twrap);
     body.appendChild(makeToggleField("Default state (On)", "em-toggle-default", q.toggleDefault));
+    if (hasCalc) {
+      const tvWrap = document.createElement("div"); tvWrap.className = "field";
+      tvWrap.innerHTML = `<label>Pricing values (for Calculation) <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(optional)</span></label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1"><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Value when OFF</div>
+            <input type="number" id="em-toggle-off-val" value="${q.toggleOffValue !== "" && q.toggleOffValue !== undefined ? q.toggleOffValue : ""}" placeholder="0" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right"></div>
+          <div style="flex:1"><div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Value when ON</div>
+            <input type="number" id="em-toggle-on-val" value="${q.toggleOnValue !== "" && q.toggleOnValue !== undefined ? q.toggleOnValue : ""}" placeholder="0" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right"></div>
+        </div>`;
+      body.appendChild(tvWrap);
+    }
   }
 
   // ── Multi-select Dropdown fields
   if (q.type === "multiselect") {
+    const hasCalcMs = questions.some(qq => qq.type === "calculation");
     body.appendChild(makeField("Placeholder", "input",
       { type:"text", id:"em-ms-placeholder", value: q.multiselectPlaceholder||"Select options…", maxlength:"100" }
     ));
     const msWrap = document.createElement("div"); msWrap.className = "field";
     const msLbl = document.createElement("label"); msLbl.textContent = "Options";
     msWrap.appendChild(msLbl);
+    if (hasCalcMs) {
+      const msHint = document.createElement("div");
+      msHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-bottom:6px";
+      msHint.textContent = "This form has a Calculation field. You can assign a numeric price to each option.";
+      msWrap.appendChild(msHint);
+      msWrap.appendChild(makeToggleField("Enable option pricing (for Calculation)", "em-ms-with-value", q.optionWithValue || false));
+    }
     const msOpts = document.createElement("div"); msOpts.className = "choice-options"; msOpts.id = "em-ms-options";
     msWrap.appendChild(msOpts);
     const msAddBtn = document.createElement("button"); msAddBtn.className = "add-option-btn"; msAddBtn.type = "button"; msAddBtn.textContent = "+ Add option";
     msAddBtn.addEventListener("click", () => {
-      const opts = collectMsOptions(); opts.push("Option "+(opts.length+1)); renderMsOptions(opts, msOpts);
+      const withVal = document.getElementById("em-ms-with-value")?.checked || false;
+      const opts = collectMsOptions(withVal);
+      opts.push(withVal ? { label: "Option "+(opts.length+1), value: "" } : "Option "+(opts.length+1));
+      renderMsOptions(opts, msOpts, withVal);
     });
     msWrap.appendChild(msAddBtn);
     body.appendChild(msWrap);
-    renderMsOptions(q.multiselectOptions||[], msOpts);
+    renderMsOptions(q.multiselectOptions||[], msOpts, q.optionWithValue && hasCalcMs);
+    if (hasCalcMs) {
+      setTimeout(() => {
+        const tog = document.getElementById("em-ms-with-value");
+        if (tog) tog.addEventListener("change", function() {
+          const cur = collectMsOptions(this.checked);
+          renderMsOptions(cur, msOpts, this.checked);
+        });
+      }, 0);
+    }
     body.appendChild(makeField("Max selections (0 = unlimited)", "input",
       { type:"number", id:"em-ms-max", value: q.multiselectMax||0, min:"0", max:"99", step:"1" }
     ));
@@ -1394,8 +1495,105 @@ function openEditModal(idx) {
     body.appendChild(hint4);
   }
 
+  // ── Calculation field editor
+  if (q.type === "calculation") {
+    // ── Info box
+    const infoBox = document.createElement("div");
+    infoBox.style.cssText = "background:var(--teal-dim);border:1px solid rgba(43,189,164,.2);border-radius:var(--radius);padding:10px 13px;font-size:12px;color:var(--text-soft);line-height:1.6;margin-bottom:4px";
+    infoBox.innerHTML = `<strong style="color:var(--teal-deep)">How it works:</strong> The total is the <em>sum of values from options the respondent selects</em>. You can add flat fees, discounts, taxes, or multipliers below.`;
+    body.appendChild(infoBox);
+
+    // ── Pricing fields connected
+    const sources = getCalcSourceFields();
+    const srcBox = document.createElement("div"); srcBox.className = "field";
+    const srcLbl = document.createElement("label"); srcLbl.textContent = "Pricing fields connected";
+    srcBox.appendChild(srcLbl);
+    const srcList = document.createElement("div"); srcList.style.cssText = "display:flex;flex-direction:column;gap:4px";
+    if (sources.length) {
+      sources.forEach(s => {
+        const opts = normOpts(s.type === "checkbox" ? (s.checkboxOptions || s.options || []) : (s.options || s.multiselectOptions || []));
+        const valued = opts.filter(o => o.value !== "");
+        const pill = document.createElement("div");
+        pill.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius);font-size:12px";
+        pill.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="color:var(--teal);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="flex:1;font-weight:500">${esc(s.title || s.type)}</span>
+          <span style="color:var(--text-muted)">${valued.length} option${valued.length !== 1 ? "s" : ""} with prices</span>`;
+        srcList.appendChild(pill);
+      });
+    } else {
+      const empty = document.createElement("div");
+      empty.style.cssText = "padding:8px 10px;background:var(--bg-raised);border:1px dashed var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-muted)";
+      empty.innerHTML = `No pricing fields yet. Open a <strong>Choice / Checkbox / Dropdown / Multi-select</strong> field, toggle <strong>Enable option pricing</strong>, and set a price per option.`;
+      srcList.appendChild(empty);
+    }
+    srcBox.appendChild(srcList); body.appendChild(srcBox);
+
+    // ── Display label
+    body.appendChild(makeField("Display label", "input",
+      { type:"text", id:"em-calc-label", value: q.calcLabel || "Order Summary", maxlength:"80" }
+    ));
+
+    // ── Number format
+    const fmtRow = document.createElement("div"); fmtRow.className = "field";
+    const fmtLbl = document.createElement("label"); fmtLbl.textContent = "Number format";
+    fmtRow.appendChild(fmtLbl);
+    const fmtGrid = document.createElement("div"); fmtGrid.style.cssText = "display:flex;gap:8px";
+    const mkFmtField = (lbl, id, val, ph, type, w) => {
+      const d = document.createElement("div"); d.style.flex = w || "1";
+      const l = document.createElement("div"); l.style.cssText = "font-size:11px;color:var(--text-muted);margin-bottom:3px"; l.textContent = lbl;
+      const i = document.createElement("input"); i.type = type || "text"; i.id = id; i.value = val; i.placeholder = ph;
+      if (type === "number") { i.min = "0"; i.max = "4"; }
+      i.style.cssText = "width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit";
+      i.addEventListener("input", updateCalcPreview);
+      d.appendChild(l); d.appendChild(i); return d;
+    };
+    fmtGrid.appendChild(mkFmtField("Prefix", "em-calc-prefix", q.calcPrefix ?? "$", "$", "text", "0 0 80px"));
+    fmtGrid.appendChild(mkFmtField("Suffix", "em-calc-suffix", q.calcSuffix ?? "", "", "text", "0 0 80px"));
+    fmtGrid.appendChild(mkFmtField("Decimals", "em-calc-decimals", q.calcDecimals ?? 0, "0", "number", "0 0 70px"));
+    fmtRow.appendChild(fmtGrid); body.appendChild(fmtRow);
+
+    // ── Extra operations
+    const opsWrap = document.createElement("div"); opsWrap.className = "field";
+    const opsLbl = document.createElement("label"); opsLbl.textContent = "Extra operations";
+    opsWrap.appendChild(opsLbl);
+    const opsHint = document.createElement("div");
+    opsHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-bottom:8px";
+    opsHint.textContent = "Optional: flat fees, discounts, taxes, or multipliers applied after selected options are summed.";
+    opsWrap.appendChild(opsHint);
+
+    const opsHdr = document.createElement("div");
+    opsHdr.style.cssText = "display:none";
+    opsHdr.innerHTML = `<span style="flex:0 0 120px">Operation</span><span style="width:70px;text-align:right">Value</span><span style="flex:1;padding-left:6px">Label</span><span style="width:28px"></span>`;
+    opsWrap.appendChild(opsHdr);
+
+    const opsList = document.createElement("div"); opsList.id = "em-calc-ops";
+    opsList.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-bottom:8px";
+    opsWrap.appendChild(opsList);
+    renderCalcOps(q.calcOps || [], opsList);
+
+    const addOpBtn = document.createElement("button");
+    addOpBtn.type = "button"; addOpBtn.className = "add-option-btn"; addOpBtn.textContent = "+ Add operation";
+    addOpBtn.addEventListener("click", () => {
+      const cur = collectCalcOps(); cur.push({ op:"add", value:0, label:"" });
+      renderCalcOps(cur, opsList); updateCalcPreview();
+    });
+    opsWrap.appendChild(addOpBtn); body.appendChild(opsWrap);
+
+    // ── Live preview
+    const prevWrap = document.createElement("div"); prevWrap.id = "em-calc-preview";
+    prevWrap.style.cssText = "background:var(--teal-dim);border:1px solid rgba(43,189,164,.25);border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:4px";
+    prevWrap.innerHTML = `<span style="color:var(--text-muted);font-style:italic">Preview will appear here…</span>`;
+    body.appendChild(prevWrap);
+
+    // ── Toggles
+    body.appendChild(makeToggleField("Show itemized breakdown to respondent", "em-calc-breakdown", q.calcShowBreakdown !== false));
+    body.appendChild(makeToggleField("Send only the Total in WA / Telegram message", "em-calc-send-total", q.calcSendOnlyTotal !== false));
+
+    setTimeout(() => updateCalcPreview(), 50);
+  }
+
   // ── Required toggle (not for title/image/video/toggle types)
-  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link","ranking"].includes(q.type)) {
+  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link","calculation","ranking"].includes(q.type)) {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -1440,43 +1638,72 @@ function renderStarsPreview(max) {
   }
 }
 
-function renderOptions(opts, container) {
+function renderOptions(opts, container, withValue) {
   container.innerHTML = "";
-  opts.forEach((opt, oi) => {
+  const normed = normOpts(opts);
+  normed.forEach((opt, oi) => {
     const row = document.createElement("div");
     row.className = "choice-opt-row";
     const inp = document.createElement("input");
-    inp.type = "text"; inp.value = opt; inp.placeholder = `Option ${oi+1}`; inp.dataset.oi = oi;
+    inp.type = "text"; inp.value = opt.label; inp.placeholder = `Option ${oi+1}`;
+    inp.dataset.oi = oi; inp.dataset.role = "label"; inp.style.flex = "1";
+    row.appendChild(inp);
+    if (withValue) {
+      const val = document.createElement("input");
+      val.type = "number"; val.placeholder = "Price";
+      val.value = opt.value !== "" ? opt.value : "";
+      val.dataset.oi = oi; val.dataset.role = "value";
+      val.className = "calc-opt-value";
+      val.title = "Numeric price for this option (used by the Calculation field)";
+      row.appendChild(val);
+    }
     const rmBtn = document.createElement("button");
     rmBtn.className = "choice-remove"; rmBtn.type = "button";
     rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
     rmBtn.addEventListener("click", () => {
-      const cur = collectOptions();
+      const cur = collectOptions(withValue);
       cur.splice(oi, 1);
-      renderOptions(cur, container);
+      renderOptions(cur, container, withValue);
     });
-    row.appendChild(inp);
     row.appendChild(rmBtn);
     container.appendChild(row);
   });
 }
 
 // ── Multi-select option helpers ──────────────────────────────
-function renderMsOptions(opts, container) {
+function renderMsOptions(opts, container, withValue) {
   container.innerHTML = "";
-  opts.forEach((opt, oi) => {
+  const normed = normOpts(opts);
+  normed.forEach((opt, oi) => {
     const row = document.createElement("div"); row.className = "choice-opt-row";
-    const inp = document.createElement("input"); inp.type = "text"; inp.value = opt; inp.placeholder = `Option ${oi+1}`; inp.dataset.oi = oi;
+    const inp = document.createElement("input"); inp.type = "text";
+    inp.value = opt.label; inp.placeholder = `Option ${oi+1}`;
+    inp.dataset.oi = oi; inp.dataset.role = "label"; inp.style.flex = "1";
+    row.appendChild(inp);
+    if (withValue) {
+      const val = document.createElement("input");
+      val.type = "number"; val.placeholder = "Price";
+      val.value = opt.value !== "" ? opt.value : "";
+      val.dataset.oi = oi; val.dataset.role = "ms-value";
+      val.className = "calc-opt-value";
+      row.appendChild(val);
+    }
     const rmBtn = document.createElement("button"); rmBtn.className = "choice-remove"; rmBtn.type = "button";
     rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
-    rmBtn.addEventListener("click", () => { const cur = collectMsOptions(); cur.splice(oi,1); renderMsOptions(cur, container); });
-    row.appendChild(inp); row.appendChild(rmBtn); container.appendChild(row);
+    rmBtn.addEventListener("click", () => { const cur = collectMsOptions(withValue); cur.splice(oi,1); renderMsOptions(cur, container, withValue); });
+    row.appendChild(rmBtn); container.appendChild(row);
   });
 }
-function collectMsOptions() {
+function collectMsOptions(withValue) {
   const div = document.getElementById("em-ms-options");
   if (!div) return [];
-  return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+  const labels = Array.from(div.querySelectorAll("[data-role='label']"));
+  if (!labels.length) return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+  return labels.map((inp, i) => {
+    const valInp = div.querySelector(`[data-role='ms-value'][data-oi='${i}']`);
+    if (withValue || valInp) return { label: inp.value, value: valInp && valInp.value !== "" ? Number(valInp.value) : "" };
+    return inp.value;
+  });
 }
 
 // ── Multi-input field helpers ─────────────────────────────────
@@ -1513,10 +1740,21 @@ function collectMiFields() {
   });
 }
 
-function collectOptions() {
+function collectOptions(withValue) {
   const div = document.getElementById("em-options");
   if (!div) return [];
-  return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+  const labels = Array.from(div.querySelectorAll("[data-role='label']"));
+  if (!labels.length) {
+    // fallback: legacy inputs without data-role
+    return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
+  }
+  return labels.map((inp, i) => {
+    const valInp = div.querySelector(`[data-role='value'][data-oi='${i}']`);
+    if (withValue || valInp) {
+      return { label: inp.value, value: valInp && valInp.value !== "" ? Number(valInp.value) : "" };
+    }
+    return inp.value;
+  });
 }
 
 function makeField(labelHtml, tag, attrs) {
@@ -1550,6 +1788,153 @@ function makeToggleField(labelText, id, checked) {
   row.appendChild(span);
   row.appendChild(lbl);
   return row;
+}
+
+// ── Calculation: helper functions ────────────────────────────
+// ── Calculation: visual operation blocks ─────────────────────
+function renderCalcOps(ops, container) {
+  container.innerHTML = "";
+  ops.forEach((op, oi) => {
+    const row = document.createElement("div");
+    row.className = "calc-op-row";
+
+    // Line 1: operation type (full width) + remove button
+    const line1 = document.createElement("div");
+    line1.style.cssText = "display:flex;gap:6px;align-items:center";
+
+    const typSel = document.createElement("select");
+    typSel.dataset.oi = oi; typSel.dataset.key = "op";
+    typSel.className = "calc-op-type";
+    [
+      { v:"add",      l:"+ Add flat amount" },
+      { v:"subtract", l:"− Subtract flat amount" },
+      { v:"multiply", l:"× Multiply subtotal by" },
+      { v:"percent",  l:"% Add percentage of subtotal" },
+    ].forEach(({ v, l }) => {
+      const o = document.createElement("option"); o.value = v; o.textContent = l;
+      if ((op.op || "add") === v) o.selected = true;
+      typSel.appendChild(o);
+    });
+    typSel.addEventListener("change", updateCalcPreview);
+    line1.appendChild(typSel);
+
+    const rmBtn = document.createElement("button"); rmBtn.type = "button"; rmBtn.className = "choice-remove";
+    rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+    rmBtn.addEventListener("click", () => {
+      const cur = collectCalcOps(); cur.splice(oi, 1);
+      renderCalcOps(cur, container); updateCalcPreview();
+    });
+    line1.appendChild(rmBtn);
+    row.appendChild(line1);
+
+    // Line 2: value + label
+    const line2 = document.createElement("div");
+    line2.style.cssText = "display:flex;gap:6px;align-items:center";
+
+    const valInp = document.createElement("input");
+    valInp.type = "number"; valInp.value = op.value ?? 0; valInp.placeholder = "0";
+    valInp.dataset.oi = oi; valInp.dataset.key = "value";
+    valInp.className = "calc-op-value";
+    valInp.addEventListener("input", updateCalcPreview);
+    line2.appendChild(valInp);
+
+    row.appendChild(line2);
+    container.appendChild(row);
+  });
+}
+
+function collectCalcOps() {
+  const div = document.getElementById("em-calc-ops");
+  if (!div) return [];
+  return Array.from(div.children).map(row => {
+    const v = { op: "add", value: 0, label: "" };
+    row.querySelectorAll("input,select").forEach(i => {
+      if (!i.dataset.key) return;
+      v[i.dataset.key] = i.dataset.key === "value" ? Number(i.value) || 0 : i.value;
+    });
+    return v;
+  });
+}
+
+// Evaluate ops against a subtotal (sum of selected option values)
+function evalCalcOps(subtotal, ops) {
+  let total = subtotal;
+  ops.forEach(op => {
+    const val = Number(op.value) || 0;
+    if      (op.op === "add")      total += val;
+    else if (op.op === "subtract") total -= val;
+    else if (op.op === "multiply") total *= val;
+    else if (op.op === "percent")  total += (subtotal * val / 100);
+  });
+  return total;
+}
+
+// Source fields that have option pricing set
+function getCalcSourceFields() {
+  return questions.filter(q =>
+    q.optionWithValue && (
+      q.type === "choice" || q.type === "checkbox" ||
+      q.type === "dropdown" || q.type === "multiselect"
+    ) && normOpts(
+      q.type === "checkbox" ? (q.checkboxOptions || q.options || []) :
+      (q.options || q.multiselectOptions || [])
+    ).some(o => o.value !== "")
+  );
+}
+
+function updateCalcPreview() {
+  const prev = document.getElementById("em-calc-preview");
+  if (!prev) return;
+
+  const prefix = document.getElementById("em-calc-prefix")?.value ?? "$";
+  const suffix = document.getElementById("em-calc-suffix")?.value ?? "";
+  const dec    = Number(document.getElementById("em-calc-decimals")?.value) || 0;
+  const fmtNum = n => `${prefix}${Number(n).toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec})}${suffix}`;
+
+  const sources = getCalcSourceFields();
+  const ops     = collectCalcOps();
+
+  if (!sources.length && !ops.length) {
+    prev.innerHTML = `<span style="color:var(--text-muted);font-style:italic">Set option values on a choice/checkbox/dropdown field above, then the total will appear here.</span>`;
+    return;
+  }
+
+  // Sample: use first valued option per field
+  let subtotal = 0;
+  const sampleLines = [];
+  sources.forEach(q => {
+    const opts = normOpts(q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || q.multiselectOptions || []));
+    const first = opts.find(o => o.value !== "");
+    if (!first) return;
+    const v = Number(first.value) || 0;
+    subtotal += v;
+    sampleLines.push(`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-soft)">
+      <span>${esc(q.title || q.type)}<span style="color:var(--text-muted);font-size:11px"> — ${esc(first.label)}</span></span><span>${fmtNum(v)}</span>
+    </div>`);
+  });
+
+  const opLines = ops.map(op => {
+    const val = Number(op.value) || 0;
+    let displayOp = "", amount = 0;
+    if      (op.op === "add")      { displayOp = `+${fmtNum(val)}`;     amount =  val; }
+    else if (op.op === "subtract") { displayOp = `−${fmtNum(val)}`;     amount = -val; }
+    else if (op.op === "multiply") { displayOp = `×${val}`;             amount =  subtotal * (val - 1); }
+    else if (op.op === "percent")  { displayOp = `${val}%`;             amount =  subtotal * val / 100; }
+    const lbl = op.label || (op.op === "percent" ? "Fee %" : op.op === "multiply" ? "Multiplier" : op.op === "add" ? "Add" : "Deduct");
+    return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-soft)">
+      <span>${esc(lbl)}<span style="color:var(--text-muted);font-size:11px"> (${displayOp})</span></span>
+      <span>${amount >= 0 ? "+" : ""}${fmtNum(amount)}</span>
+    </div>`;
+  });
+
+  const total = evalCalcOps(subtotal, ops);
+  prev.innerHTML = `
+    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:7px">Preview (sample values)</div>
+    ${sampleLines.join("")}
+    ${opLines.length ? `<div style="border-top:1px dashed var(--border);margin:6px 0"></div>${opLines.join("")}` : ""}
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:14px;border-top:1px solid rgba(43,189,164,.3);margin-top:7px;padding-top:7px">
+      <span>Total</span><span style="color:var(--teal-deep)">${fmtNum(total)}</span>
+    </div>`;
 }
 
 // ── Save from edit modal back to questions[] ──────────────────
@@ -1721,11 +2106,36 @@ function saveEditToMemory() {
     document.querySelector(".pw-required-hint")?.remove();
   }
   if (document.getElementById("em-options")) {
+    const withVal = get("em-option-with-value")?.checked || false;
+    q.optionWithValue = withVal;
     if (q.type === "checkbox") {
-      q.checkboxOptions = collectOptions();
+      q.checkboxOptions = collectOptions(withVal);
     } else {
-      q.options = collectOptions();
+      q.options = collectOptions(withVal);
     }
+  }
+  // toggle nilai
+  if (q.type === "toggle") {
+    const onV  = get("em-toggle-on-val");
+    const offV = get("em-toggle-off-val");
+    q.toggleOnValue  = onV  && onV.value  !== "" ? Number(onV.value)  : "";
+    q.toggleOffValue = offV && offV.value !== "" ? Number(offV.value) : "";
+  }
+  // multiselect nilai
+  if (q.type === "multiselect") {
+    const withValMs = get("em-ms-with-value")?.checked || false;
+    q.optionWithValue = withValMs;
+    q.multiselectOptions = collectMsOptions(withValMs);
+  }
+  // calculation
+  if (q.type === "calculation") {
+    q.calcLabel         = get("em-calc-label")?.value     || "Order Summary";
+    q.calcOps           = collectCalcOps();
+    q.calcPrefix        = get("em-calc-prefix")?.value    ?? "$";
+    q.calcSuffix        = get("em-calc-suffix")?.value    ?? "";
+    q.calcDecimals      = Number(get("em-calc-decimals")?.value) || 0;
+    q.calcShowBreakdown = get("em-calc-breakdown")?.checked !== false;
+    q.calcSendOnlyTotal = get("em-calc-send-total")?.checked !== false;
   }
 }
 
@@ -2415,24 +2825,40 @@ function buildPreviewField(q, i) {
   if (q.type === "number")   control = `<input type="number" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "date")     control = `<input type="date" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "email")    control = `<input type="email" placeholder="${q.gmailOnly ? "you@gmail.com" : ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
-  if (q.type === "checkbox") { const cbOpts = q.checkboxOptions || q.options || []; control = `<div style="display:flex;flex-direction:column;gap:6px">${cbOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> ${esc(o)}</label>`).join("")}${q.checkboxAllowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }
+  if (q.type === "checkbox") { const cbOpts = normOpts(q.checkboxOptions || q.options || []); control = `<div style="display:flex;flex-direction:column;gap:6px">${cbOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> ${esc(o.label)}${q.optionWithValue && o.value !== "" ? `<span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${Number(o.value).toLocaleString("en-US")}</span>` : ""}</label>`).join("")}${q.checkboxAllowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }
   if (q.type === "phone")    control = `<div style="display:flex;gap:8px"><select style="width:120px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg-raised);color:var(--text)"><option>${esc(q.phonePrefix||"+62")}</option></select><input type="tel" placeholder="${ph}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)"></div>`;
   if (q.type === "rating")   control = `<div style="display:flex;gap:6px">${Array(q.maxRating||5).fill("★").map(s=>`<span style="font-size:24px;cursor:pointer;color:var(--teal)">★</span>`).join("")}</div>`;
   if (q.type === "dropdown") {
-    const ddOpts = q.options || [];
+    const ddOpts = normOpts(q.options || []);
     control = ddOpts.length > 10
       ? `<div style="position:relative"><input type="text" placeholder="— Select (searchable) —" readonly style="width:100%;padding:8px 36px 8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);cursor:pointer"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' width='16' height='16' style='position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)'><path d='m6 9 6 6 6-6'/></svg><div style='font-size:11px;color:var(--text-muted);margin-top:4px'>🔍 Searchable dropdown (${ddOpts.length} options)</div></div>`
-      : `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${ddOpts.map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
+      : `<select style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);appearance:none"><option value="">Select…</option>${ddOpts.map(o=>`<option value="${esc(o.label)}">${esc(o.label)}</option>`).join("")}</select>`;
   }
-  if (q.type === "choice")   control = `<div style="display:flex;flex-direction:column;gap:6px">${(q.options||[]).map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o)}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`;
+  if (q.type === "calculation") {
+    // Builder preview: show static placeholder — total is 0 until respondent selects options
+    const pfx = q.calcPrefix ?? "$"; const sfx = q.calcSuffix ?? ""; const dc = q.calcDecimals || 0;
+    const fmtN = n => `${pfx}${Number(n).toLocaleString("en-US",{minimumFractionDigits:dc,maximumFractionDigits:dc})}${sfx}`;
+    const pricingSources = questions.filter(pq => pq.optionWithValue && ["choice","checkbox","dropdown","multiselect"].includes(pq.type));
+    control = `<div style="background:var(--bg-raised);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:10px">${esc(q.calcLabel||"Order Summary")}</div>
+      ${pricingSources.length
+        ? `<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px">Items will appear here as the respondent makes selections.</div>`
+        : `<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px">No pricing fields connected yet. Enable "option pricing" on a choice / checkbox / dropdown field.</div>`
+      }
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1.5px solid var(--border);padding-top:8px">
+        <span>Total</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
+      </div>
+    </div>`;
+  }
+  if (q.type === "choice")   { const choiceOpts = normOpts(q.options||[]); control = `<div style="display:flex;flex-direction:column;gap:6px">${choiceOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o.label)}${q.optionWithValue && o.value !== "" ? `<span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${Number(o.value).toLocaleString("en-US")}</span>` : ""}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }
   if (q.type === "image")    control = q.mediaUrl ? `<img src="${esc(q.mediaUrl)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:10px;display:block">` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='3' y='3' width='18' height='18' rx='2'/><circle cx='8.5' cy='8.5' r='1.5'/><path d='m21 15-5-5L5 21'/></svg>Image will appear here</div>`;
   if (q.type === "video")    control = q.mediaUrl ? `<video src="${esc(q.mediaUrl)}" controls style="width:100%;border-radius:10px;display:block"></video>` : `<div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:10px;padding:48px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='32' height='32' style='opacity:.4;display:block;margin:0 auto 8px'><rect x='2' y='4' width='20' height='16' rx='2'/><polygon points='10 9 15 12 10 15 10 9'/></svg>Video will appear here</div>`;
   if (q.type === "file_upload") control = `<div style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--text-muted);font-size:13px"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' width='28' height='28' style='opacity:.5;margin:0 auto 8px;display:block'><path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/><polyline points='17 8 12 3 7 8'/><line x1='12' y1='3' x2='12' y2='15'/></svg>${esc(q.placeholder || "Upload your file")}<br><span style='font-size:11px'>${q.allowedFileTypes ? q.allowedFileTypes.replace(/,/g,", ") : "Any file"} · Max ${q.maxFileSizeMb||10}MB</span></div>`;
-  if (q.type === "url_input") { const _href=esc(q.urlHref||""); const _lbl=esc(q.urlLabel||q.urlHref||""); control = _href ? `<a href="${_href}" target="_blank" rel="noopener noreferrer" style="color:#6366f1;text-decoration:underline;font-size:14px;word-break:break-all">${_lbl||_href}</a>` : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">Belum ada URL yang diset</span>`; }
+  if (q.type === "url_input") { const _href=esc(q.urlHref||""); const _lbl=esc(q.urlLabel||q.urlHref||""); control = _href ? `<a href="${_href}" target="_blank" rel="noopener noreferrer" style="color:#6366f1;text-decoration:underline;font-size:14px;word-break:break-all">${_lbl||_href}</a>` : `<span style="font-size:13px;color:var(--text-muted);font-style:italic">No URL set yet</span>`; }
   if (q.type === "color")       control = `<div style="display:flex;align-items:center;gap:12px"><input type="color" value="${esc(q.colorDefault||"#2BBDA4")}" style="width:48px;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer"><span style="font-size:13px;color:var(--text-muted)">HEX · RGB · HSL will be shown</span></div>`;
   if (q.type === "password")    control = `<div style="position:relative"><input type="password" placeholder="Enter password…" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);letter-spacing:.1em"><div style="font-size:11px;color:var(--text-muted);margin-top:4px">Users must enter the correct password to submit</div></div>`;
   if (q.type === "toggle") control = `<div style="display:flex;align-items:center;gap:12px"><div style="width:50px;height:26px;border-radius:13px;background:var(--border);position:relative;cursor:pointer"><div style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${q.toggleDefault?"24px":"2px"};box-shadow:0 1px 3px rgba(0,0,0,.2)"></div></div><span style="font-size:14px">${esc(q.toggleDefault?q.toggleOnLabel||"Yes":q.toggleOffLabel||"No")}</span></div>`;
-  if (q.type === "multiselect") { const mso = (q.multiselectOptions||[]).slice(0,5); control = `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 12px 8px;background:var(--bg-raised)"><div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${esc(q.multiselectPlaceholder||"Select options…")}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${mso.map(o=>`<span style="padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer">${esc(o)}</span>`).join("")}${(q.multiselectOptions||[]).length>5?`<span style="font-size:12px;color:var(--text-muted);padding:3px 6px">+${(q.multiselectOptions||[]).length-5} more</span>`:""}</div></div>`; }
+  if (q.type === "multiselect") { const mso = normOpts(q.multiselectOptions||[]).slice(0,5); const msAll = normOpts(q.multiselectOptions||[]); control = `<div style="border:1px solid var(--border);border-radius:8px;padding:9px 12px 8px;background:var(--bg-raised)"><div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">${esc(q.multiselectPlaceholder||"Select options…")}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${mso.map(o=>`<span style="padding:3px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer">${esc(o.label)}</span>`).join("")}${msAll.length>5?`<span style="font-size:12px;color:var(--text-muted);padding:3px 6px">+${msAll.length-5} more</span>`:""}</div></div>`; }
   if (q.type === "likert") { const scale = q.likertScale||5; const rows = (q.likertRows||[""]).filter(Boolean); control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--text-muted)">${esc(q.likertStartLabel||"Strongly Disagree")}</th>${Array.from({length:scale},(_,i)=>`<th style="padding:6px 4px;text-align:center;font-size:11px;color:var(--text-muted)">${i+1}</th>`).join("")}<th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--text-muted)">${esc(q.likertEndLabel||"Strongly Agree")}</th></tr></thead><tbody>${(rows.length?rows:["Statement 1","Statement 2"]).map(r=>`<tr style="border-top:1px solid var(--border)"><td style="padding:8px;font-size:13px">${esc(r)}</td>${Array.from({length:scale},(_,i)=>`<td style="padding:8px 4px;text-align:center"><input type="radio" name="l${i}" style="accent-color:var(--teal)"></td>`).join("")}<td></td></tr>`).join("")}</tbody></table></div>`; }
   if (q.type === "matrix") { const rows = q.matrixRows||["Row 1","Row 2"]; const cols = q.matrixCols||["Col 1","Col 2"]; control = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)"></th>${cols.map(c=>`<th style="padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);font-weight:600">${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--border-soft)"><td style="padding:9px 8px;font-size:13px">${esc(r)}</td>${cols.map((_,ci)=>`<td style="padding:9px 12px;text-align:center"><input type="${q.matrixType||"radio"}" name="mx-${r}-${ci}" style="accent-color:var(--teal)"></td>`).join("")}</tr>`).join("")}</tbody></table></div>`; }
   if (q.type === "data_table") {

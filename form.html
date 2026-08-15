@@ -458,6 +458,52 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .multi-input-grid { display:flex; flex-direction:column; gap:12px; }
 .mi-field-wrap { display:flex; flex-direction:column; gap:4px; }
 .mi-field-label { font-size:12px; font-weight:600; color:var(--text); }
+
+/* ── Calculation card ─────────────────────────────────────── */
+.calc-card {
+  background: var(--bg-raised, #f9fafb);
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.calc-summary-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-muted, #94a3b8);
+  margin-bottom: 10px;
+}
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.calc-row-name { color: var(--text-soft, #64748b); flex: 1; }
+.calc-row-opt  { font-size: 11px; color: var(--text-muted, #94a3b8); }
+.calc-row-val  { color: var(--text, #0f172a); white-space: nowrap; margin-left: 12px; }
+.calc-divider  { border: none; border-top: 1px dashed var(--border, #e2e8f0); margin: 6px 0; }
+.calc-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1.5px solid var(--border, #e2e8f0);
+  padding-top: 10px;
+  margin-top: 8px;
+}
+.calc-total-lbl { font-size: 14px; font-weight: 600; color: var(--text, #0f172a); }
+.calc-total-val { font-size: 20px; font-weight: 700; color: var(--teal-deep, #0d9488); }
+/* Small price badge next to option label */
+.opt-price {
+  margin-left: auto;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted, #94a3b8);
+  padding-left: 8px;
+}
+
 </style>
   <!-- Leaflet for Map field -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -574,6 +620,107 @@ function showSuccess(settings, targetOverride) {
 function esc(s) {
   return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
+// ── Calculation helpers ───────────────────────────────────────
+function normOpt(o) {
+  return typeof o === "string" ? { label: o, value: "" } : { label: String(o.label ?? o), value: o.value ?? "" };
+}
+function normOpts(arr) { return (arr || []).map(normOpt); }
+
+function evalCalcOps(subtotal, ops) {
+  let total = subtotal;
+  (ops || []).forEach(function(op) {
+    var v = Number(op.value) || 0;
+    if      (op.op === "add")      total += v;
+    else if (op.op === "subtract") total -= v;
+    else if (op.op === "multiply") total *= v;
+    else if (op.op === "percent")  total += subtotal * v / 100;
+  });
+  return total;
+}
+
+function fmtCalc(n, q) {
+  var pfx = q.calcPrefix !== undefined ? q.calcPrefix : "";
+  var sfx = q.calcSuffix !== undefined ? q.calcSuffix : "";
+  var dec = q.calcDecimals || 0;
+  return pfx + Number(n).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + sfx;
+}
+
+function updateCalcFields() {
+  if (typeof questions === "undefined" || typeof answers === "undefined") return;
+  questions.forEach(function(cq) {
+    if (cq.type !== "calculation") return;
+    var el = document.getElementById("calc-" + cq.id);
+    if (!el) return;
+
+    var subtotal = 0;
+    var itemLines = [];
+
+    questions.forEach(function(pq) {
+      if (!pq.optionWithValue) return;
+      var rawOpts = pq.type === "checkbox"
+        ? (pq.checkboxOptions || pq.options || [])
+        : (pq.options || pq.multiselectOptions || []);
+      var opts = normOpts(rawOpts);
+      var ans = answers[pq.id] || "";
+
+      if (pq.type === "choice" || pq.type === "dropdown") {
+        opts.forEach(function(o) {
+          if (o.label === ans && o.value !== "") {
+            var v = Number(o.value);
+            subtotal += v;
+            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v });
+          }
+        });
+      } else if (pq.type === "checkbox" || pq.type === "multiselect") {
+        var selected = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
+        opts.forEach(function(o) {
+          if (selected.indexOf(o.label) !== -1 && o.value !== "") {
+            var v = Number(o.value);
+            subtotal += v;
+            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v });
+          }
+        });
+      }
+    });
+
+    var total = evalCalcOps(subtotal, cq.calcOps || []);
+    var showBreakdown = cq.calcShowBreakdown !== false;
+    var html = "";
+
+    html += "<div class=\"calc-summary-label\">" + esc(cq.calcLabel || "Order Summary") + "</div>";
+
+    if (showBreakdown && itemLines.length) {
+      itemLines.forEach(function(it) {
+        html += "<div class=\"calc-row\"><span class=\"calc-row-name\">" + esc(it.label) + "<span class=\"calc-row-opt\"> — " + esc(it.opt) + "</span></span><span class=\"calc-row-val\">" + fmtCalc(it.value, cq) + "</span></div>";
+      });
+    }
+
+    if (showBreakdown && subtotal > 0 && (cq.calcOps || []).length) {
+      html += "<div class=\"calc-divider\"></div>";
+      var running = subtotal;
+      (cq.calcOps || []).forEach(function(op) {
+        var v = Number(op.value) || 0;
+        var amount = 0;
+        if      (op.op === "add")      { amount =  v; running += v; }
+        else if (op.op === "subtract") { amount = -v; running -= v; }
+        else if (op.op === "multiply") { amount = running * (v - 1); running *= v; }
+        else if (op.op === "percent")  { amount = subtotal * v / 100; running += amount; }
+        var opLabel = op.label || (op.op === "add" ? "Additional fee" : op.op === "subtract" ? "Discount" : op.op === "multiply" ? "Multiplier" : "Tax / Fee");
+        html += "<div class=\"calc-row\"><span class=\"calc-row-name\">" + esc(opLabel) + "</span><span class=\"calc-row-val\">" + (amount >= 0 ? "+" : "") + fmtCalc(amount, cq) + "</span></div>";
+      });
+    }
+
+    html += "<div class=\"calc-total-row\"><span class=\"calc-total-lbl\">Total</span><span class=\"calc-total-val\">" + fmtCalc(total, cq) + "</span></div>";
+    el.innerHTML = html;
+
+    // Store for WA/Tele message
+    answers[cq.id] = cq.calcSendOnlyTotal !== false
+      ? "Total: " + fmtCalc(total, cq)
+      : itemLines.map(function(i){ return i.opt + ": " + fmtCalc(i.value, cq); }).join(", ") + " | Total: " + fmtCalc(total, cq);
+  });
+}
+
+
 
 // ── Build WhatsApp / Telegram link ────────────────────────────
 // NOTE: WhatsApp applies *bold*/_italic_ formatting to text sent via wa.me
@@ -991,10 +1138,11 @@ function renderForm(form) {
         break;
       }
       case "checkbox": {
-        const cbOpts = Array.isArray(q.checkboxOptions) && q.checkboxOptions.length ? q.checkboxOptions : (Array.isArray(q.options) ? q.options : []);
+        const cbRaw = Array.isArray(q.checkboxOptions) && q.checkboxOptions.length ? q.checkboxOptions : (Array.isArray(q.options) ? q.options : []);
+        const cbOpts = normOpts(cbRaw);
         inputHtml = `<div class="check-list" id="cl-${q.id}">` +
-          cbOpts.map(opt => `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt)}">
-            <div class="check-marker"></div><span>${esc(opt)}</span>
+          cbOpts.map(opt => `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${esc(String(opt.value))}">
+            <div class="check-marker"></div><span>${esc(opt.label)}</span>
           </div>`).join("") +
           (q.checkboxAllowOther ? `<div class="check-opt" data-qid="${q.id}" data-val="__other__">
             <div class="check-marker"></div><span>Other…</span>
@@ -1005,10 +1153,11 @@ function renderForm(form) {
         break;
       }
       case "choice": {
-        const opts = Array.isArray(q.options) ? q.options : [];
+        const choiceRaw = Array.isArray(q.options) ? q.options : [];
+        const choiceOpts = normOpts(choiceRaw);
         inputHtml = `<div class="choice-list" id="cl-${q.id}">` +
-          opts.map(opt => `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt)}">
-            <div class="choice-marker"></div><span>${esc(opt)}</span>
+          choiceOpts.map(opt => `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${esc(String(opt.value))}">
+            <div class="choice-marker"></div><span>${esc(opt.label)}</span>
           </div>`).join("") +
           (q.allowOther ? `<div class="choice-opt" data-qid="${q.id}" data-val="__other__">
             <div class="choice-marker"></div><span>Other…</span>
@@ -1029,7 +1178,7 @@ function renderForm(form) {
                 <input type="text" id="dds-${q.id}" placeholder="Search…" autocomplete="off">
               </div>
               <div id="ddo-${q.id}">
-                ${opts.map(opt => `<div class="dropdown-option" data-val="${esc(opt)}">${esc(opt)}</div>`).join("")}
+                ${normOpts(opts).map(opt => `<div class="dropdown-option" data-val="${esc(opt.label)}" data-price="${esc(String(opt.value))}">${esc(opt.label)}</div>`).join("")}
               </div>
               <div class="dropdown-no-results" id="ddnr-${q.id}" style="display:none">No results</div>
             </div>
@@ -1038,7 +1187,7 @@ function renderForm(form) {
           inputHtml = `<div style="position:relative">
             <select id="q-${q.id}" class="q-input" style="width:100%;padding:9px 36px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit;appearance:none;cursor:pointer">
               <option value="">— Select —</option>
-              ${opts.map(opt => `<option value="${esc(opt)}">${esc(opt)}</option>`).join("")}
+              ${normOpts(opts).map(opt => `<option value="${esc(opt.label)}" data-price="${esc(String(opt.value))}">${esc(opt.label)}</option>`).join("")}
             </select>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted)"><path d="m6 9 6 6 6-6"/></svg>
           </div>`;
@@ -1080,7 +1229,7 @@ function renderForm(form) {
           <div class="ms-panel" id="mspanel-${q.id}">
             <div class="ms-search-box"><input type="text" id="mssearch-${q.id}" placeholder="Search…" autocomplete="off"></div>
             <div class="ms-options" id="mslist-${q.id}">
-              ${msOpts.map(o=>`<div class="ms-opt" data-val="${esc(o)}"><div class="ms-opt-check"></div><span>${esc(o)}</span></div>`).join("")}
+              ${normOpts(msOpts).map(o=>`<div class="ms-opt" data-val="${esc(o.label)}" data-price="${esc(String(o.value))}"><div class="ms-opt-check"></div><span>${esc(o.label)}</span></div>`).join("")}
             </div>
             <div class="ms-no-res" id="msnr-${q.id}" style="display:none">No results</div>
             ${msMax>0?`<div class="ms-max-note">Max ${msMax} selections</div>`:""}
@@ -1280,6 +1429,14 @@ function renderForm(form) {
         </div>`;
         break;
       }
+      case "calculation": {
+        // Rendered as a live-updating summary card; no user input
+        inputHtml = `<div class="calc-card" id="calc-${q.id}">
+          <div class="calc-summary-label">${esc(q.calcLabel || "Order Summary")}</div>
+          <div class="calc-total-row"><span class="calc-total-lbl">Total</span><span class="calc-total-val">—</span></div>
+        </div>`;
+        break;
+      }
       default:
         inputHtml = `<input type="text" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
     }
@@ -1322,6 +1479,7 @@ function renderForm(form) {
             }
           });
           answers[q.id] = parts.join(",");
+          updateCalcFields();
         });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
@@ -1334,6 +1492,7 @@ function renderForm(form) {
           }
         });
         answers[q.id] = parts.join(",");
+        updateCalcFields();
       });
     }
 
@@ -1352,10 +1511,12 @@ function renderForm(form) {
             if (otherInput) otherInput.style.display = "none";
             answers[q.id] = val;
           }
+          updateCalcFields();
         });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
         answers[q.id] = e.target.value;
+        updateCalcFields();
       });
     }
 
@@ -1386,7 +1547,7 @@ function renderForm(form) {
     // Bind dropdown select
     if (q.type === "dropdown") {
       const sel = block.querySelector(`#q-${q.id}`);
-      if (sel && sel.tagName === "SELECT") sel.addEventListener("change", () => { answers[q.id] = sel.value; });
+      if (sel && sel.tagName === "SELECT") sel.addEventListener("change", () => { answers[q.id] = sel.value; updateCalcFields(); });
       // Searchable dropdown (> 10 opts)
       const ddWrap = block.querySelector(`#ddw-${q.id}`);
       if (ddWrap) {
@@ -1413,6 +1574,7 @@ function renderForm(form) {
             o.classList.add("selected");
             trigger.value = o.dataset.val;
             answers[q.id] = o.dataset.val;
+            updateCalcFields();
             list.classList.remove("open");
           });
         });
@@ -1610,6 +1772,8 @@ function renderForm(form) {
               });
               updateTrigger();
               answers[q.id] = [...selected].join(",");
+          updateCalcFields();
+              updateCalcFields();
             });
           });
         }
@@ -1644,6 +1808,7 @@ function renderForm(form) {
           }
           updateTrigger();
           answers[q.id] = [...selected].join(",");
+          updateCalcFields();
         });
       });
       answers[q.id] = "";

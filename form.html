@@ -876,8 +876,10 @@ function genShortCode(len = 8) {
 // ── Render form ───────────────────────────────────────────────
 function renderForm(form) {
   const questions = Array.isArray(form.questions) ? form.questions : [];
+  window.questions = questions; // expose globally for updateCalcFields()
   const settings  = form.settings || {};
   const answers   = {};
+  window.answers = answers;     // expose globally for updateCalcFields()
   const fileMap   = {};   // qId → File object (for Supabase Storage upload)
   const starState = {};
 

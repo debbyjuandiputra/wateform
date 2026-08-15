@@ -1587,7 +1587,7 @@ function openEditModal(idx) {
 
     // ── Toggles
     body.appendChild(makeToggleField("Show itemized breakdown to respondent", "em-calc-breakdown", q.calcShowBreakdown !== false));
-    body.appendChild(makeToggleField("Send only the Total in WA / Telegram message", "em-calc-send-total", q.calcSendOnlyTotal !== false));
+    body.appendChild(makeToggleField("Send only the Total in WhatsApp / Telegram message", "em-calc-send-total", q.calcSendOnlyTotal !== false));
 
     setTimeout(() => updateCalcPreview(), 50);
   }
@@ -1827,17 +1827,29 @@ function renderCalcOps(ops, container) {
     line1.appendChild(rmBtn);
     row.appendChild(line1);
 
-    // Line 2: value + label
+    // Line 2: label (left) + value (right) in one row
     const line2 = document.createElement("div");
-    line2.style.cssText = "display:flex;gap:6px;align-items:center";
+    line2.style.cssText = "display:flex;gap:6px;align-items:center;margin-top:4px;width:100%";
+
+    const lblInp = document.createElement("input");
+    lblInp.type = "text"; lblInp.value = op.label ?? ""; lblInp.placeholder = "Label (required)";
+    lblInp.dataset.oi = oi; lblInp.dataset.key = "label";
+    lblInp.required = true;
+    lblInp.style.cssText = "flex:1;min-width:0;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box;outline:none";
+    lblInp.addEventListener("focus",  () => lblInp.style.borderColor = "var(--teal)");
+    lblInp.addEventListener("blur",   () => lblInp.style.borderColor = "var(--border)");
+    lblInp.addEventListener("input", updateCalcPreview);
 
     const valInp = document.createElement("input");
     valInp.type = "number"; valInp.value = op.value ?? 0; valInp.placeholder = "0";
     valInp.dataset.oi = oi; valInp.dataset.key = "value";
-    valInp.className = "calc-op-value";
+    valInp.style.cssText = "width:90px;flex-shrink:0;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right;box-sizing:border-box;outline:none";
+    valInp.addEventListener("focus",  () => valInp.style.borderColor = "var(--teal)");
+    valInp.addEventListener("blur",   () => valInp.style.borderColor = "var(--border)");
     valInp.addEventListener("input", updateCalcPreview);
-    line2.appendChild(valInp);
 
+    line2.appendChild(lblInp);
+    line2.appendChild(valInp);
     row.appendChild(line2);
     container.appendChild(row);
   });
@@ -1920,7 +1932,7 @@ function updateCalcPreview() {
     else if (op.op === "subtract") { displayOp = `−${fmtNum(val)}`;     amount = -val; }
     else if (op.op === "multiply") { displayOp = `×${val}`;             amount =  subtotal * (val - 1); }
     else if (op.op === "percent")  { displayOp = `${val}%`;             amount =  subtotal * val / 100; }
-    const lbl = op.label || (op.op === "percent" ? "Fee %" : op.op === "multiply" ? "Multiplier" : op.op === "add" ? "Add" : "Deduct");
+    const lbl = op.label || "";
     return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-soft)">
       <span>${esc(lbl)}<span style="color:var(--text-muted);font-size:11px"> (${displayOp})</span></span>
       <span>${amount >= 0 ? "+" : ""}${fmtNum(amount)}</span>
@@ -1939,7 +1951,7 @@ function updateCalcPreview() {
 
 // ── Save from edit modal back to questions[] ──────────────────
 function saveEditToMemory() {
-  if (editingIdx === null) return;
+  if (editingIdx === null) return false;
   const q = questions[editingIdx];
   const get = id => document.getElementById(id);
 
@@ -2098,7 +2110,7 @@ function saveEditToMemory() {
           pwInpEl.parentElement?.appendChild(h);
         }
       }
-      return; // abort save
+      return false; // abort save
     }
     q.passwordValue = pwVal;
     const pwInpEl = get("em-password-value");
@@ -2129,6 +2141,31 @@ function saveEditToMemory() {
   }
   // calculation
   if (q.type === "calculation") {
+    // Validate: all extra operations must have a label
+    const opDiv = document.getElementById("em-calc-ops");
+    if (opDiv) {
+      let missingLabel = false;
+      opDiv.querySelectorAll("input[data-key='label']").forEach(inp => {
+        if (!inp.value.trim()) {
+          inp.style.borderColor = "var(--red, #ef4444)";
+          missingLabel = true;
+        } else {
+          inp.style.borderColor = "";
+        }
+      });
+      if (missingLabel) {
+        // Show hint if not already present
+        if (!opDiv.querySelector(".op-label-hint")) {
+          const hint = document.createElement("div");
+          hint.className = "op-label-hint";
+          hint.style.cssText = "font-size:12px;color:var(--red,#ef4444);margin-top:6px";
+          hint.textContent = "Please fill in a label for each operation.";
+          opDiv.appendChild(hint);
+        }
+        return false; // abort save
+      }
+      opDiv.querySelector(".op-label-hint")?.remove();
+    }
     q.calcLabel         = get("em-calc-label")?.value     || "Order Summary";
     q.calcOps           = collectCalcOps();
     q.calcPrefix        = get("em-calc-prefix")?.value    ?? "$";
@@ -2137,11 +2174,12 @@ function saveEditToMemory() {
     q.calcShowBreakdown = get("em-calc-breakdown")?.checked !== false;
     q.calcSendOnlyTotal = get("em-calc-send-total")?.checked !== false;
   }
+  return true;
 }
 
 // Save button in edit modal
 document.getElementById("edit-save-btn").addEventListener("click", () => {
-  saveEditToMemory();
+  if (!saveEditToMemory()) return; // abort if validation failed
   renderQuestionCards();
   scheduleSave();
   closeModal("edit-modal");

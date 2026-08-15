@@ -705,7 +705,7 @@ function updateCalcFields() {
         else if (op.op === "subtract") { amount = -v; running -= v; }
         else if (op.op === "multiply") { amount = running * (v - 1); running *= v; }
         else if (op.op === "percent")  { amount = subtotal * v / 100; running += amount; }
-        var opLabel = op.label || (op.op === "add" ? "Additional fee" : op.op === "subtract" ? "Discount" : op.op === "multiply" ? "Multiplier" : "Tax / Fee");
+        var opLabel = op.label || "";
         html += "<div class=\"calc-row\"><span class=\"calc-row-name\">" + esc(opLabel) + "</span><span class=\"calc-row-val\">" + (amount >= 0 ? "+" : "") + fmtCalc(amount, cq) + "</span></div>";
       });
     }

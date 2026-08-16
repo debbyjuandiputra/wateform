@@ -4,6 +4,7 @@
     "jsx": "preserve"
   },
   "exclude": [
-    "**/*.html"
+    "**/*.html",
+    "supabase/functions/**"
   ]
 }

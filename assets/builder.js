@@ -686,10 +686,11 @@ function openEditModal(idx) {
 
   // ── Common: Title
   const isTitle = q.type === "title";
+  const isCalc  = q.type === "calculation";
   body.appendChild(makeField(
     isTitle ? "Heading text" : "Title",
     "input",
-    { type:"text", id:"em-title", value: q.title, placeholder: isTitle ? "Section heading…" : "Question title…", maxlength:"200", style: isTitle ? "font-size:20px;font-weight:700;letter-spacing:-.3px" : "font-size:15px;font-weight:600" }
+    { type:"text", id:"em-title", value: q.title, placeholder: isTitle ? "Section heading…" : isCalc ? "Total" : "Question title…", maxlength:"200", style: isTitle ? "font-size:20px;font-weight:700;letter-spacing:-.3px" : "font-size:15px;font-weight:600" }
   ));
 
   if (!isTitle) {
@@ -1614,7 +1615,7 @@ function openEditModal(idx) {
     const infoBox = document.createElement("div");
     infoBox.style.cssText = "background:var(--teal-dim);border:1px solid rgba(43,189,164,.2);border-radius:var(--radius);padding:10px 13px;font-size:12px;color:var(--text-soft);line-height:1.6;margin-bottom:4px";
     if (calcFields.length === 0) {
-      infoBox.innerHTML = `<strong style="color:var(--red,#ef4444)">⚠️ Perhatian:</strong> No Calculation field found in this form. The Payment field requires a Calculation field to get the total amount. Please add a Calculation field first.`;
+      infoBox.innerHTML = `<strong style="color:var(--red,#ef4444)">Perhatian:</strong> No Calculation field found in this form. The Payment field requires a Calculation field to get the total amount. Please add a Calculation field first.`;
     } else {
       infoBox.innerHTML = `<strong style="color:var(--teal-deep)">How it works:</strong> This field takes the total from a <em>Calculation</em> field and generates a QRIS for payment. The submit button stays disabled until payment is confirmed.`;
     }
@@ -2952,7 +2953,7 @@ function buildPreviewField(q, i) {
         : `<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px">No pricing fields connected yet. Enable "option pricing" on a choice / checkbox / dropdown field.</div>`
       }
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1.5px solid var(--border);padding-top:8px">
-        <span>Total</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
+        <span>${esc(q.title || "Total")}</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
       </div>
     </div>`;
   }
@@ -2966,7 +2967,7 @@ function buildPreviewField(q, i) {
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">${esc(q.paymentLabel||"Payment")}</div>
       ${q.paymentDescription ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:10px">${esc(q.paymentDescription)}</div>` : ""}
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:8px 0;border-top:1px solid var(--border)">
-        <span>Total</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
+        <span>${esc(calcField && calcField.title ? calcField.title : "Total")}</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
       </div>
       <button type="button" style="width:100%;margin-top:10px;padding:10px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>

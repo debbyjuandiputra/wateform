@@ -909,6 +909,11 @@ function openQrisModal(paymentFieldId) {
     '</div>' +
     '<div class="qris-countdown" id="qris-countdown-' + paymentFieldId + '"></div>' +
     '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '">Waiting for payment confirmation...</div>' +
+    '<button class="qris-confirm-btn" id="qris-confirm-' + paymentFieldId + '" disabled style="width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:not-allowed;background:var(--border);color:var(--text-muted)">Confirm Payment</button>' +
+    '<div style="font-size:11.5px;color:var(--text-muted);text-align:center;margin-top:4px">Available in <span id="qris-confirm-cd-' + paymentFieldId + '">20</span>s</div>' +
+    '<div id="qris-report-' + paymentFieldId + '" style="display:none;text-align:center;margin-top:8px">' +
+      '<a id="qris-report-link-' + paymentFieldId + '" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>' +
+    '</div>' +
     '<button class="qris-close-btn" id="qris-close-' + paymentFieldId + '">Close</button>' +
   '</div>';
   document.body.appendChild(modal);
@@ -916,6 +921,62 @@ function openQrisModal(paymentFieldId) {
     closeQrisModal(paymentFieldId);
   });
   generateFormPaymentQris(paymentFieldId, total);
+
+  // ── Confirm button: aktif setelah 15 detik ──────────────────────────────
+  var _confirmCdEl  = document.getElementById("qris-confirm-cd-" + paymentFieldId);
+  var _confirmBtn   = document.getElementById("qris-confirm-" + paymentFieldId);
+  var _reportDiv    = document.getElementById("qris-report-" + paymentFieldId);
+  var _reportLink   = document.getElementById("qris-report-link-" + paymentFieldId);
+  var _cdSec = 20, _reportSec = 50, _cdElapsed = 0;
+  var _cdInterval = setInterval(function() {
+    _cdElapsed++;
+    var left = Math.max(0, _cdSec - _cdElapsed);
+    if (_confirmCdEl) _confirmCdEl.textContent = left;
+    if (_cdElapsed >= _cdSec && _confirmBtn && _confirmBtn.disabled) {
+      _confirmBtn.disabled = false;
+      _confirmBtn.style.background = "var(--teal,#2bbda4)";
+      _confirmBtn.style.color = "#fff";
+      _confirmBtn.style.cursor = "pointer";
+      if (_confirmCdEl) _confirmCdEl.parentElement.style.display = "none";
+    }
+    if (_cdElapsed >= _reportSec && _reportDiv) {
+      _reportDiv.style.display = "block";
+    }
+    if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
+  }, 1000);
+  window._qrisConfirmCdInterval = _cdInterval;
+
+  if (_confirmBtn) {
+    _confirmBtn.addEventListener("click", function() {
+      var refNoEl = document.getElementById("qris-checking-" + paymentFieldId);
+      _confirmBtn.disabled = true;
+      _confirmBtn.style.background = "var(--border)";
+      _confirmBtn.style.color = "var(--text-muted)";
+      _confirmBtn.textContent = "Checking...";
+      // Trigger an immediate poll check
+      if (window._qrisPollNow) window._qrisPollNow();
+    });
+  }
+
+  if (_reportLink) {
+    _reportLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
+      sessionData.then(function(sd) {
+        var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
+        var now = new Date();
+        var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+        var subject = encodeURIComponent("Payment not detected");
+        var body = encodeURIComponent(
+          "Email: " + userEmail + "\n" +
+          "Total: " + fmtTotal + "\n" +
+          "Time: " + timeStr + "\n" +
+          "Message: "
+        );
+        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
+      });
+    });
+  }
 }
 
 function closeQrisModal(paymentFieldId) {
@@ -923,6 +984,7 @@ function closeQrisModal(paymentFieldId) {
   if (modal) modal.remove();
   if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
   if (window._qrisCountdown) { clearInterval(window._qrisCountdown); window._qrisCountdown = null; }
+  if (window._qrisConfirmCdInterval) { clearInterval(window._qrisConfirmCdInterval); window._qrisConfirmCdInterval = null; }
 }
 
 async function generateFormPaymentQris(paymentFieldId, amount) {
@@ -970,7 +1032,8 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
     }, 1000);
     var refNo = data.ref_no;
     if (window._qrisTimer) clearInterval(window._qrisTimer);
-    window._qrisTimer = setInterval(async function() {
+
+    async function doPoll() {
       try {
         var checkRes = await fetch(SUPABASE_URL + "/functions/v1/check-form-payment-qris", {
           method: "POST",
@@ -991,9 +1054,16 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
         } else if (checkData.status === "expired") {
           clearInterval(window._qrisTimer);
           if (checkEl) checkEl.textContent = "\u274C QRIS kadaluwarsa. Close dan coba lagi.";
+        } else {
+          // Re-enable confirm button after failed check
+          var _cb = document.getElementById("qris-confirm-" + paymentFieldId);
+          if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
         }
       } catch(pollErr) { /* ignore poll errors, keep trying */ }
-    }, 4000);
+    }
+
+    window._qrisPollNow = doPoll;
+    window._qrisTimer = setInterval(doPoll, 4000);
   } catch (e) {
     if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">\u274C Error: ' + e.message + '</div>';
   }

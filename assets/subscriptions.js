@@ -331,7 +331,7 @@
               Expires in <strong id="qris-countdown">5:00</strong>
             </div>
 
-            <!-- Confirm button — enabled after 20 seconds -->
+            <!-- Confirm button — enabled after 15 seconds -->
             <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px">
               <button id="qris-btn-confirm" class="btn btn-solid btn-sm" style="width:100%;opacity:.4;cursor:not-allowed" disabled>
                 Confirm payment
@@ -340,6 +340,9 @@
             </div>
 
             <div id="qris-status-msg" style="font-size:13px;color:var(--text-soft);text-align:center;min-height:18px"></div>
+            <div id="qris-report-link-wrap" style="display:none;text-align:center;margin-top:2px">
+              <a id="qris-report-link" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>
+            </div>
           </div>
 
           <!-- Step 3: success -->
@@ -398,6 +401,8 @@
     document.getElementById("qris-img").style.display          = "none";
     document.getElementById("qris-img-loader").style.display   = "";
     document.getElementById("qris-status-msg").textContent     = "";
+    const reportWrap = document.getElementById("qris-report-link-wrap");
+    if (reportWrap) reportWrap.style.display = "none";
 
     const genBtn = document.getElementById("qris-btn-generate");
     genBtn.disabled     = false;
@@ -513,25 +518,52 @@
     _countdownTimer = setInterval(tick, 1000);
   }
 
-  // ── 20-second confirm button countdown ───────────────────────────────────
+  // ── 15-second confirm button countdown ───────────────────────────────────
   function startConfirmCountdown() {
-    let remaining  = 20;
-    const hintEl   = document.getElementById("qris-confirm-hint");
-    const countEl  = document.getElementById("qris-confirm-countdown");
+    let elapsed     = 0;
+    const hintEl    = document.getElementById("qris-confirm-hint");
+    const countEl   = document.getElementById("qris-confirm-countdown");
     const confirmBtn = document.getElementById("qris-btn-confirm");
+    const reportWrap = document.getElementById("qris-report-link-wrap");
+    const reportLink = document.getElementById("qris-report-link");
 
     function tick() {
-      remaining--;
-      if (countEl) countEl.textContent = remaining;
-      if (remaining <= 0) {
-        clearInterval(_confirmTimer);
+      elapsed++;
+      const leftConfirm = Math.max(0, 20 - elapsed);
+      if (countEl) countEl.textContent = leftConfirm;
+      if (elapsed >= 20 && confirmBtn && confirmBtn.disabled) {
         confirmBtn.disabled      = false;
         confirmBtn.style.opacity = "1";
         confirmBtn.style.cursor  = "pointer";
         if (hintEl) hintEl.style.display = "none";
       }
+      if (elapsed >= 50 && reportWrap) {
+        reportWrap.style.display = "block";
+      }
+      if (elapsed >= 50) clearInterval(_confirmTimer);
     }
     _confirmTimer = setInterval(tick, 1000);
+
+    // Report link handler — build mailto on click
+    if (reportLink) {
+      reportLink.addEventListener("click", async function(e) {
+        e.preventDefault();
+        const { data: { session } } = await _sb.auth.getSession();
+        const userEmail = session?.user?.email ?? "";
+        const planInfo  = PLANS[_activePlan];
+        const amount    = planInfo ? fmtIdr(planInfo.price) : "";
+        const now       = new Date();
+        const timeStr   = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+        const subject   = encodeURIComponent("Payment not detected");
+        const body      = encodeURIComponent(
+          "Email: " + userEmail + "\n" +
+          "Total: " + amount + "\n" +
+          "Time: " + timeStr + "\n" +
+          "Message: "
+        );
+        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
+      });
+    }
   }
 
   // ── Confirm payment button ────────────────────────────────────────────────

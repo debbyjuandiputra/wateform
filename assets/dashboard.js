@@ -921,6 +921,40 @@ function openDeleteWsModal(ws) {
     `Delete "${ws.name}"?`,
     "All forms and responses in this workspace will be permanently deleted. This cannot be undone.",
     async () => {
+      // 1. Ambil semua form_id dalam workspace
+      const { data: wsForms } = await _sb
+        .from("forms")
+        .select("id")
+        .eq("workspace_id", ws.id);
+
+      const formIds = wsForms?.map(f => f.id) || [];
+
+      // 2. Hapus response-uploads via Storage API
+      if (formIds.length) {
+        const { data: uploadFiles } = await _sb
+          .from("form_uploads")
+          .select("file_path")
+          .in("form_id", formIds);
+
+        if (uploadFiles?.length) {
+          const paths = uploadFiles.map(f => f.file_path);
+          await _sb.storage.from("response-uploads").remove(paths);
+        }
+
+        // 3. Hapus form-media tiap form via Storage API
+        for (const fid of formIds) {
+          const { data: mediaFiles } = await _sb.storage
+            .from("form-media")
+            .list(`forms/${fid}`);
+
+          if (mediaFiles?.length) {
+            const mediaPaths = mediaFiles.map(f => `forms/${fid}/${f.name}`);
+            await _sb.storage.from("form-media").remove(mediaPaths);
+          }
+        }
+      }
+
+      // 4. Hapus workspace via RPC
       const { error } = await _sb.rpc("delete_workspace_with_cleanup", {
         p_workspace_id: ws.id,
       });
@@ -1129,6 +1163,28 @@ async function renameForm(formId) {
 
 function openDeleteForm(formId, title) {
   openConfirm(`Delete "${title}"?`, "All responses will be permanently deleted. This cannot be undone.", async () => {
+    // 1. Hapus response-uploads via Storage API
+    const { data: uploadFiles } = await _sb
+      .from("form_uploads")
+      .select("file_path")
+      .eq("form_id", formId);
+
+    if (uploadFiles?.length) {
+      const paths = uploadFiles.map(f => f.file_path);
+      await _sb.storage.from("response-uploads").remove(paths);
+    }
+
+    // 2. Hapus form-media via Storage API
+    const { data: mediaFiles } = await _sb.storage
+      .from("form-media")
+      .list(`forms/${formId}`);
+
+    if (mediaFiles?.length) {
+      const mediaPaths = mediaFiles.map(f => `forms/${formId}/${f.name}`);
+      await _sb.storage.from("form-media").remove(mediaPaths);
+    }
+
+    // 3. Hapus form via RPC
     const { error } = await _sb.rpc("delete_form_with_cleanup", {
       p_form_id: formId,
     });

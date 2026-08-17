@@ -544,6 +544,8 @@ function addQuestion(type) {
     toggleOnValue: "",
     toggleOffValue: "",
   };
+  // Set default title untuk calculation field
+  if (type === "calculation") q.title = "Total";
   questions.push(q);
   renderQuestionCards();
   scheduleSave();

@@ -47,7 +47,7 @@ const Q_TYPES = [
   { type:"spacer",      label:"Spacer",           icon:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M8 21H5a2 2 0 0 0-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/>',                                              desc:"Blank vertical space" },
   { type:"button_link", label:"Button (link)",    icon:'<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M9 12h6M13 10l2 2-2 2"/>',                                                                          desc:"Button that opens a URL" },
   { type:"calculation", label:"Calculation",      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/>', desc:"Formula from other fields" },
-  { type:"payment",     label:"Payment (QRIS)",   icon:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/>', desc:"QRIS payment gate, requires Calculation" },
+  { type:"payment",     label:"Payment (QRIS)",   icon:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/>', desc:"QRIS payment gate — fixed price or from Calculation" },
   { type:"page_break",  label:"Page Break",       icon:'<path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/>',                                                                                     desc:"Split form into pages (Next/Prev)" },
 ];
 
@@ -452,14 +452,7 @@ function renderQTypePicker() {
 
 function addQuestion(type) {
   if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
-  // Payment field requires at least one Calculation field
-  if (type === "payment") {
-    const hasCalcField = questions.some(q => q.type === "calculation");
-    if (!hasCalcField) {
-      toast("Payment field requires a Calculation field. Please add a Calculation field first.", "error");
-      return;
-    }
-  }
+  // Tidak perlu memblokir penambahan payment di sini — validasi dilakukan saat save/publish
   const q = {
     id: uid(), type,
     title: "", subtitle: "",
@@ -542,6 +535,10 @@ function addQuestion(type) {
     paymentLabel: "Payment",
     paymentDescription: "",
     paymentPaid: false,
+    // "fixed" = form owner sets a fixed price, "calculation" = use total from Calculation field
+    paymentSource: "fixed",
+    // Daftar item harga tetap: [{label, value}]
+    paymentItems: [{ label: "Item 1", value: "" }],
     // option value (for choice/checkbox/dropdown/toggle/multiselect)
     optionWithValue: false,
     toggleOnValue: "",
@@ -1608,24 +1605,180 @@ function openEditModal(idx) {
   }
 
 
-  // ── Payment field editor
+  // ── Payment field editor — two modes: fixed price or from Calculation
   if (q.type === "payment") {
-    // Check that a calculation field still exists
     const calcFields = questions.filter(qq => qq.type === "calculation");
+    // Sumber harga aktif saat ini
+    let currentSource = q.paymentSource || "fixed";
+
+    // ── Info box
     const infoBox = document.createElement("div");
     infoBox.style.cssText = "background:var(--teal-dim);border:1px solid rgba(43,189,164,.2);border-radius:var(--radius);padding:10px 13px;font-size:12px;color:var(--text-soft);line-height:1.6;margin-bottom:4px";
-    if (calcFields.length === 0) {
-      infoBox.innerHTML = `<strong style="color:var(--red,#ef4444)">Perhatian:</strong> No Calculation field found in this form. The Payment field requires a Calculation field to get the total amount. Please add a Calculation field first.`;
-    } else {
-      infoBox.innerHTML = `<strong style="color:var(--teal-deep)">How it works:</strong> This field takes the total from a <em>Calculation</em> field and generates a QRIS for payment. The submit button stays disabled until payment is confirmed.`;
-    }
+    infoBox.innerHTML = `<strong style="color:var(--teal-deep)">How it works:</strong> This field generates a QRIS for the respondent. The submit button stays disabled until payment is confirmed.`;
     body.appendChild(infoBox);
 
-    // Connected calculation field(s)
-    if (calcFields.length > 0) {
-      const srcBox = document.createElement("div"); srcBox.className = "field";
-      const srcLbl = document.createElement("label"); srcLbl.textContent = "Linked Calculation field";
-      srcBox.appendChild(srcLbl);
+    // ── Field label
+    body.appendChild(makeField("Field label", "input",
+      { type:"text", id:"em-payment-label", value: q.paymentLabel || "Payment", maxlength:"80" }
+    ));
+
+    // ── Description (optional)
+    body.appendChild(makeField("Description (optional)", "textarea",
+      { id:"em-payment-desc", value: q.paymentDescription || "", rows:"2", maxlength:"200",
+        placeholder:"E.g. Scan the QRIS below to complete your payment" }
+    ));
+
+    body.appendChild(document.createElement("hr"));
+
+    // ── Payment source selector (radio tab style)
+    const srcField = document.createElement("div"); srcField.className = "field";
+    const srcLblEl = document.createElement("label"); srcLblEl.textContent = "Payment amount source";
+    srcField.appendChild(srcLblEl);
+
+    const radioWrap = document.createElement("div");
+    radioWrap.style.cssText = "display:flex;gap:8px;";
+
+    // Helper untuk membuat tab pilihan sumber harga
+    function makeSourceTab(value, labelText, descText) {
+      const tab = document.createElement("label");
+      tab.style.cssText = "flex:1;display:flex;flex-direction:column;gap:3px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s,background .15s;font-size:13px";
+      tab.setAttribute("for", "em-pay-src-" + value);
+      const radio = document.createElement("input");
+      radio.type = "radio"; radio.name = "em-payment-source"; radio.id = "em-pay-src-" + value;
+      radio.value = value; radio.style.display = "none";
+      if (currentSource === value) {
+        tab.style.borderColor = "var(--teal)";
+        tab.style.background  = "var(--teal-dim)";
+      }
+      const title = document.createElement("span");
+      title.style.cssText = "font-weight:600;color:var(--text)";
+      title.textContent = labelText;
+      const desc = document.createElement("span");
+      desc.style.cssText = "font-size:11px;color:var(--text-muted);line-height:1.4";
+      desc.textContent = descText;
+      tab.appendChild(radio); tab.appendChild(title); tab.appendChild(desc);
+      return tab;
+    }
+
+    const tabFixed = makeSourceTab("fixed",       "Fixed price",      "Set the price directly in this field");
+    const tabCalc  = makeSourceTab("calculation", "From Calculation", "Use the total from a Calculation field");
+    radioWrap.appendChild(tabFixed);
+    radioWrap.appendChild(tabCalc);
+    srcField.appendChild(radioWrap);
+    body.appendChild(srcField);
+
+    // ── Panel: Fixed price items
+    const fixedPanel = document.createElement("div");
+    fixedPanel.id = "em-pay-fixed-panel";
+    fixedPanel.style.display       = currentSource === "fixed" ? "flex" : "none";
+    fixedPanel.style.flexDirection = "column";
+    fixedPanel.style.gap           = "8px";
+
+    const fixedLabelEl = document.createElement("label");
+    fixedLabelEl.textContent = "Price items";
+    fixedLabelEl.style.cssText = "font-size:13px;font-weight:500;color:var(--text)";
+    fixedPanel.appendChild(fixedLabelEl);
+
+    const fixedHint = document.createElement("div");
+    fixedHint.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:-4px";
+    fixedHint.textContent = "Add one or more items. The total of all values will be the payment amount.";
+    fixedPanel.appendChild(fixedHint);
+
+    // Container untuk daftar baris item harga
+    const itemsContainer = document.createElement("div");
+    itemsContainer.id = "em-pay-items-container";
+    itemsContainer.style.cssText = "display:flex;flex-direction:column;gap:6px";
+
+    // Normalisasi paymentItems dari data tersimpan
+    let payItems = Array.isArray(q.paymentItems) && q.paymentItems.length > 0
+      ? q.paymentItems.map(it => ({ label: it.label || "", value: it.value ?? "" }))
+      : [{ label: "Item 1", value: "" }];
+
+    // Render satu baris item harga
+    function renderPayItemRow(item, idx) {
+      const row = document.createElement("div");
+      row.className = "em-pay-item-row";
+      row.style.cssText = "display:flex;gap:6px;align-items:center";
+
+      const lblInp = document.createElement("input");
+      lblInp.type = "text"; lblInp.placeholder = "Label";
+      lblInp.value = item.label;
+      lblInp.style.cssText = "flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg-raised);color:var(--text);outline:none";
+      lblInp.setAttribute("data-pay-label", idx);
+
+      const valInp = document.createElement("input");
+      valInp.type = "number"; valInp.placeholder = "Price";
+      valInp.value = item.value;
+      valInp.min = "0"; valInp.step = "any";
+      valInp.style.cssText = "width:110px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg-raised);color:var(--text);outline:none";
+      valInp.setAttribute("data-pay-value", idx);
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.style.cssText = "width:28px;height:28px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color .12s,border-color .12s";
+      delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+      delBtn.title = "Remove item";
+      delBtn.addEventListener("mouseover", () => { delBtn.style.color = "var(--red)"; delBtn.style.borderColor = "var(--red)"; });
+      delBtn.addEventListener("mouseout",  () => { delBtn.style.color = ""; delBtn.style.borderColor = ""; });
+      delBtn.addEventListener("click", () => {
+        syncPayItemInputs();
+        payItems.splice(idx, 1);
+        rebuildPayItems();
+      });
+
+      row.appendChild(lblInp); row.appendChild(valInp); row.appendChild(delBtn);
+      return row;
+    }
+
+    // Rebuild semua baris dari array payItems
+    function rebuildPayItems() {
+      itemsContainer.innerHTML = "";
+      payItems.forEach((it, i) => itemsContainer.appendChild(renderPayItemRow(it, i)));
+    }
+
+    // Sync nilai input ke payItems sebelum operasi struktural
+    function syncPayItemInputs() {
+      itemsContainer.querySelectorAll(".em-pay-item-row").forEach((row, i) => {
+        const lbl = row.querySelector("[data-pay-label]");
+        const val = row.querySelector("[data-pay-value]");
+        if (lbl && payItems[i] !== undefined) payItems[i].label = lbl.value;
+        if (val && payItems[i] !== undefined) payItems[i].value = val.value;
+      });
+    }
+
+    rebuildPayItems();
+    fixedPanel.appendChild(itemsContainer);
+
+    // Tombol untuk menambah item harga baru
+    const addItemBtn = document.createElement("button");
+    addItemBtn.type = "button";
+    addItemBtn.style.cssText = "align-self:flex-start;font-size:12px;font-weight:600;color:var(--teal-deep);background:var(--teal-dim);border:1.5px dashed var(--teal);border-radius:var(--radius);padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px";
+    addItemBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 5v14M5 12h14"/></svg>Add item`;
+    addItemBtn.addEventListener("click", () => {
+      syncPayItemInputs();
+      payItems.push({ label: "Item " + (payItems.length + 1), value: "" });
+      rebuildPayItems();
+    });
+    fixedPanel.appendChild(addItemBtn);
+
+    // ── Panel: From Calculation
+    const calcPanel = document.createElement("div");
+    calcPanel.id = "em-pay-calc-panel";
+    calcPanel.style.display       = currentSource === "calculation" ? "flex" : "none";
+    calcPanel.style.flexDirection = "column";
+    calcPanel.style.gap           = "6px";
+
+    if (calcFields.length === 0) {
+      // Peringatan jika belum ada field Calculation
+      const noCalcWarn = document.createElement("div");
+      noCalcWarn.style.cssText = "background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius);padding:10px 13px;font-size:12px;color:var(--text-soft);line-height:1.6";
+      noCalcWarn.innerHTML = `<strong style="color:var(--red,#ef4444)">No Calculation field found.</strong> Add a Calculation field to this form first. The form cannot be saved or published with this option active and no Calculation field present.`;
+      calcPanel.appendChild(noCalcWarn);
+    } else {
+      const calcLblEl = document.createElement("label");
+      calcLblEl.textContent = "Linked Calculation field";
+      calcLblEl.style.cssText = "font-size:13px;font-weight:500;color:var(--text)";
+      calcPanel.appendChild(calcLblEl);
       const srcList = document.createElement("div"); srcList.style.cssText = "display:flex;flex-direction:column;gap:4px";
       calcFields.forEach(cf => {
         const pill = document.createElement("div");
@@ -1635,24 +1788,36 @@ function openEditModal(idx) {
           <span style="color:var(--text-muted)">Total will be used as the payment amount</span>`;
         srcList.appendChild(pill);
       });
-      srcBox.appendChild(srcList);
-      body.appendChild(srcBox);
+      calcPanel.appendChild(srcList);
     }
 
-    // Payment label
-    body.appendChild(makeField("Field label", "input",
-      { type:"text", id:"em-payment-label", value: q.paymentLabel || "Payment", maxlength:"80" }
-    ));
+    body.appendChild(fixedPanel);
+    body.appendChild(calcPanel);
 
-    // Payment description (optional)
-    body.appendChild(makeField("Description (optional)", "textarea",
-      { id:"em-payment-desc", value: q.paymentDescription || "", rows:"2", maxlength:"200",
-        placeholder:"E.g. Scan the QRIS below to complete your payment" }
-    ));
+    // ── Terapkan perubahan tab sumber harga
+    function applySourceTab(val) {
+      [tabFixed, tabCalc].forEach(t => {
+        const isActive = t.querySelector("input").value === val;
+        t.style.borderColor = isActive ? "var(--teal)"     : "var(--border)";
+        t.style.background  = isActive ? "var(--teal-dim)" : "";
+        t.querySelector("input").checked = isActive;
+      });
+      fixedPanel.style.display = val === "fixed"       ? "flex" : "none";
+      calcPanel.style.display  = val === "calculation" ? "flex" : "none";
+      currentSource = val;
+    }
 
+    [tabFixed, tabCalc].forEach(tab => {
+      tab.addEventListener("click", () => {
+        syncPayItemInputs();
+        applySourceTab(tab.querySelector("input").value);
+      });
+    });
+
+    body.appendChild(document.createElement("hr"));
     const noteDiv = document.createElement("div");
     noteDiv.style.cssText = "font-size:12px;color:var(--text-muted);padding:8px 10px;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius);line-height:1.6";
-    noteDiv.innerHTML = `<strong>Submit logic:</strong> The form submit button stays disabled (greyed out) until QRIS payment is detected. After payment, the form owner’s wallet balance is credited with the total amount.`;
+    noteDiv.innerHTML = `<strong>Submit logic:</strong> The form submit button stays disabled until QRIS payment is detected. After payment, the form owner's wallet balance is credited with the payment amount.`;
     body.appendChild(noteDiv);
   }
 
@@ -2238,10 +2403,39 @@ function saveEditToMemory() {
     q.calcShowBreakdown = get("em-calc-breakdown")?.checked !== false;
     q.calcSendOnlyTotal = get("em-calc-send-total")?.checked !== false;
   }
-  // payment
+  // payment - save label, description, price source, and fixed price items
   if (q.type === "payment") {
     q.paymentLabel       = get("em-payment-label")?.value || "Payment";
     q.paymentDescription = get("em-payment-desc")?.value || "";
+
+    // Tentukan sumber harga aktif (fixed atau calculation)
+    const srcRadio = document.querySelector("input[name='em-payment-source']:checked");
+    q.paymentSource = srcRadio ? srcRadio.value : "fixed";
+
+    // Kumpulkan item harga tetap dari baris DOM
+    const itemRows = document.querySelectorAll(".em-pay-item-row");
+    q.paymentItems = Array.from(itemRows).map(row => ({
+      label: row.querySelector("[data-pay-label]")?.value || "",
+      value: row.querySelector("[data-pay-value]")?.value || ""
+    }));
+
+    // Validasi: mode fixed wajib punya minimal 1 item dengan harga > 0
+    if (q.paymentSource === "fixed") {
+      const hasValidItem = q.paymentItems.some(it => it.value !== "" && Number(it.value) > 0);
+      if (!hasValidItem) {
+        toast("Fixed price payment must have at least one item with a price value greater than 0.", "error");
+        return false;
+      }
+    }
+
+    // Validasi: mode calculation wajib ada field Calculation lain di form
+    if (q.paymentSource === "calculation") {
+      const hasCalc = questions.some(qq => qq.type === "calculation");
+      if (!hasCalc) {
+        toast('You selected "From Calculation" but no Calculation field exists in this form. Add a Calculation field first.', "error");
+        return false;
+      }
+    }
   }
   return true;
 }
@@ -2857,6 +3051,29 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
     }
   }
 
+
+    // Validasi payment field sebelum publish
+    const paymentFields = questions.filter(q => q.type === "payment");
+    for (const pq of paymentFields) {
+      const src = pq.paymentSource || "fixed";
+      if (src === "fixed") {
+        // Mode fixed: wajib ada minimal 1 item dengan harga > 0
+        const hasValidItem = Array.isArray(pq.paymentItems) &&
+          pq.paymentItems.some(it => it.value !== "" && Number(it.value) > 0);
+        if (!hasValidItem) {
+          toast(`Payment field "${pq.paymentLabel || "Payment"}" has no valid price. Set at least one item with a price greater than 0 to publish.`, "error");
+          return;
+        }
+      } else if (src === "calculation") {
+        // Mode calculation: wajib ada field Calculation di form
+        const hasCalc = questions.some(q => q.type === "calculation");
+        if (!hasCalc) {
+          toast(`Payment field "${pq.paymentLabel || "Payment"}" is set to use a Calculation field, but no Calculation field exists in this form. Add a Calculation field or switch to Fixed price to publish.`, "error");
+          return;
+        }
+      }
+    }
+
   await saveNow();
   const { error } = await _sb.from("forms").update({ is_published: newState }).eq("id", formId);
   if (error) { toast("Failed to " + (newState ? "publish" : "unpublish"), "error"); return; }
@@ -2958,20 +3175,52 @@ function buildPreviewField(q, i) {
     </div>`;
   }
   if (q.type === "payment") {
+    // Preview di builder: tampilkan sesuai mode sumber harga (fixed atau calculation)
+    const src = q.paymentSource || "fixed";
     const calcField = questions.find(pq => pq.type === "calculation");
     const pfx = calcField ? (calcField.calcPrefix ?? "Rp") : "Rp";
     const sfx = calcField ? (calcField.calcSuffix ?? "") : "";
     const dc  = calcField ? (calcField.calcDecimals || 0) : 0;
     const fmtN = n => `${pfx}${Number(n).toLocaleString("en-US",{minimumFractionDigits:dc,maximumFractionDigits:dc})}${sfx}`;
+
+    let amountRows = "";
+    let totalPreview = 0;
+
+    if (src === "fixed") {
+      // Tampilkan baris item harga tetap
+      const items = Array.isArray(q.paymentItems) && q.paymentItems.length > 0 ? q.paymentItems : [];
+      items.forEach(it => {
+        const v = Number(it.value) || 0;
+        totalPreview += v;
+        amountRows += `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--text-soft)">
+          <span>${esc(it.label || "Item")}</span>
+          <span style="font-family:'JetBrains Mono',monospace">${fmtN(v)}</span>
+        </div>`;
+      });
+      if (items.length === 0) {
+        amountRows = `<div style="font-size:12px;color:var(--red,#ef4444);padding:4px 0">No price items set</div>`;
+      }
+    } else {
+      // Mode calculation: tampilkan linked calc field
+      amountRows = calcField
+        ? `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--text-soft)">
+            <span>${esc(calcField.calcLabel || calcField.title || "Calculation")}</span>
+            <span style="color:var(--text-muted);font-style:italic">dynamic</span>
+           </div>`
+        : `<div style="font-size:12px;color:var(--red,#ef4444);padding:4px 0">No Calculation field found</div>`;
+    }
+
     control = `<div style="background:var(--bg-raised);border:1.5px solid var(--teal,#2bbda4);border-radius:10px;padding:14px 16px">
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">${esc(q.paymentLabel||"Payment")}</div>
       ${q.paymentDescription ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:10px">${esc(q.paymentDescription)}</div>` : ""}
-      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:8px 0;border-top:1px solid var(--border)">
-        <span>${esc(calcField && calcField.title ? calcField.title : "Total")}</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
+      <div style="border-top:1px solid var(--border);padding-top:8px;margin-bottom:6px">${amountRows}</div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:6px 0;border-top:1px solid var(--border)">
+        <span>Total</span>
+        <span style="color:var(--teal-deep)">${src === "fixed" ? fmtN(totalPreview) : (calcField ? fmtN(0) + " (calculated)" : "—")}</span>
       </div>
       <button type="button" style="width:100%;margin-top:10px;padding:10px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-        Bayar dengan QRIS
+        Pay with QRIS
       </button>
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px;text-align:center">Submit button activates after payment is confirmed</div>
     </div>`;

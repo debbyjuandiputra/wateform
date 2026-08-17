@@ -772,24 +772,40 @@ function updatePaymentFields() {
   if (typeof questions === "undefined" || typeof answers === "undefined") return;
   questions.forEach(function(pq) {
     if (pq.type !== "payment") return;
-    var calcQ = questions.find(function(q){ return q.type === "calculation"; });
-    if (!calcQ) return;
-    var subtotal = 0;
-    questions.forEach(function(src) {
-      if (!src.optionWithValue) return;
-      var rawOpts = src.type === "checkbox"
-        ? (src.checkboxOptions || src.options || [])
-        : (src.options || src.multiselectOptions || []);
-      var opts = normOpts(rawOpts);
-      var ans = answers[src.id] || "";
-      if (src.type === "choice" || src.type === "dropdown") {
-        opts.forEach(function(o){ if (o.label === ans && o.value !== "") { subtotal += Number(o.value); } });
-      } else if (src.type === "checkbox" || src.type === "multiselect") {
-        var sel = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
-        opts.forEach(function(o){ if (sel.indexOf(o.label) !== -1 && o.value !== "") { subtotal += Number(o.value); } });
-      }
-    });
-    var total = evalCalcOps(subtotal, calcQ.calcOps || []);
+
+    var src = pq.paymentSource || "fixed";
+    var total = 0;
+
+    if (src === "fixed") {
+      // Mode harga tetap: jumlahkan semua item dari paymentItems
+      var items = Array.isArray(pq.paymentItems) ? pq.paymentItems : [];
+      items.forEach(function(it) {
+        var v = parseFloat(it.value);
+        if (!isNaN(v) && v > 0) total += v;
+      });
+    } else {
+      // Mode calculation: ambil total dari field Calculation
+      var calcQ = questions.find(function(q){ return q.type === "calculation"; });
+      if (!calcQ) { paymentTotals[pq.id] = 0; return; }
+
+      var subtotal = 0;
+      questions.forEach(function(src) {
+        if (!src.optionWithValue) return;
+        var rawOpts = src.type === "checkbox"
+          ? (src.checkboxOptions || src.options || [])
+          : (src.options || src.multiselectOptions || []);
+        var opts = normOpts(rawOpts);
+        var ans = answers[src.id] || "";
+        if (src.type === "choice" || src.type === "dropdown") {
+          opts.forEach(function(o){ if (o.label === ans && o.value !== "") { subtotal += Number(o.value); } });
+        } else if (src.type === "checkbox" || src.type === "multiselect") {
+          var sel = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
+          opts.forEach(function(o){ if (sel.indexOf(o.label) !== -1 && o.value !== "") { subtotal += Number(o.value); } });
+        }
+      });
+      total = evalCalcOps(subtotal, calcQ.calcOps || []);
+    }
+
     paymentTotals[pq.id] = total;
 
     var totalEl = document.getElementById("payment-total-" + pq.id);
@@ -797,7 +813,11 @@ function updatePaymentFields() {
     var hintEl  = document.getElementById("payment-hint-" + pq.id);
     if (!totalEl) return;
 
-    var fmtTotal = fmtCalc(total, calcQ);
+    // Format angka tampilan — gunakan format Calculation jika mode calculation, atau Rp default
+    var calcQ2 = questions.find(function(q){ return q.type === "calculation"; });
+    var fmtTotal = (src === "calculation" && calcQ2)
+      ? fmtCalc(total, calcQ2)
+      : ("Rp" + total.toLocaleString("en-US"));
     totalEl.textContent = fmtTotal;
 
     var paid = paymentState[pq.id] && paymentState[pq.id].paid;
@@ -810,7 +830,7 @@ function updatePaymentFields() {
         payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
         payBtn.style.background = "";
       }
-      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "Submit button will activate after payment is confirmed" : "Calculating total..."; }
+      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "Submit button will activate after payment is confirmed" : (src === "fixed" ? "No price set" : "Calculating total..."); }
     }
   });
   updateSubmitBtnState();
@@ -1647,18 +1667,37 @@ function renderForm(form) {
       }
       default:
       case "payment": {
+        // Render HTML payment field sesuai mode: fixed price atau dari Calculation
+        var paymentSrc  = q.paymentSource || "fixed";
+        var paymentItems = Array.isArray(q.paymentItems) ? q.paymentItems : [];
+
+        // Baris breakdown item (hanya untuk mode fixed)
+        var itemRowsHtml = "";
+        if (paymentSrc === "fixed") {
+          paymentItems.forEach(function(it) {
+            if (!it.label && !it.value) return;
+            itemRowsHtml += `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-soft);padding:2px 0">
+              <span>${esc(it.label || "Item")}</span>
+              <span id="payment-total-${q.id}" style="display:none"></span>
+            </div>`;
+          });
+        }
+
         inputHtml = `<div class="payment-card" id="payment-${q.id}">
           <div class="payment-card-header">${esc(q.paymentLabel || "Payment")}</div>
           ${q.paymentDescription ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:8px">${esc(q.paymentDescription)}</div>` : ""}
+          ${paymentSrc === "fixed" && paymentItems.length > 0 ? `<div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">${
+            paymentItems.map(it => `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-soft);padding:2px 0"><span>${esc(it.label || "Item")}</span><span style="font-family:'JetBrains Mono',monospace">Rp${Number(it.value||0).toLocaleString("en-US")}</span></div>`).join("")
+          }</div>` : ""}
           <div class="payment-amount-row">
-            <span>Total Amount</span>
+            <span>Total</span>
             <span class="payment-amount-val" id="payment-total-${q.id}">—</span>
           </div>
           <button type="button" class="btn-pay-qris" id="btn-pay-${q.id}" disabled>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             Pay with QRIS
           </button>
-          <div class="payment-status-hint" id="payment-hint-${q.id}">Calculating total...</div>
+          <div class="payment-status-hint" id="payment-hint-${q.id}">${paymentSrc === "fixed" ? "Preparing payment..." : "Calculating total..."}</div>
         </div>`;
         break;
       }

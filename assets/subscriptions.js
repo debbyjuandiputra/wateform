@@ -310,11 +310,6 @@
               <span id="qris-img-loader" style="font-size:12.5px;color:var(--text-muted)">Loading…</span>
             </div>
 
-            <a id="qris-download-btn" href="#" download="QRIS-subscription.png" style="display:none;align-items:center;gap:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--teal-deep,#1a9a87);background:var(--teal-dim,rgba(43,189,164,.1));border:1px solid rgba(43,189,164,.3);border-radius:6px;text-decoration:none;cursor:pointer">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download QR
-            </a>
-
             <div class="qris-pay-card">
               <div class="qris-pay-row">
                 <span>Plan</span>
@@ -403,7 +398,6 @@
     document.getElementById("qris-img").style.display          = "none";
     document.getElementById("qris-img-loader").style.display   = "";
     document.getElementById("qris-status-msg").textContent     = "";
-    const dlBtnReset = document.getElementById("qris-download-btn"); if (dlBtnReset) dlBtnReset.style.display = "none";
 
     const genBtn = document.getElementById("qris-btn-generate");
     genBtn.disabled     = false;
@@ -493,16 +487,13 @@
   function renderQrisImage(qrisString) {
     const img    = document.getElementById("qris-img");
     const loader = document.getElementById("qris-img-loader");
-    const dlBtn  = document.getElementById("qris-download-btn");
     const url    = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&ecc=M&data=${encodeURIComponent(qrisString)}`;
     img.onload  = () => {
       loader.style.display = "none";
       img.style.display = "block";
-      if (dlBtn) { dlBtn.href = url; dlBtn.style.display = "inline-flex"; }
     };
     img.onerror = () => {
       loader.textContent = "Could not render QR code. Use a QRIS scanner app instead.";
-      if (dlBtn) dlBtn.style.display = "none";
     };
     img.src = url;
   }

@@ -952,11 +952,7 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
     }
     if (bodyEl) {
       var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(data.qris_data);
-      bodyEl.innerHTML = '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>' +
-        '<a href="' + qrUrl + '" download="QRIS-payment.png" style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--teal-deep,#1a9a87);background:var(--teal-dim,rgba(43,189,164,.1));border:1px solid rgba(43,189,164,.3);border-radius:6px;text-decoration:none;cursor:pointer">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-          'Download QR' +
-        '</a>';
+      bodyEl.innerHTML = '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>';
     }
     var expiresIn = data.expires_in || 300;
     var endTime = Date.now() + expiresIn * 1000;

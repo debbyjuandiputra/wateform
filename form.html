@@ -103,6 +103,13 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .ph-prefix { width: 72px; flex-shrink: 0; padding: 9px 10px; border: none; border-right: 1px solid var(--border); background: var(--bg-mid); color: var(--text); font-size: 14px; outline: none; font-family: inherit; text-align: center; }
 .ph-input  { flex: 1; padding: 9px 12px; border: none; background: transparent; color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
 
+/* Number prefix/suffix wrap */
+.num-wrap { display: flex; gap: 0; width: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
+.num-affix { flex-shrink: 0; padding: 9px 10px; background: var(--bg-mid); color: var(--text); font-size: 14px; font-family: inherit; display: flex; align-items: center; white-space: nowrap; }
+.num-affix.num-prefix { border-right: 1px solid var(--border); }
+.num-affix.num-suffix { border-left: 1px solid var(--border); }
+.num-input { flex: 1; min-width: 0; padding: 9px 12px; border: none; background: transparent; color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+
 /* Submit */
 .form-submit { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
 .btn-submit {
@@ -1496,9 +1503,20 @@ function renderForm(form) {
       case "email":
         inputHtml = `<input type="email" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
         break;
-      case "number":
-        inputHtml = `<input type="number" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
+      case "number": {
+        const hasNumPre = q.numPrefix && q.numPrefix.trim() !== "";
+        const hasNumSuf = q.numSuffix && q.numSuffix.trim() !== "";
+        if (hasNumPre || hasNumSuf) {
+          inputHtml = `<div class="num-wrap">
+            ${hasNumPre ? `<span class="num-affix num-prefix">${esc(q.numPrefix)}</span>` : ""}
+            <input type="text" inputmode="numeric" id="q-${q.id}" class="num-input" placeholder="${esc(q.placeholder||"")}">
+            ${hasNumSuf ? `<span class="num-affix num-suffix">${esc(q.numSuffix)}</span>` : ""}
+          </div>`;
+        } else {
+          inputHtml = `<input type="text" inputmode="numeric" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
+        }
         break;
+      }
       case "long":
       case "paragraph":
         inputHtml = `<textarea id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" rows="4" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit;resize:vertical"></textarea>`;
@@ -1507,7 +1525,7 @@ function renderForm(form) {
         const prefix = q.phonePrefix || "+62";
         inputHtml = `<div class="ph-wrap">
           <input type="text" id="q-${q.id}-prefix" value="${esc(prefix)}" class="ph-prefix">
-          <input type="tel" id="q-${q.id}" class="ph-input" placeholder="${esc(q.placeholder||"")}">
+          <input type="text" inputmode="numeric" id="q-${q.id}" class="ph-input" placeholder="${esc(q.placeholder||"")}">
         </div>`;
         break;
       }
@@ -2449,9 +2467,18 @@ function renderForm(form) {
       const el = block.querySelector(`#q-${q.id}`);
       if (el) {
         el.addEventListener("input", () => {
+          if (q.type === "phone" || q.type === "number") {
+            // Digits only — no other characters allowed in the number part
+            const digitsOnly = el.value.replace(/[^0-9]/g, "");
+            if (el.value !== digitsOnly) el.value = digitsOnly;
+          }
           if (q.type === "phone") {
             const prefix = block.querySelector(`#q-${q.id}-prefix`)?.value || "";
             answers[q.id] = prefix + " " + el.value.trim();
+          } else if (q.type === "number") {
+            const pre = q.numPrefix && q.numPrefix.trim() !== "" ? q.numPrefix.trim() + " " : "";
+            const suf = q.numSuffix && q.numSuffix.trim() !== "" ? " " + q.numSuffix.trim() : "";
+            answers[q.id] = el.value.trim() === "" ? "" : (pre + el.value.trim() + suf);
           } else {
             answers[q.id] = el.value.trim();
           }

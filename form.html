@@ -130,6 +130,11 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .btn-pay-qris:disabled { background:var(--border); color:var(--text-muted); cursor:not-allowed; }
 .btn-pay-qris.paid { background:transparent; color:#16a34a; border:2px solid #16a34a; cursor:default; }
 .payment-status-hint { font-size:12px; color:var(--text-muted); margin-top:8px; text-align:center; }
+/* Form lock after payment */
+.q-block.form-field-locked { position:relative; pointer-events:none; user-select:none; opacity:0.72; }
+.q-block.form-field-locked::after { content:""; position:absolute; inset:0; border-radius:inherit; cursor:not-allowed; z-index:10; }
+.form-locked-notice { display:flex; align-items:center; gap:8px; background:var(--bg-mid); border:1px solid #16a34a44; border-radius:10px; padding:10px 14px; margin-bottom:4px; font-size:12.5px; color:#16a34a; font-weight:500; }
+.form-locked-notice svg { flex-shrink:0; }
 .payment-status-paid { font-size:13px; color:#16a34a; font-weight:600; text-align:center; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:6px; }
 .qris-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9999; display:flex; align-items:center; justify-content:center; }
 .qris-modal { background:var(--bg); border-radius:16px; padding:24px; max-width:340px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); text-align:center; }
@@ -836,6 +841,48 @@ function updatePaymentFields() {
     }
   });
   updateSubmitBtnState();
+  lockFormForPayment();
+}
+
+// ── Lock / unlock form fields setelah payment berhasil ─────────────────────
+function lockFormForPayment() {
+  if (typeof questions === "undefined") return;
+  var anyPaid = questions.some(function(q) {
+    return q.type === "payment" && paymentState[q.id] && paymentState[q.id].paid;
+  });
+
+  // Tampilkan/sembunyikan notice banner
+  var existingNotice = document.getElementById("form-locked-notice");
+  if (anyPaid && !existingNotice) {
+    var notice = document.createElement("div");
+    notice.id = "form-locked-notice";
+    notice.className = "form-locked-notice";
+    notice.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Form dikunci setelah pembayaran berhasil — data tidak dapat diubah.';
+    var formCard = document.querySelector(".form-card");
+    if (formCard) {
+      var header = formCard.querySelector(".form-header");
+      if (header && header.nextSibling) {
+        formCard.insertBefore(notice, header.nextSibling);
+      } else {
+        formCard.insertBefore(notice, formCard.firstChild);
+      }
+    }
+  } else if (!anyPaid && existingNotice) {
+    existingNotice.remove();
+  }
+
+  // Lock/unlock setiap q-block kecuali payment field itu sendiri
+  var allBlocks = document.querySelectorAll(".q-block[data-qid]");
+  allBlocks.forEach(function(block) {
+    var qtype = block.dataset.qtype;
+    // Payment block tidak dikunci (masih perlu ditampilkan info)
+    if (qtype === "payment") return;
+    if (anyPaid) {
+      block.classList.add("form-field-locked");
+    } else {
+      block.classList.remove("form-field-locked");
+    }
+  });
 }
 
 // QRIS Modal
@@ -1140,6 +1187,8 @@ function renderForm(form) {
 
     const block = document.createElement("div");
     block.className = "q-block";
+    block.dataset.qid  = q.id;
+    block.dataset.qtype = q.type;
     const req = q.required ? `<span class="req">*</span>` : "";
 
     // Title type: render as heading

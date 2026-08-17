@@ -120,6 +120,26 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .btn-submit-tg:hover { background: #1a7fad; color: #fff; }
 .btn-submit-tg2 { background: #1A7FAF; color: #fff; }
 .btn-submit-tg2:hover { background: #14618a; color: #fff; }
+/* Payment field */
+.payment-card { background:var(--bg-raised); border:1.5px solid var(--teal,#2bbda4); border-radius:10px; padding:16px; }
+.payment-card-header { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); margin-bottom:8px; }
+.payment-amount-row { display:flex; justify-content:space-between; font-weight:700; font-size:17px; padding:8px 0; border-top:1px solid var(--border); margin-bottom:12px; }
+.payment-amount-val { color:var(--teal-deep,#1a9a87); }
+.btn-pay-qris { width:100%; padding:11px; background:var(--teal,#2bbda4); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .15s; }
+.btn-pay-qris:hover { background:var(--teal-deep,#1a9a87); }
+.btn-pay-qris:disabled { background:var(--border); color:var(--text-muted); cursor:not-allowed; }
+.payment-status-hint { font-size:12px; color:var(--text-muted); margin-top:8px; text-align:center; }
+.payment-status-paid { font-size:13px; color:#16a34a; font-weight:600; text-align:center; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:6px; }
+.qris-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:9999; display:flex; align-items:center; justify-content:center; }
+.qris-modal { background:var(--bg); border-radius:16px; padding:24px; max-width:340px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3); text-align:center; }
+.qris-modal-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+.qris-modal-amount { font-size:22px; font-weight:800; color:var(--teal-deep,#1a9a87); margin-bottom:12px; }
+.qris-img-wrap { background:#fff; border-radius:10px; padding:12px; display:inline-block; margin-bottom:12px; }
+.qris-img-wrap img { display:block; width:220px; height:220px; object-fit:contain; }
+.qris-countdown { font-size:13px; color:var(--text-muted); margin-bottom:10px; }
+.qris-countdown span { font-weight:700; color:var(--text); }
+.qris-checking { font-size:12px; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:6px; }
+.qris-close-btn { margin-top:10px; font-size:13px; color:var(--text-muted); background:none; border:none; cursor:pointer; text-decoration:underline; }
 
 /* ── Page navigation ──────────────────────────────────────── */
 .form-nav { margin-top: 8px; display: flex; flex-direction: column; gap: 12px; }
@@ -720,6 +740,187 @@ function updateCalcFields() {
   });
 }
 
+
+// ── Payment field state ──────────────────────────────────────────────────────────────────────────────────
+// Maps payment field id => { paid: bool, refNo: str, amount: num }
+var paymentState = {};
+// Total from linked calculation per payment field id
+var paymentTotals = {};
+
+function getSubmitBtns() {
+  return [
+    document.getElementById("submit-btn-wa"),
+    document.getElementById("submit-btn-wa2"),
+    document.getElementById("submit-btn-tg"),
+    document.getElementById("submit-btn-tg2"),
+    document.getElementById("submit-btn"),
+  ].filter(Boolean);
+}
+
+function updateSubmitBtnState() {
+  var paymentFields = (typeof questions !== "undefined") ? questions.filter(function(q){ return q.type === "payment"; }) : [];
+  var allPaid = paymentFields.length === 0 || paymentFields.every(function(q){ return paymentState[q.id] && paymentState[q.id].paid; });
+  getSubmitBtns().forEach(function(btn){
+    btn.disabled = !allPaid;
+    btn.title = allPaid ? "" : "Complete QRIS payment first";
+    btn.style.opacity = allPaid ? "" : "0.5";
+    btn.style.cursor = allPaid ? "" : "not-allowed";
+  });
+}
+
+function updatePaymentFields() {
+  if (typeof questions === "undefined" || typeof answers === "undefined") return;
+  questions.forEach(function(pq) {
+    if (pq.type !== "payment") return;
+    var calcQ = questions.find(function(q){ return q.type === "calculation"; });
+    if (!calcQ) return;
+    var subtotal = 0;
+    questions.forEach(function(src) {
+      if (!src.optionWithValue) return;
+      var rawOpts = src.type === "checkbox"
+        ? (src.checkboxOptions || src.options || [])
+        : (src.options || src.multiselectOptions || []);
+      var opts = normOpts(rawOpts);
+      var ans = answers[src.id] || "";
+      if (src.type === "choice" || src.type === "dropdown") {
+        opts.forEach(function(o){ if (o.label === ans && o.value !== "") { subtotal += Number(o.value); } });
+      } else if (src.type === "checkbox" || src.type === "multiselect") {
+        var sel = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
+        opts.forEach(function(o){ if (sel.indexOf(o.label) !== -1 && o.value !== "") { subtotal += Number(o.value); } });
+      }
+    });
+    var total = evalCalcOps(subtotal, calcQ.calcOps || []);
+    paymentTotals[pq.id] = total;
+
+    var totalEl = document.getElementById("payment-total-" + pq.id);
+    var payBtn  = document.getElementById("btn-pay-" + pq.id);
+    var hintEl  = document.getElementById("payment-hint-" + pq.id);
+    if (!totalEl) return;
+
+    var fmtTotal = fmtCalc(total, calcQ);
+    totalEl.textContent = fmtTotal;
+
+    var paid = paymentState[pq.id] && paymentState[pq.id].paid;
+    if (paid) {
+      if (payBtn) { payBtn.disabled = true; payBtn.textContent = "\u2705 Payment Successful"; payBtn.style.background = "#16a34a"; }
+      if (hintEl) { hintEl.className = "payment-status-paid"; hintEl.innerHTML = "\u2705 Payment confirmed \u2014 submit button is now active"; }
+    } else {
+      if (payBtn) {
+        payBtn.disabled = (total <= 0);
+        payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
+        payBtn.style.background = "";
+      }
+      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "\uD83D\uDD12 Submit button will activate after payment is confirmed" : "\uD83D\uDD12 Calculating total..."; }
+    }
+  });
+  updateSubmitBtnState();
+}
+
+// QRIS Modal
+function openQrisModal(paymentFieldId) {
+  var total = paymentTotals[paymentFieldId];
+  if (!total || total <= 0) { alert("Total must be greater than 0 to make a payment."); return; }
+  var modal = document.createElement("div");
+  modal.className = "qris-modal-backdrop";
+  modal.id = "qris-modal-" + paymentFieldId;
+  var calcQ = (typeof questions !== "undefined") ? questions.find(function(q){ return q.type === "calculation"; }) : null;
+  var fmtTotal = calcQ ? fmtCalc(total, calcQ) : ("Rp " + total.toLocaleString("id-ID"));
+  modal.innerHTML = '<div class="qris-modal">' +
+    '<div class="qris-modal-title">Scan QRIS to Pay</div>' +
+    '<div class="qris-modal-amount">' + fmtTotal + '</div>' +
+    '<div id="qris-body-' + paymentFieldId + '">' +
+      '<div style="color:var(--text-muted);font-size:13px;padding:20px 0">Loading QRIS...</div>' +
+    '</div>' +
+    '<div class="qris-countdown" id="qris-countdown-' + paymentFieldId + '"></div>' +
+    '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '">\uD83D\uDD04 Waiting for payment confirmation...</div>' +
+    '<button class="qris-close-btn" id="qris-close-' + paymentFieldId + '">Close</button>' +
+  '</div>';
+  document.body.appendChild(modal);
+  document.getElementById("qris-close-" + paymentFieldId).addEventListener("click", function() {
+    closeQrisModal(paymentFieldId);
+  });
+  generateFormPaymentQris(paymentFieldId, total);
+}
+
+function closeQrisModal(paymentFieldId) {
+  var modal = document.getElementById("qris-modal-" + paymentFieldId);
+  if (modal) modal.remove();
+  if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
+  if (window._qrisCountdown) { clearInterval(window._qrisCountdown); window._qrisCountdown = null; }
+}
+
+async function generateFormPaymentQris(paymentFieldId, amount) {
+  var bodyEl  = document.getElementById("qris-body-" + paymentFieldId);
+  var countEl = document.getElementById("qris-countdown-" + paymentFieldId);
+  var checkEl = document.getElementById("qris-checking-" + paymentFieldId);
+  try {
+    var sessionData = await sb.auth.getSession();
+    var token = sessionData && sessionData.data && sessionData.data.session ? sessionData.data.session.access_token : null;
+    var res = await fetch(SUPABASE_URL + "/functions/v1/create-form-payment-qris", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (token || SUPABASE_ANON_KEY),
+        "apikey": SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        form_id:       (typeof form !== "undefined" ? form.id : null),
+        form_owner_id: (typeof formOwnerId !== "undefined" ? formOwnerId : null),
+        amount:        amount,
+      }),
+    });
+    var data = await res.json();
+    if (!data.ref_no || !data.qris_data) {
+      if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">\u274C Failed to create QRIS: ' + (data.error || "Unknown error") + '</div>';
+      return;
+    }
+    if (bodyEl) {
+      bodyEl.innerHTML = '<div class="qris-img-wrap"><img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(data.qris_data) + '" alt="QRIS" width="220" height="220"></div>';
+    }
+    var expiresIn = data.expires_in || 300;
+    var endTime = Date.now() + expiresIn * 1000;
+    if (window._qrisCountdown) clearInterval(window._qrisCountdown);
+    window._qrisCountdown = setInterval(function() {
+      var remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+      var m = Math.floor(remaining / 60), s = remaining % 60;
+      if (countEl) countEl.innerHTML = "Valid: <span>" + m + ":" + (s < 10 ? "0" : "") + s + "</span>";
+      if (remaining <= 0) {
+        clearInterval(window._qrisCountdown);
+        if (countEl) countEl.textContent = "QRIS has expired.";
+        if (checkEl) checkEl.textContent = "\u274C Waktu habis. Close dan coba lagi.";
+        if (window._qrisTimer) clearInterval(window._qrisTimer);
+      }
+    }, 1000);
+    var refNo = data.ref_no;
+    if (window._qrisTimer) clearInterval(window._qrisTimer);
+    window._qrisTimer = setInterval(async function() {
+      try {
+        var checkRes = await fetch(SUPABASE_URL + "/functions/v1/check-form-payment-qris", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + (token || SUPABASE_ANON_KEY),
+            "apikey": SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ ref_no: refNo }),
+        });
+        var checkData = await checkRes.json();
+        if (checkData.status === "success") {
+          clearInterval(window._qrisTimer);
+          clearInterval(window._qrisCountdown);
+          paymentState[paymentFieldId] = { paid: true, refNo: refNo, amount: amount };
+          closeQrisModal(paymentFieldId);
+          updatePaymentFields();
+        } else if (checkData.status === "expired") {
+          clearInterval(window._qrisTimer);
+          if (checkEl) checkEl.textContent = "\u274C QRIS kadaluwarsa. Close dan coba lagi.";
+        }
+      } catch(pollErr) { /* ignore poll errors, keep trying */ }
+    }, 4000);
+  } catch (e) {
+    if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">\u274C Error: ' + e.message + '</div>';
+  }
+}
 
 
 // ── Build WhatsApp / Telegram link ────────────────────────────
@@ -1440,6 +1641,22 @@ function renderForm(form) {
         break;
       }
       default:
+      case "payment": {
+        inputHtml = `<div class="payment-card" id="payment-${q.id}">
+          <div class="payment-card-header">${esc(q.paymentLabel || "Payment")}</div>
+          ${q.paymentDescription ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:8px">${esc(q.paymentDescription)}</div>` : ""}
+          <div class="payment-amount-row">
+            <span>Total Amount</span>
+            <span class="payment-amount-val" id="payment-total-${q.id}">—</span>
+          </div>
+          <button type="button" class="btn-pay-qris" id="btn-pay-${q.id}" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Pay with QRIS
+          </button>
+          <div class="payment-status-hint" id="payment-hint-${q.id}">Calculating total...</div>
+        </div>`;
+        break;
+      }
         inputHtml = `<input type="text" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
     }
 
@@ -1481,7 +1698,7 @@ function renderForm(form) {
             }
           });
           answers[q.id] = parts.join(",");
-          updateCalcFields();
+          updateCalcFields(); updatePaymentFields();
         });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
@@ -1494,7 +1711,7 @@ function renderForm(form) {
           }
         });
         answers[q.id] = parts.join(",");
-        updateCalcFields();
+        updateCalcFields(); updatePaymentFields();
       });
     }
 
@@ -1513,12 +1730,12 @@ function renderForm(form) {
             if (otherInput) otherInput.style.display = "none";
             answers[q.id] = val;
           }
-          updateCalcFields();
+          updateCalcFields(); updatePaymentFields();
         });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
         answers[q.id] = e.target.value;
-        updateCalcFields();
+        updateCalcFields(); updatePaymentFields();
       });
     }
 
@@ -1549,7 +1766,7 @@ function renderForm(form) {
     // Bind dropdown select
     if (q.type === "dropdown") {
       const sel = block.querySelector(`#q-${q.id}`);
-      if (sel && sel.tagName === "SELECT") sel.addEventListener("change", () => { answers[q.id] = sel.value; updateCalcFields(); });
+      if (sel && sel.tagName === "SELECT") sel.addEventListener("change", () => { answers[q.id] = sel.value; updateCalcFields(); updatePaymentFields(); });
       // Searchable dropdown (> 10 opts)
       const ddWrap = block.querySelector(`#ddw-${q.id}`);
       if (ddWrap) {
@@ -1810,7 +2027,7 @@ function renderForm(form) {
           }
           updateTrigger();
           answers[q.id] = [...selected].join(",");
-          updateCalcFields();
+          updateCalcFields(); updatePaymentFields();
         });
       });
       answers[q.id] = "";
@@ -2186,6 +2403,8 @@ function renderForm(form) {
     } else {
       navDiv.querySelector("#submit-btn")?.addEventListener("click", () => doSubmit());
     }
+    // Apply payment gate on every page render -- submit buttons are recreated each time
+    updateSubmitBtnState();
   }
 
   card.appendChild(navDiv);
@@ -2315,6 +2534,9 @@ function renderForm(form) {
   let submitting = false;
   async function doSubmit(targetOverride) {
     if (submitting) return;
+    // Double-guard: block submit if any payment field has not been paid
+    const _unpaidPayments = questions.filter(q => q.type === "payment" && !(paymentState[q.id] && paymentState[q.id].paid));
+    if (_unpaidPayments.length > 0) return;
     if (!validateForm()) return;
     submitting = true;
     // Open a blank window IMMEDIATELY (synchronously, before any await) so mobile
@@ -2328,7 +2550,7 @@ function renderForm(form) {
       document.getElementById("submit-btn-tg2"),
       document.getElementById("submit-btn"),
     ].filter(Boolean);
-    btns.forEach(b => b.disabled = true);
+    btns.forEach(b => { b.disabled = true; b.style.opacity = "0.5"; });
 
     try {
       // ── Insert response dulu (draft), lalu upload file, lalu update answers dengan link final ──
@@ -2433,7 +2655,8 @@ function renderForm(form) {
       try { window.open(_link, "_blank"); } catch(e) { window.location.href = _link; }
     }
     showSuccess(settings, targetOverride);
-    btns.forEach(b => b.disabled = false);
+    // Re-enable submit only if no unpaid payment fields remain
+    updateSubmitBtnState();
     submitting = false;
   }
 
@@ -2458,8 +2681,23 @@ function renderForm(form) {
     }
   });
 
+  // Bind payment QRIS buttons
+  questions.forEach(function(q) {
+    if (q.type !== "payment") return;
+    const btn = document.getElementById("btn-pay-" + q.id);
+    if (btn) {
+      btn.addEventListener("click", function() {
+        openQrisModal(q.id);
+      });
+    }
+  });
+
   // Initialize: show first page
   showPage(0);
+
+  // Initial payment field state
+  updatePaymentFields();
+  updateSubmitBtnState();
 }
 
 // ── Main: fetch form ──────────────────────────────────────────
@@ -2552,6 +2790,9 @@ function renderForm(form) {
     }
   }
 
+  // Expose form owner id globally so payment functions can reference it
+  window.formOwnerId = form.created_by || null;
+  window.form = form;
   renderForm(form);
 })();
 </script>

@@ -47,6 +47,7 @@ const Q_TYPES = [
   { type:"spacer",      label:"Spacer",           icon:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M8 21H5a2 2 0 0 0-2-2v-3M21 16v3a2 2 0 0 1-2 2h-3"/>',                                              desc:"Blank vertical space" },
   { type:"button_link", label:"Button (link)",    icon:'<rect x="3" y="8" width="18" height="8" rx="3"/><path d="M9 12h6M13 10l2 2-2 2"/>',                                                                          desc:"Button that opens a URL" },
   { type:"calculation", label:"Calculation",      icon:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/>', desc:"Formula from other fields" },
+  { type:"payment",     label:"Payment (QRIS)",   icon:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/>', desc:"QRIS payment gate, requires Calculation" },
   { type:"page_break",  label:"Page Break",       icon:'<path d="M5 12h14"/><path d="M15 8l4 4-4 4"/><path d="M9 8l-4 4 4 4"/>',                                                                                     desc:"Split form into pages (Next/Prev)" },
 ];
 
@@ -105,6 +106,7 @@ const FIELD_TIERS = {
   map:           "pro",
   button_link:   "pro",
   calculation:   "pro",
+  payment:       "pro",
   page_break:    "plus",
 };
 
@@ -450,6 +452,14 @@ function renderQTypePicker() {
 
 function addQuestion(type) {
   if (!memberPerms.can_edit_questions) { toast("You don't have permission to edit questions", "error"); return; }
+  // Payment field requires at least one Calculation field
+  if (type === "payment") {
+    const hasCalcField = questions.some(q => q.type === "calculation");
+    if (!hasCalcField) {
+      toast("Payment field requires a Calculation field. Please add a Calculation field first.", "error");
+      return;
+    }
+  }
   const q = {
     id: uid(), type,
     title: "", subtitle: "",
@@ -528,6 +538,10 @@ function addQuestion(type) {
     calcDecimals: 0,
     calcShowBreakdown: true,
     calcSendOnlyTotal: true,
+    // payment
+    paymentLabel: "Payment",
+    paymentDescription: "",
+    paymentPaid: false,
     // option value (for choice/checkbox/dropdown/toggle/multiselect)
     optionWithValue: false,
     toggleOnValue: "",
@@ -1592,8 +1606,57 @@ function openEditModal(idx) {
     setTimeout(() => updateCalcPreview(), 50);
   }
 
+
+  // ── Payment field editor
+  if (q.type === "payment") {
+    // Check that a calculation field still exists
+    const calcFields = questions.filter(qq => qq.type === "calculation");
+    const infoBox = document.createElement("div");
+    infoBox.style.cssText = "background:var(--teal-dim);border:1px solid rgba(43,189,164,.2);border-radius:var(--radius);padding:10px 13px;font-size:12px;color:var(--text-soft);line-height:1.6;margin-bottom:4px";
+    if (calcFields.length === 0) {
+      infoBox.innerHTML = `<strong style="color:var(--red,#ef4444)">⚠️ Perhatian:</strong> No Calculation field found in this form. The Payment field requires a Calculation field to get the total amount. Please add a Calculation field first.`;
+    } else {
+      infoBox.innerHTML = `<strong style="color:var(--teal-deep)">How it works:</strong> This field takes the total from a <em>Calculation</em> field and generates a QRIS for payment. The submit button stays disabled until payment is confirmed.`;
+    }
+    body.appendChild(infoBox);
+
+    // Connected calculation field(s)
+    if (calcFields.length > 0) {
+      const srcBox = document.createElement("div"); srcBox.className = "field";
+      const srcLbl = document.createElement("label"); srcLbl.textContent = "Linked Calculation field";
+      srcBox.appendChild(srcLbl);
+      const srcList = document.createElement("div"); srcList.style.cssText = "display:flex;flex-direction:column;gap:4px";
+      calcFields.forEach(cf => {
+        const pill = document.createElement("div");
+        pill.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius);font-size:12px";
+        pill.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="color:var(--teal);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="flex:1;font-weight:500">${esc(cf.calcLabel || cf.title || "Calculation")}</span>
+          <span style="color:var(--text-muted)">Total will be used as the payment amount</span>`;
+        srcList.appendChild(pill);
+      });
+      srcBox.appendChild(srcList);
+      body.appendChild(srcBox);
+    }
+
+    // Payment label
+    body.appendChild(makeField("Field label", "input",
+      { type:"text", id:"em-payment-label", value: q.paymentLabel || "Payment", maxlength:"80" }
+    ));
+
+    // Payment description (optional)
+    body.appendChild(makeField("Description (optional)", "textarea",
+      { id:"em-payment-desc", value: q.paymentDescription || "", rows:"2", maxlength:"200",
+        placeholder:"E.g. Scan the QRIS below to complete your payment" }
+    ));
+
+    const noteDiv = document.createElement("div");
+    noteDiv.style.cssText = "font-size:12px;color:var(--text-muted);padding:8px 10px;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius);line-height:1.6";
+    noteDiv.innerHTML = `<strong>Submit logic:</strong> The form submit button stays disabled (greyed out) until QRIS payment is detected. After payment, the form owner’s wallet balance is credited with the total amount.`;
+    body.appendChild(noteDiv);
+  }
+
   // ── Required toggle (not for title/image/video/toggle types)
-  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link","calculation","ranking"].includes(q.type)) {
+  if (!isTitle && !["image","video","password","url_input","toggle","divider","spacer","button_link","calculation","ranking","payment"].includes(q.type)) {
     body.appendChild(document.createElement("hr"));
     body.appendChild(makeToggleField("Required", "em-required", q.required));
   }
@@ -2173,6 +2236,11 @@ function saveEditToMemory() {
     q.calcDecimals      = Number(get("em-calc-decimals")?.value) || 0;
     q.calcShowBreakdown = get("em-calc-breakdown")?.checked !== false;
     q.calcSendOnlyTotal = get("em-calc-send-total")?.checked !== false;
+  }
+  // payment
+  if (q.type === "payment") {
+    q.paymentLabel       = get("em-payment-label")?.value || "Payment";
+    q.paymentDescription = get("em-payment-desc")?.value || "";
   }
   return true;
 }
@@ -2886,6 +2954,25 @@ function buildPreviewField(q, i) {
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;border-top:1.5px solid var(--border);padding-top:8px">
         <span>Total</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
       </div>
+    </div>`;
+  }
+  if (q.type === "payment") {
+    const calcField = questions.find(pq => pq.type === "calculation");
+    const pfx = calcField ? (calcField.calcPrefix ?? "Rp") : "Rp";
+    const sfx = calcField ? (calcField.calcSuffix ?? "") : "";
+    const dc  = calcField ? (calcField.calcDecimals || 0) : 0;
+    const fmtN = n => `${pfx}${Number(n).toLocaleString("en-US",{minimumFractionDigits:dc,maximumFractionDigits:dc})}${sfx}`;
+    control = `<div style="background:var(--bg-raised);border:1.5px solid var(--teal,#2bbda4);border-radius:10px;padding:14px 16px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">${esc(q.paymentLabel||"Payment")}</div>
+      ${q.paymentDescription ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:10px">${esc(q.paymentDescription)}</div>` : ""}
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:8px 0;border-top:1px solid var(--border)">
+        <span>Total</span><span style="color:var(--teal-deep)">${fmtN(0)}</span>
+      </div>
+      <button type="button" style="width:100%;margin-top:10px;padding:10px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Bayar dengan QRIS
+      </button>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;text-align:center">Submit button activates after payment is confirmed</div>
     </div>`;
   }
   if (q.type === "choice")   { const choiceOpts = normOpts(q.options||[]); control = `<div style="display:flex;flex-direction:column;gap:6px">${choiceOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> ${esc(o.label)}${q.optionWithValue && o.value !== "" ? `<span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${Number(o.value).toLocaleString("en-US")}</span>` : ""}</label>`).join("")}${q.allowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="radio" name="q${i}"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }

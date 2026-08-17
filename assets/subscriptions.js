@@ -602,12 +602,16 @@
         return;
       }
 
-      // Payment not found yet — re-enable button so they can try again
-      if (statusEl) statusEl.textContent = "Payment not detected yet. Please wait a moment and try again.";
-      confirmBtn.disabled      = false;
-      confirmBtn.style.opacity = "1";
-      confirmBtn.style.cursor  = "pointer";
-      confirmBtn.textContent   = "Confirm payment";
+      // Payment not found yet — alert + jeda 4-7 detik sebelum re-enable
+      alert("Payment not detected yet. Please wait a moment and try again.");
+      const _jeda = 4000 + Math.random() * 3000;
+      setTimeout(() => {
+        if (statusEl) statusEl.textContent = "";
+        confirmBtn.disabled      = false;
+        confirmBtn.style.opacity = "1";
+        confirmBtn.style.cursor  = "pointer";
+        confirmBtn.textContent   = "Confirm payment";
+      }, _jeda);
 
     } catch (_) {
       if (statusEl) statusEl.textContent = "Network error. Please try again.";

@@ -921,40 +921,13 @@ function openQrisModal(paymentFieldId) {
   document.getElementById("qris-close-" + paymentFieldId).addEventListener("click", function() {
     closeQrisModal(paymentFieldId);
   });
-  generateFormPaymentQris(paymentFieldId, total);
-
-  // ── Confirm button: aktif setelah 15 detik ──────────────────────────────
-  var _confirmCdEl  = document.getElementById("qris-confirm-cd-" + paymentFieldId);
-  var _confirmBtn   = document.getElementById("qris-confirm-" + paymentFieldId);
-  var _reportDiv    = document.getElementById("qris-report-" + paymentFieldId);
-  var _reportLink   = document.getElementById("qris-report-link-" + paymentFieldId);
-  var _cdSec = 20, _reportSec = 50, _cdElapsed = 0;
-  var _cdInterval = setInterval(function() {
-    _cdElapsed++;
-    var left = Math.max(0, _cdSec - _cdElapsed);
-    if (_confirmCdEl) _confirmCdEl.textContent = left;
-    if (_cdElapsed >= _cdSec && _confirmBtn && _confirmBtn.disabled) {
-      _confirmBtn.disabled = false;
-      _confirmBtn.style.background = "var(--teal,#2bbda4)";
-      _confirmBtn.style.color = "#fff";
-      _confirmBtn.style.cursor = "pointer";
-      if (_confirmCdEl) _confirmCdEl.parentElement.style.display = "none";
-    }
-    if (_cdElapsed >= _reportSec && _reportDiv) {
-      _reportDiv.style.display = "block";
-    }
-    if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
-  }, 1000);
-  window._qrisConfirmCdInterval = _cdInterval;
 
   if (_confirmBtn) {
     _confirmBtn.addEventListener("click", function() {
-      var refNoEl = document.getElementById("qris-checking-" + paymentFieldId);
       _confirmBtn.disabled = true;
       _confirmBtn.style.background = "var(--border)";
       _confirmBtn.style.color = "var(--text-muted)";
       _confirmBtn.textContent = "Checking...";
-      // Trigger an immediate poll check
       if (window._qrisPollNow) window._qrisPollNow();
     });
   }
@@ -978,6 +951,8 @@ function openQrisModal(paymentFieldId) {
       });
     });
   }
+
+  generateFormPaymentQris(paymentFieldId, total);
 }
 
 function closeQrisModal(paymentFieldId) {
@@ -1017,6 +992,29 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
       var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(data.qris_data);
       bodyEl.innerHTML = '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>';
     }
+
+    // ── Mulai countdown confirm setelah QRIS berhasil di-generate ──────────
+    var _confirmCdEl = document.getElementById("qris-confirm-cd-" + paymentFieldId);
+    var _confirmBtn  = document.getElementById("qris-confirm-" + paymentFieldId);
+    var _reportDiv   = document.getElementById("qris-report-" + paymentFieldId);
+    var _cdElapsed = 0, _cdSec = 20, _reportSec = 50;
+    var _cdInterval = setInterval(function() {
+      _cdElapsed++;
+      var left = Math.max(0, _cdSec - _cdElapsed);
+      if (_confirmCdEl) _confirmCdEl.textContent = left;
+      if (_cdElapsed >= _cdSec && _confirmBtn && _confirmBtn.disabled) {
+        _confirmBtn.disabled = false;
+        _confirmBtn.style.background = "var(--teal,#2bbda4)";
+        _confirmBtn.style.color = "#fff";
+        _confirmBtn.style.cursor = "pointer";
+        if (_confirmCdEl) _confirmCdEl.parentElement.style.display = "none";
+      }
+      if (_cdElapsed >= _reportSec && _reportDiv) {
+        _reportDiv.style.display = "block";
+      }
+      if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
+    }, 1000);
+    window._qrisConfirmCdInterval = _cdInterval;
     var expiresIn = data.expires_in || 300;
     var endTime = Date.now() + expiresIn * 1000;
     if (window._qrisCountdown) clearInterval(window._qrisCountdown);
@@ -1056,9 +1054,13 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
           clearInterval(window._qrisTimer);
           if (checkEl) checkEl.textContent = "\u274C QRIS kadaluwarsa. Close dan coba lagi.";
         } else {
-          // Re-enable confirm button after failed check
+          // Payment not found — tampilkan alert, jeda 4-7 detik, lalu re-enable
+          alert("Payment not detected yet. Please wait a moment and try again.");
           var _cb = document.getElementById("qris-confirm-" + paymentFieldId);
-          if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
+          var _jeda = 4000 + Math.random() * 3000; // 4-7 detik
+          setTimeout(function() {
+            if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
+          }, _jeda);
         }
       } catch(pollErr) { /* ignore poll errors, keep trying */ }
     }

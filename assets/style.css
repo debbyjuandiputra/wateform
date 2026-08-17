@@ -496,8 +496,9 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .rich-editor:focus { border-color: var(--teal); }
 
 /* Phone prefix */
-.phone-wrap { display: flex; gap: 8px; max-width: 360px; }
-.phone-prefix { width: 130px; flex-shrink: 0; }
+.phone-wrap { display: flex; gap: 8px; max-width: 360px; width: 100%; overflow: hidden; }
+.phone-prefix { width: 100px; flex-shrink: 0; min-width: 80px; }
+.phone-wrap input:not(.phone-prefix) { flex: 1; min-width: 0; }
 
 /* Image input */
 .img-input-wrap { display: flex; gap: 8px; }

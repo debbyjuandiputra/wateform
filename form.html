@@ -99,8 +99,9 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .star-opt.lit { color: var(--teal); }
 
 /* Phone wrap */
-.ph-wrap { display: flex; gap: 8px; max-width: 360px; }
-.ph-prefix { width: 120px; flex-shrink: 0; }
+.ph-wrap { display: flex; gap: 0; width: 100%; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
+.ph-prefix { width: 72px; flex-shrink: 0; padding: 9px 10px; border: none; border-right: 1px solid var(--border); background: var(--bg-mid); color: var(--text); font-size: 14px; outline: none; font-family: inherit; text-align: center; }
+.ph-input  { flex: 1; padding: 9px 12px; border: none; background: transparent; color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
 
 /* Submit */
 .form-submit { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
@@ -1484,8 +1485,8 @@ function renderForm(form) {
       case "phone": {
         const prefix = q.phonePrefix || "+62";
         inputHtml = `<div class="ph-wrap">
-          <input type="text" id="q-${q.id}-prefix" value="${esc(prefix)}" class="ph-prefix q-input" style="padding:9px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">
-          <input type="tel" id="q-${q.id}" class="q-input" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">
+          <input type="text" id="q-${q.id}-prefix" value="${esc(prefix)}" class="ph-prefix">
+          <input type="tel" id="q-${q.id}" class="ph-input" placeholder="${esc(q.placeholder||"")}">
         </div>`;
         break;
       }

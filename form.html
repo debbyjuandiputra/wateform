@@ -1660,6 +1660,7 @@ function renderForm(form) {
         inputHtml = `<input type="text" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
     }
 
+    
     block.innerHTML = `
       ${q.image ? `<img src="${esc(q.image)}" alt="" style="max-width:100%;max-height:160px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px">` : ""}
       ${q.type !== "checkbox" ? `<div class="q-label">${esc(q.title)}${req}</div>` : ""}

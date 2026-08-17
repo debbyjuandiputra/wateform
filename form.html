@@ -802,15 +802,15 @@ function updatePaymentFields() {
 
     var paid = paymentState[pq.id] && paymentState[pq.id].paid;
     if (paid) {
-      if (payBtn) { payBtn.disabled = true; payBtn.textContent = "\u2705 Payment Successful"; payBtn.style.background = "#16a34a"; }
-      if (hintEl) { hintEl.className = "payment-status-paid"; hintEl.innerHTML = "\u2705 Payment confirmed \u2014 submit button is now active"; }
+      if (payBtn) { payBtn.disabled = true; payBtn.textContent = "Payment Successful"; payBtn.style.background = "#16a34a"; }
+      if (hintEl) { hintEl.className = "payment-status-paid"; hintEl.innerHTML = "Payment confirmed"; }
     } else {
       if (payBtn) {
         payBtn.disabled = (total <= 0);
         payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
         payBtn.style.background = "";
       }
-      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "\uD83D\uDD12 Submit button will activate after payment is confirmed" : "\uD83D\uDD12 Calculating total..."; }
+      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "Submit button will activate after payment is confirmed" : "Calculating total..."; }
     }
   });
   updateSubmitBtnState();
@@ -832,7 +832,7 @@ function openQrisModal(paymentFieldId) {
       '<div style="color:var(--text-muted);font-size:13px;padding:20px 0">Loading QRIS...</div>' +
     '</div>' +
     '<div class="qris-countdown" id="qris-countdown-' + paymentFieldId + '"></div>' +
-    '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '">\uD83D\uDD04 Waiting for payment confirmation...</div>' +
+    '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '">Waiting for payment confirmation...</div>' +
     '<button class="qris-close-btn" id="qris-close-' + paymentFieldId + '">Close</button>' +
   '</div>';
   document.body.appendChild(modal);
@@ -887,7 +887,7 @@ async function generateFormPaymentQris(paymentFieldId, amount) {
       if (remaining <= 0) {
         clearInterval(window._qrisCountdown);
         if (countEl) countEl.textContent = "QRIS has expired.";
-        if (checkEl) checkEl.textContent = "\u274C Waktu habis. Close dan coba lagi.";
+        if (checkEl) checkEl.textContent = "Waktu habis. Close dan coba lagi.";
         if (window._qrisTimer) clearInterval(window._qrisTimer);
       }
     }, 1000);
@@ -1660,7 +1660,7 @@ function renderForm(form) {
         inputHtml = `<input type="text" id="q-${q.id}" class="q-input" placeholder="${esc(q.placeholder||"")}" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-raised);color:var(--text);font-size:14px;outline:none;font-family:inherit">`;
     }
 
-    
+
     block.innerHTML = `
       ${q.image ? `<img src="${esc(q.image)}" alt="" style="max-width:100%;max-height:160px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px">` : ""}
       ${q.type !== "checkbox" ? `<div class="q-label">${esc(q.title)}${req}</div>` : ""}

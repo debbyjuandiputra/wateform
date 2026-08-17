@@ -2877,6 +2877,41 @@ function renderForm(form) {
     const btn = document.getElementById("btn-pay-" + q.id);
     if (btn) {
       btn.addEventListener("click", function() {
+        // Validate all required fields before opening QRIS modal
+        const unfilled = [];
+        questions.forEach(function(fq) {
+          if (fq.type === "page_break" || fq.type === "payment") return;
+          if (["divider","spacer","button_link","url_input","title","image","video","calculation","ranking"].includes(fq.type)) return;
+          if (!fq.required) return;
+          const ans = answers[fq.id];
+          let isEmpty;
+          if (fq.type === "map") {
+            isEmpty = !ans || (!ans.lat && !ans.lng);
+          } else {
+            isEmpty = !ans || (typeof ans === "string" && ans.trim() === "");
+          }
+          if (isEmpty) unfilled.push(fq);
+        });
+
+        if (unfilled.length > 0) {
+          // Show alert
+          alert("Please fill in all required fields before proceeding with payment.\n\n" +
+            unfilled.map(function(fq, i) { return (i + 1) + ". " + (fq.label || ("Field #" + (i + 1))); }).join("\n"));
+          // Highlight and scroll to first unfilled required field
+          const allBlocks = Array.from(card.querySelectorAll(".q-block"));
+          let firstErrBlock = null;
+          unfilled.forEach(function(fq) {
+            const block = allBlocks.find(function(b) { return b.querySelector("#q-" + fq.id) || b.querySelector("#fua-" + fq.id); });
+            if (block) {
+              const errEl = block.querySelector(".q-err");
+              if (errEl) errEl.style.display = "";
+              if (!firstErrBlock) firstErrBlock = block;
+            }
+          });
+          if (firstErrBlock) firstErrBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+
         openQrisModal(q.id);
       });
     }

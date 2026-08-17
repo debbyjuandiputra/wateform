@@ -385,6 +385,7 @@
   let _refNo            = null;
   let _countdownTimer   = null;
   let _confirmTimer     = null;
+  let _failCount        = 0;
 
   function resetModal() {
     clearInterval(_countdownTimer);
@@ -392,6 +393,7 @@
     _countdownTimer = null;
     _confirmTimer   = null;
     _refNo          = null;
+    _failCount      = 0;
 
     show("qris-step-confirm");
     hide("qris-step-pay");
@@ -518,14 +520,18 @@
     _countdownTimer = setInterval(tick, 1000);
   }
 
+  // ── Show "Already paid but not detected?" link ────────────────────────────
+  function showReportLink() {
+    const reportWrap = document.getElementById("qris-report-link-wrap");
+    if (reportWrap) reportWrap.style.display = "block";
+  }
+
   // ── 15-second confirm button countdown ───────────────────────────────────
   function startConfirmCountdown() {
     let elapsed     = 0;
     const hintEl    = document.getElementById("qris-confirm-hint");
     const countEl   = document.getElementById("qris-confirm-countdown");
     const confirmBtn = document.getElementById("qris-btn-confirm");
-    const reportWrap = document.getElementById("qris-report-link-wrap");
-    const reportLink = document.getElementById("qris-report-link");
 
     function tick() {
       elapsed++;
@@ -537,14 +543,16 @@
         confirmBtn.style.cursor  = "pointer";
         if (hintEl) hintEl.style.display = "none";
       }
-      if (elapsed >= 50 && reportWrap) {
-        reportWrap.style.display = "block";
+      // Show report link after 50 seconds regardless of fail count
+      if (elapsed >= 50) {
+        showReportLink();
+        clearInterval(_confirmTimer);
       }
-      if (elapsed >= 50) clearInterval(_confirmTimer);
     }
     _confirmTimer = setInterval(tick, 1000);
 
     // Report link handler — build mailto on click
+    const reportLink = document.getElementById("qris-report-link");
     if (reportLink) {
       reportLink.addEventListener("click", async function(e) {
         e.preventDefault();
@@ -602,7 +610,12 @@
         return;
       }
 
-      // Payment not found yet — alert + jeda 4-7 detik sebelum re-enable
+      // Payment not found yet — increment fail counter, show report link after 3 failures
+      _failCount++;
+      if (_failCount >= 3) {
+        showReportLink();
+      }
+      // Alert + jeda 4-7 detik sebelum re-enable
       alert("Payment not detected yet. Please wait a moment and try again.");
       const _jeda = 4000 + Math.random() * 3000;
       setTimeout(() => {

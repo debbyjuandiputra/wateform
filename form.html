@@ -828,10 +828,17 @@ function updatePaymentFields() {
 
     var paid = paymentState[pq.id] && paymentState[pq.id].paid;
     if (paid) {
-      if (payBtn) { payBtn.disabled = true; payBtn.textContent = "Payment Successful"; payBtn.style.background = ""; payBtn.classList.add("paid"); }
+      var paidAmount = paymentState[pq.id].amount;
+      var calcQPaid = (typeof questions !== "undefined") ? questions.find(function(q){ return q.type === "calculation"; }) : null;
+      var fmtPaid = (src === "calculation" && calcQPaid)
+        ? fmtCalc(paidAmount, calcQPaid)
+        : ("Rp" + paidAmount.toLocaleString("en-US"));
+      if (totalEl) totalEl.textContent = fmtPaid;
+      if (payBtn) { payBtn.style.display = "none"; }
       if (hintEl) { hintEl.className = ""; hintEl.innerHTML = ""; }
     } else {
       if (payBtn) {
+        payBtn.style.display = "";
         payBtn.disabled = (total <= 0);
         payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
         payBtn.style.background = "";
@@ -857,7 +864,7 @@ function lockFormForPayment() {
     var notice = document.createElement("div");
     notice.id = "form-locked-notice";
     notice.className = "form-locked-notice";
-    notice.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Form dikunci setelah pembayaran berhasil — data tidak dapat diubah.';
+    notice.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Your data cannot be changed after a successful payment.';
     var formCard = document.querySelector(".form-card");
     if (formCard) {
       var header = formCard.querySelector(".form-header");

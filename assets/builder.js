@@ -730,6 +730,32 @@ function openEditModal(idx) {
     ));
   }
 
+  if (q.type === "number") {
+    const numFmtWrap = document.createElement("div");
+    numFmtWrap.className = "field";
+    const numFmtLbl = document.createElement("label");
+    numFmtLbl.textContent = "Prefix & Suffix";
+    numFmtWrap.appendChild(numFmtLbl);
+    const numFmtGrid = document.createElement("div");
+    numFmtGrid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px";
+    const mkNumFmtField = (placeholder, id, val) => {
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.id = id; inp.placeholder = placeholder; inp.maxLength = 20;
+      inp.value = val ?? "";
+      inp.style.cssText = "width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-mid);color:var(--text);font-size:13px;box-sizing:border-box";
+      const lbl = document.createElement("div");
+      lbl.textContent = placeholder === "Rp" ? "Prefix" : "Suffix";
+      lbl.style.cssText = "font-size:11px;color:var(--text-muted);margin-bottom:3px";
+      const wrap = document.createElement("div");
+      wrap.appendChild(lbl); wrap.appendChild(inp);
+      return wrap;
+    };
+    numFmtGrid.appendChild(mkNumFmtField("Rp", "em-num-prefix", q.numPrefix));
+    numFmtGrid.appendChild(mkNumFmtField("e.g. kg", "em-num-suffix", q.numSuffix));
+    numFmtWrap.appendChild(numFmtGrid);
+    body.appendChild(numFmtWrap);
+  }
+
   if (q.type === "email") {
     body.appendChild(makeField("Placeholder", "input",
       { type:"text", id:"em-placeholder", value: q.placeholder, maxlength:"120" }
@@ -2189,6 +2215,10 @@ function saveEditToMemory() {
   q.title       = get("em-title")?.value || "";
   q.subtitle    = get("em-subtitle")?.innerHTML || "";
   q.placeholder = get("em-placeholder")?.value || "";
+  if (q.type === "number") {
+    q.numPrefix = get("em-num-prefix")?.value ?? "";
+    q.numSuffix = get("em-num-suffix")?.value ?? "";
+  }
   if (!["image","video","password","url_input","toggle","divider","spacer","button_link"].includes(q.type)) {
     q.required  = get("em-required")?.checked || false;
   }
@@ -3148,7 +3178,22 @@ function buildPreviewField(q, i) {
   const ph = esc(q.placeholder || "");
   if (q.type === "short")    control = `<input type="text" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "long")     control = `<textarea placeholder="${ph}" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text);resize:vertical"></textarea>`;
-  if (q.type === "number")   control = `<input type="number" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
+  if (q.type === "number") {
+    const hasPre = q.numPrefix && q.numPrefix.trim() !== "";
+    const hasSuf = q.numSuffix && q.numSuffix.trim() !== "";
+    if (!hasPre && !hasSuf) {
+      control = `<input type="number" placeholder="${ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
+    } else {
+      const rPre = hasPre ? 0 : 8;
+      const rSuf = hasSuf ? 0 : 8;
+      const wrapStyle = `display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-raised)`;
+      const adornStyle = `display:flex;align-items:center;padding:0 10px;font-size:14px;color:var(--text-muted);background:var(--bg-mid);white-space:nowrap;border:none`;
+      const inpStyle = `flex:1;min-width:0;padding:8px 12px;border:none;outline:none;font-size:14px;background:var(--bg-raised);color:var(--text)`;
+      const preHtml  = hasPre ? `<span style="${adornStyle};border-right:1px solid var(--border)">${esc(q.numPrefix)}</span>` : "";
+      const sufHtml  = hasSuf ? `<span style="${adornStyle};border-left:1px solid var(--border)">${esc(q.numSuffix)}</span>` : "";
+      control = `<div style="${wrapStyle}">${preHtml}<input type="number" placeholder="${ph}" style="${inpStyle}">${sufHtml}</div>`;
+    }
+  }
   if (q.type === "date")     control = `<input type="date" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "email")    control = `<input type="email" placeholder="${q.gmailOnly ? "you@gmail.com" : ph}" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg-raised);color:var(--text)">`;
   if (q.type === "checkbox") { const cbOpts = normOpts(q.checkboxOptions || q.options || []); control = `<div style="display:flex;flex-direction:column;gap:6px">${cbOpts.map(o=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> ${esc(o.label)}${q.optionWithValue && o.value !== "" ? `<span style="margin-left:auto;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${Number(o.value).toLocaleString("en-US")}</span>` : ""}</label>`).join("")}${q.checkboxAllowOther ? `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px"><input type="checkbox"> Other: <input type="text" placeholder="Specify…" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--text)"></label>` : ""}</div>`; }

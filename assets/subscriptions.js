@@ -11,7 +11,7 @@
 
   const PLANS = {
     plus:     { label: "Plus",     price: 2000  },
-    pro:      { label: "Pro",      price: 10000 },
+    pro:      { label: "Pro",      price: 6000 },
     ultimate: { label: "Ultimate", price: 25000 },
   };
 

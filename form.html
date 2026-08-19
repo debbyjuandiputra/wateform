@@ -89,6 +89,33 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
   transform: rotate(-45deg) translate(1px, -1px);
 }
 
+/* Quantity stepper (for options with pricing + quantity enabled) */
+.opt-qty-stepper {
+  display: flex; align-items: center; gap: 0;
+  margin-left: auto; flex-shrink: 0;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  overflow: hidden; background: var(--bg-raised);
+  transition: border-color .15s;
+}
+.opt-qty-stepper:focus-within { border-color: var(--teal); }
+.opt-qty-btn {
+  background: none; border: none; cursor: pointer;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--teal); transition: background .1s;
+  flex-shrink: 0; user-select: none;
+}
+.opt-qty-btn:hover { background: var(--teal-dim); }
+.opt-qty-btn:disabled { color: var(--text-muted); cursor: default; }
+.opt-qty-val {
+  min-width: 28px; text-align: center; font-size: 13px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; color: var(--text);
+  border: none; background: transparent; padding: 0 2px; outline: none;
+}
+.opt-price-tag {
+  font-size: 11px; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+}
+
 /* Star rating */
 .star-row { display: flex; gap: 8px; }
 .star-opt {
@@ -718,22 +745,39 @@ function updateCalcFields() {
         : (pq.options || pq.multiselectOptions || []);
       var opts = normOpts(rawOpts);
       var ans = answers[pq.id] || "";
+      var withQty = pq.optionWithQuantity;
+
+      // Helper: read live qty from DOM for an option label in a given field
+      function getLiveQty(optLabel) {
+        if (!withQty) return 1;
+        // Find the rendered opt element by data-val
+        var selector = "[data-qid='" + CSS.escape(pq.id) + "'][data-val='" + CSS.escape(optLabel) + "']";
+        var optEl = document.querySelector(selector);
+        if (!optEl) return 1;
+        var qtyStr = optEl.dataset.qty;
+        var qty = parseInt(qtyStr);
+        return (isNaN(qty) || qty < 1) ? 1 : qty;
+      }
 
       if (pq.type === "choice" || pq.type === "dropdown") {
         opts.forEach(function(o) {
           if (o.label === ans && o.value !== "") {
-            var v = Number(o.value);
+            var price = Number(o.value);
+            var qty   = getLiveQty(o.label);
+            var v     = price * qty;
             subtotal += v;
-            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v });
+            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v, price: price, qty: qty, withQty: withQty });
           }
         });
       } else if (pq.type === "checkbox" || pq.type === "multiselect") {
         var selected = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
         opts.forEach(function(o) {
           if (selected.indexOf(o.label) !== -1 && o.value !== "") {
-            var v = Number(o.value);
+            var price = Number(o.value);
+            var qty   = getLiveQty(o.label);
+            var v     = price * qty;
             subtotal += v;
-            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v });
+            itemLines.push({ label: pq.title || pq.type, opt: o.label, value: v, price: price, qty: qty, withQty: withQty });
           }
         });
       }
@@ -747,7 +791,12 @@ function updateCalcFields() {
 
     if (showBreakdown && itemLines.length) {
       itemLines.forEach(function(it) {
-        html += "<div class=\"calc-row\"><span class=\"calc-row-name\">" + esc(it.label) + "<span class=\"calc-row-opt\"> — " + esc(it.opt) + "</span></span><span class=\"calc-row-val\">" + fmtCalc(it.value, cq) + "</span></div>";
+        var qtyTag = (it.withQty && it.qty > 1)
+          ? "<span class=\"calc-row-opt\"> ×" + it.qty + "</span>"
+          : "";
+        html += "<div class=\"calc-row\"><span class=\"calc-row-name\">" + esc(it.label)
+          + "<span class=\"calc-row-opt\"> — " + esc(it.opt) + "</span>" + qtyTag
+          + "</span><span class=\"calc-row-val\">" + fmtCalc(it.value, cq) + "</span></div>";
       });
     }
 
@@ -772,7 +821,10 @@ function updateCalcFields() {
     // Store for WA/Tele message
     answers[cq.id] = cq.calcSendOnlyTotal !== false
       ? fmtCalc(total, cq)
-      : itemLines.map(function(i){ return i.opt + ": " + fmtCalc(i.value, cq); }).join(", ") + " | " + fmtCalc(total, cq);
+      : itemLines.map(function(i){
+          var qtyPart = (i.withQty && i.qty > 1) ? " ×" + i.qty : "";
+          return i.opt + qtyPart + ": " + fmtCalc(i.value, cq);
+        }).join(", ") + " | " + fmtCalc(total, cq);
   });
 }
 
@@ -832,11 +884,19 @@ function updatePaymentFields() {
           : (src.options || src.multiselectOptions || []);
         var opts = normOpts(rawOpts);
         var ans = answers[src.id] || "";
+        function getLiveQtyPayment(optLabel) {
+          if (!src.optionWithQuantity) return 1;
+          var selector = "[data-qid='" + CSS.escape(src.id) + "'][data-val='" + CSS.escape(optLabel) + "']";
+          var optEl = document.querySelector(selector);
+          if (!optEl) return 1;
+          var qty = parseInt(optEl.dataset.qty);
+          return (isNaN(qty) || qty < 1) ? 1 : qty;
+        }
         if (src.type === "choice" || src.type === "dropdown") {
-          opts.forEach(function(o){ if (o.label === ans && o.value !== "") { subtotal += Number(o.value); } });
+          opts.forEach(function(o){ if (o.label === ans && o.value !== "") { subtotal += Number(o.value) * getLiveQtyPayment(o.label); } });
         } else if (src.type === "checkbox" || src.type === "multiselect") {
           var sel = ans ? ans.split(",").map(function(s){ return s.trim(); }) : [];
-          opts.forEach(function(o){ if (sel.indexOf(o.label) !== -1 && o.value !== "") { subtotal += Number(o.value); } });
+          opts.forEach(function(o){ if (sel.indexOf(o.label) !== -1 && o.value !== "") { subtotal += Number(o.value) * getLiveQtyPayment(o.label); } });
         }
       });
       total = evalCalcOps(subtotal, calcQ.calcOps || []);
@@ -1557,10 +1617,21 @@ function renderForm(form) {
       case "checkbox": {
         const cbRaw = Array.isArray(q.checkboxOptions) && q.checkboxOptions.length ? q.checkboxOptions : (Array.isArray(q.options) ? q.options : []);
         const cbOpts = normOpts(cbRaw);
+        const cbWithQty = q.optionWithValue && q.optionWithQuantity;
         inputHtml = `<div class="check-list" id="cl-${q.id}">` +
-          cbOpts.map(opt => `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${esc(String(opt.value))}">
-            <div class="check-marker"></div><span>${esc(opt.label)}</span>
-          </div>`).join("") +
+          cbOpts.map(opt => {
+            const defQty = (cbWithQty && opt.qty !== "" && opt.qty !== undefined) ? Number(opt.qty) : 1;
+            const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
+            const qtyHtml = cbWithQty ? `
+              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
+                <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
+                <span class="opt-qty-val">${defQty}</span>
+                <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+              </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
+            return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${defQty}">
+              <div class="check-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
+            </div>`;
+          }).join("") +
           (q.checkboxAllowOther ? `<div class="check-opt" data-qid="${q.id}" data-val="__other__">
             <div class="check-marker"></div><span>Other…</span>
           </div>
@@ -1572,10 +1643,21 @@ function renderForm(form) {
       case "choice": {
         const choiceRaw = Array.isArray(q.options) ? q.options : [];
         const choiceOpts = normOpts(choiceRaw);
+        const choiceWithQty = q.optionWithValue && q.optionWithQuantity;
         inputHtml = `<div class="choice-list" id="cl-${q.id}">` +
-          choiceOpts.map(opt => `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${esc(String(opt.value))}">
-            <div class="choice-marker"></div><span>${esc(opt.label)}</span>
-          </div>`).join("") +
+          choiceOpts.map(opt => {
+            const defQty = (choiceWithQty && opt.qty !== "" && opt.qty !== undefined) ? Number(opt.qty) : 1;
+            const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
+            const qtyHtml = choiceWithQty ? `
+              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
+                <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
+                <span class="opt-qty-val">${defQty}</span>
+                <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+              </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
+            return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${defQty}">
+              <div class="choice-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
+            </div>`;
+          }).join("") +
           (q.allowOther ? `<div class="choice-opt" data-qid="${q.id}" data-val="__other__">
             <div class="choice-marker"></div><span>Other…</span>
           </div>
@@ -1638,6 +1720,7 @@ function renderForm(form) {
       case "multiselect": {
         const msOpts = Array.isArray(q.multiselectOptions) ? q.multiselectOptions : [];
         const msMax  = q.multiselectMax || 0;
+        const msWithQty = q.optionWithValue && q.optionWithQuantity;
         inputHtml = `<div class="ms-wrap" id="msw-${q.id}">
           <div class="ms-trigger" id="mst-${q.id}" tabindex="0" role="combobox" aria-expanded="false">
             <span class="ms-placeholder" id="msp-${q.id}">${esc(q.multiselectPlaceholder||"Select options…")}</span>
@@ -1646,7 +1729,17 @@ function renderForm(form) {
           <div class="ms-panel" id="mspanel-${q.id}">
             <div class="ms-search-box"><input type="text" id="mssearch-${q.id}" placeholder="Search…" autocomplete="off"></div>
             <div class="ms-options" id="mslist-${q.id}">
-              ${normOpts(msOpts).map(o=>`<div class="ms-opt" data-val="${esc(o.label)}" data-price="${esc(String(o.value))}"><div class="ms-opt-check"></div><span>${esc(o.label)}</span></div>`).join("")}
+              ${normOpts(msOpts).map(o => {
+                const defQty = (msWithQty && o.qty !== "" && o.qty !== undefined) ? Number(o.qty) : 1;
+                const priceStr = (q.optionWithValue && o.value !== "") ? esc(String(o.value)) : "";
+                const qtyHtml = msWithQty ? `
+                  <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}">
+                    <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
+                    <span class="opt-qty-val">${defQty}</span>
+                    <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+                  </div>` : (priceStr ? `<span class="opt-price-tag" style="margin-left:auto">${priceStr}</span>` : "");
+                return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="${defQty}"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
+              }).join("")}
             </div>
             <div class="ms-no-res" id="msnr-${q.id}" style="display:none">No results</div>
             ${msMax>0?`<div class="ms-max-note">Max ${msMax} selections</div>`:""}
@@ -1902,43 +1995,74 @@ function renderForm(form) {
       ${q.type !== "password" ? `<div class="q-err" style="font-size:12px;color:var(--red);display:none">This field is required.</div>` : ""}`;
     card.appendChild(block);
 
+    // Helper: bind qty stepper buttons inside an opt element
+    function bindQtyStepper(optEl, onChangeCallback) {
+      const minus = optEl.querySelector(".opt-qty-minus");
+      const plus  = optEl.querySelector(".opt-qty-plus");
+      const disp  = optEl.querySelector(".opt-qty-val");
+      if (!minus || !plus || !disp) return;
+      function getQty() { return Math.max(1, parseInt(disp.textContent) || 1); }
+      minus.addEventListener("click", e => {
+        e.stopPropagation();
+        const cur = getQty();
+        if (cur <= 1) return;
+        disp.textContent = cur - 1;
+        optEl.dataset.qty = cur - 1;
+        onChangeCallback();
+      });
+      plus.addEventListener("click", e => {
+        e.stopPropagation();
+        const cur = getQty();
+        disp.textContent = cur + 1;
+        optEl.dataset.qty = cur + 1;
+        onChangeCallback();
+      });
+    }
+
     // Bind checkbox multi-select events
     if (q.type === "checkbox") {
       const selectedVals = new Set();
       const cbMax = q.checkboxMax || 0;
+      function buildCbAnswer(otherInput) {
+        const parts = [];
+        selectedVals.forEach(v => {
+          if (v === "__other__") {
+            const txt = otherInput?.value?.trim();
+            if (txt) parts.push("Other: " + txt);
+          } else {
+            parts.push(v);
+          }
+        });
+        answers[q.id] = parts.join(",");
+        updateCalcFields(); updatePaymentFields();
+      }
       block.querySelectorAll(".check-opt").forEach(opt => {
-        opt.addEventListener("click", () => {
+        const otherInput = block.querySelector(`#q-${q.id}-other`);
+        opt.addEventListener("click", e => {
+          // Don't toggle if click was on the stepper
+          if (e.target.closest(".opt-qty-stepper")) return;
           const val = opt.dataset.val;
-          const otherInput = block.querySelector(`#q-${q.id}-other`);
           if (opt.classList.contains("checked")) {
             opt.classList.remove("checked");
             selectedVals.delete(val);
             if (val === "__other__" && otherInput) otherInput.style.display = "none";
           } else {
-            if (cbMax > 0 && selectedVals.size >= cbMax) return; // enforce max
+            if (cbMax > 0 && selectedVals.size >= cbMax) return;
             opt.classList.add("checked");
             selectedVals.add(val);
             if (val === "__other__" && otherInput) otherInput.style.display = "";
           }
-          // Build answer string
-          const parts = [];
-          selectedVals.forEach(v => {
-            if (v === "__other__") {
-              const txt = otherInput?.value?.trim();
-              if (txt) parts.push("Other: " + txt);
-            } else {
-              parts.push(v);
-            }
-          });
-          answers[q.id] = parts.join(",");
-          updateCalcFields(); updatePaymentFields();
+          buildCbAnswer(otherInput);
         });
+        // Bind stepper buttons if present
+        bindQtyStepper(opt, () => buildCbAnswer(otherInput));
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
+        const otherInput = e.target;
         const parts = [];
         selectedVals.forEach(v => {
           if (v === "__other__") {
-            if (e.target.value.trim()) parts.push("Other: " + e.target.value.trim());
+            if (otherInput.value.trim()) parts.push("Other: " + otherInput.value.trim());
           } else {
             parts.push(v);
           }
@@ -1951,11 +2075,12 @@ function renderForm(form) {
     // Bind choice events
     if (q.type === "choice") {
       block.querySelectorAll(".choice-opt").forEach(opt => {
-        opt.addEventListener("click", () => {
+        const otherInput = block.querySelector(`#q-${q.id}-other`);
+        opt.addEventListener("click", e => {
+          if (e.target.closest(".opt-qty-stepper")) return;
           block.querySelectorAll(".choice-opt").forEach(o => o.classList.remove("selected"));
           opt.classList.add("selected");
           const val = opt.dataset.val;
-          const otherInput = block.querySelector(`#q-${q.id}-other`);
           if (val === "__other__") {
             if (otherInput) otherInput.style.display = "";
             answers[q.id] = otherInput?.value || "";
@@ -1965,6 +2090,7 @@ function renderForm(form) {
           }
           updateCalcFields(); updatePaymentFields();
         });
+        bindQtyStepper(opt, () => { updateCalcFields(); updatePaymentFields(); });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
         answers[q.id] = e.target.value;

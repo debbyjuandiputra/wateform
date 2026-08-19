@@ -8,7 +8,9 @@
 <link rel="icon" href="assets/logo.webp" type="image/webp">
 <link rel="stylesheet" href="assets/style.css">
 <style>
-body { min-height: 100vh; display: flex; flex-direction: column; }
+*, *::before, *::after { box-sizing: border-box; }
+html { overflow-x: hidden; }
+body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
 .form-topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -126,10 +128,10 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 .star-opt.lit { color: var(--teal); }
 
 /* Phone wrap */
-.ph-wrap { display: flex; gap: 8px; width: 100%; }
-.ph-prefix { width: 140px; flex-shrink: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised); color: var(--text); font-size: 14px; outline: none; font-family: inherit; cursor: pointer; }
+.ph-wrap { display: flex; gap: 8px; width: 100%; min-width: 0; }
+.ph-prefix { width: 140px; min-width: 0; flex-shrink: 1; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised); color: var(--text); font-size: 14px; outline: none; font-family: inherit; cursor: pointer; }
 .ph-prefix:focus { border-color: var(--teal); }
-.ph-input  { flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised); color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+.ph-input  { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised); color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
 .ph-input:focus { border-color: var(--teal); }
 
 /* Number prefix/suffix wrap */

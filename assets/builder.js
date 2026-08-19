@@ -828,7 +828,7 @@ function openEditModal(idx) {
       const qtyToggleWrap = document.createElement("div");
       qtyToggleWrap.id = "em-qty-toggle-wrap";
       qtyToggleWrap.style.cssText = q.optionWithValue ? "" : "display:none";
-      qtyToggleWrap.appendChild(makeToggleField("Enable quantity input per option", "em-option-with-quantity", q.optionWithQuantity || false));
+      qtyToggleWrap.appendChild(makeToggleField("Allow respondent to set quantity per option", "em-option-with-quantity", q.optionWithQuantity || false));
       wrap.appendChild(qtyToggleWrap);
     }
 
@@ -837,10 +837,7 @@ function openEditModal(idx) {
       const hdr = document.createElement("div");
       hdr.className = "calc-opt-hdr";
       hdr.style.cssText = "display:flex;gap:8px;align-items:center;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:2px;padding:0 2px";
-      const withQty = q.optionWithQuantity || false;
-      hdr.innerHTML = withQty
-        ? `<span style="flex:1">Option label</span><span style="width:68px;text-align:right">Price</span><span style="width:52px;text-align:right">Qty</span><span style="width:24px"></span>`
-        : `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
+      hdr.innerHTML = `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
       wrap.appendChild(hdr);
     }
 
@@ -884,9 +881,7 @@ function openEditModal(idx) {
               optsDiv.insertAdjacentElement("beforebegin", hdr);
             }
             const h = wrap.querySelector(".calc-opt-hdr");
-            if (h) h.innerHTML = withQty
-              ? `<span style="flex:1">Option label</span><span style="width:68px;text-align:right">Price</span><span style="width:52px;text-align:right">Qty</span><span style="width:24px"></span>`
-              : `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
+            if (h) h.innerHTML = `<span style="flex:1">Option label</span><span style="width:88px;text-align:right">Price / value</span><span style="width:24px"></span>`;
           } else {
             existHdr?.remove();
           }
@@ -1175,7 +1170,7 @@ function openEditModal(idx) {
       const msQtyWrap = document.createElement("div");
       msQtyWrap.id = "em-ms-qty-toggle-wrap";
       msQtyWrap.style.cssText = q.optionWithValue ? "" : "display:none";
-      msQtyWrap.appendChild(makeToggleField("Enable quantity input per option", "em-ms-with-quantity", q.optionWithQuantity || false));
+      msQtyWrap.appendChild(makeToggleField("Allow respondent to set quantity per option", "em-ms-with-quantity", q.optionWithQuantity || false));
       msWrap.appendChild(msQtyWrap);
     }
     const msOpts = document.createElement("div"); msOpts.className = "choice-options"; msOpts.id = "em-ms-options";
@@ -1963,19 +1958,9 @@ function renderOptions(opts, container, withValue, withQuantity) {
       val.value = opt.value !== "" ? opt.value : "";
       val.dataset.oi = oi; val.dataset.role = "value";
       val.className = "calc-opt-value";
-      val.style.width = withQuantity ? "68px" : "88px";
+      val.style.width = "88px";
       val.title = "Numeric price for this option (used by the Calculation field)";
       row.appendChild(val);
-    }
-    if (withValue && withQuantity) {
-      const qty = document.createElement("input");
-      qty.type = "number"; qty.placeholder = "Qty"; qty.min = "0"; qty.step = "1";
-      qty.value = opt.qty !== undefined && opt.qty !== "" ? opt.qty : "";
-      qty.dataset.oi = oi; qty.dataset.role = "qty";
-      qty.className = "calc-opt-value";
-      qty.style.cssText = "width:52px;flex-shrink:0";
-      qty.title = "Default quantity for this option (can be changed by respondent if enabled)";
-      row.appendChild(qty);
     }
     const rmBtn = document.createElement("button");
     rmBtn.className = "choice-remove"; rmBtn.type = "button";
@@ -2008,18 +1993,8 @@ function renderMsOptions(opts, container, withValue, withQuantity) {
       val.value = opt.value !== "" ? opt.value : "";
       val.dataset.oi = oi; val.dataset.role = "ms-value";
       val.className = "calc-opt-value";
-      val.style.width = withQuantity ? "68px" : "88px";
+      val.style.width = "88px";
       row.appendChild(val);
-    }
-    if (withValue && withQuantity) {
-      const qty = document.createElement("input");
-      qty.type = "number"; qty.placeholder = "Qty"; qty.min = "0"; qty.step = "1";
-      qty.value = opt.qty !== undefined && opt.qty !== "" ? opt.qty : "";
-      qty.dataset.oi = oi; qty.dataset.role = "ms-qty";
-      qty.className = "calc-opt-value";
-      qty.style.cssText = "width:52px;flex-shrink:0";
-      qty.title = "Default quantity for this option";
-      row.appendChild(qty);
     }
     const rmBtn = document.createElement("button"); rmBtn.className = "choice-remove"; rmBtn.type = "button";
     rmBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
@@ -2040,11 +2015,9 @@ function collectMsOptions(withValue) {
   if (!labels.length) return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
   return labels.map((inp, i) => {
     const valInp = div.querySelector(`[data-role='ms-value'][data-oi='${i}']`);
-    const qtyInp = div.querySelector(`[data-role='ms-qty'][data-oi='${i}']`);
     if (withValue || valInp) return {
       label: inp.value,
       value: valInp && valInp.value !== "" ? Number(valInp.value) : "",
-      qty: qtyInp && qtyInp.value !== "" ? Number(qtyInp.value) : "",
     };
     return inp.value;
   });
@@ -2089,17 +2062,14 @@ function collectOptions(withValue) {
   if (!div) return [];
   const labels = Array.from(div.querySelectorAll("[data-role='label']"));
   if (!labels.length) {
-    // fallback: legacy inputs without data-role
     return Array.from(div.querySelectorAll("input[data-oi]")).map(i => i.value);
   }
   return labels.map((inp, i) => {
     const valInp = div.querySelector(`[data-role='value'][data-oi='${i}']`);
-    const qtyInp = div.querySelector(`[data-role='qty'][data-oi='${i}']`);
     if (withValue || valInp) {
       return {
         label: inp.value,
         value: valInp && valInp.value !== "" ? Number(valInp.value) : "",
-        qty: qtyInp && qtyInp.value !== "" ? Number(qtyInp.value) : "",
       };
     }
     return inp.value;
@@ -2267,11 +2237,9 @@ function updateCalcPreview() {
     const opts = normOpts(q.type === "checkbox" ? (q.checkboxOptions || q.options || []) : (q.options || q.multiselectOptions || []));
     const first = opts.find(o => o.value !== "");
     if (!first) return;
-    const price = Number(first.value) || 0;
-    const qty   = q.optionWithQuantity && first.qty !== "" && first.qty !== undefined ? Number(first.qty) || 1 : 1;
-    const v     = price * qty;
+    const v = Number(first.value) || 0;
     subtotal += v;
-    const qtyTag = q.optionWithQuantity ? `<span style="color:var(--text-muted);font-size:11px"> ×${qty}</span>` : "";
+    const qtyTag = q.optionWithQuantity ? `<span style="color:var(--text-muted);font-size:11px"> ×1 (qty by respondent)</span>` : "";
     sampleLines.push(`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:var(--text-soft)">
       <span>${esc(q.title || q.type)}<span style="color:var(--text-muted);font-size:11px"> — ${esc(first.label)}</span>${qtyTag}</span><span>${fmtNum(v)}</span>
     </div>`);

@@ -1620,15 +1620,14 @@ function renderForm(form) {
         const cbWithQty = q.optionWithValue && q.optionWithQuantity;
         inputHtml = `<div class="check-list" id="cl-${q.id}">` +
           cbOpts.map(opt => {
-            const defQty = (cbWithQty && opt.qty !== "" && opt.qty !== undefined) ? Number(opt.qty) : 1;
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = cbWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <span class="opt-qty-val">${defQty}</span>
+                <span class="opt-qty-val">1</span>
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
-            return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${defQty}">
+            return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
               <div class="check-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
             </div>`;
           }).join("") +
@@ -1646,15 +1645,14 @@ function renderForm(form) {
         const choiceWithQty = q.optionWithValue && q.optionWithQuantity;
         inputHtml = `<div class="choice-list" id="cl-${q.id}">` +
           choiceOpts.map(opt => {
-            const defQty = (choiceWithQty && opt.qty !== "" && opt.qty !== undefined) ? Number(opt.qty) : 1;
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = choiceWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <span class="opt-qty-val">${defQty}</span>
+                <span class="opt-qty-val">1</span>
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
-            return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${defQty}">
+            return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
               <div class="choice-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
             </div>`;
           }).join("") +
@@ -1730,15 +1728,14 @@ function renderForm(form) {
             <div class="ms-search-box"><input type="text" id="mssearch-${q.id}" placeholder="Search…" autocomplete="off"></div>
             <div class="ms-options" id="mslist-${q.id}">
               ${normOpts(msOpts).map(o => {
-                const defQty = (msWithQty && o.qty !== "" && o.qty !== undefined) ? Number(o.qty) : 1;
                 const priceStr = (q.optionWithValue && o.value !== "") ? esc(String(o.value)) : "";
                 const qtyHtml = msWithQty ? `
                   <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}">
                     <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                    <span class="opt-qty-val">${defQty}</span>
+                    <span class="opt-qty-val">1</span>
                     <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
                   </div>` : (priceStr ? `<span class="opt-price-tag" style="margin-left:auto">${priceStr}</span>` : "");
-                return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="${defQty}"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
+                return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="1"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
               }).join("")}
             </div>
             <div class="ms-no-res" id="msnr-${q.id}" style="display:none">No results</div>

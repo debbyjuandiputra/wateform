@@ -833,14 +833,15 @@ function openEditModal(idx) {
       // Min/Max qty — visible when qty toggle is ON
       const qtyRangeWrap = document.createElement("div");
       qtyRangeWrap.id = "em-qty-range-wrap";
-      qtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      qtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "margin-top:8px" : "display:none;margin-top:8px";
       qtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
       const qtyMinMaxFields = document.createElement("div");
       qtyMinMaxFields.id = "em-qty-minmax-fields";
       qtyMinMaxFields.style.cssText = (q.qtyMin || q.qtyMax) ? "display:flex;gap:8px;margin-top:6px" : "display:none";
+      const _qtyMinVal = q.qtyMin || 1;
       qtyMinMaxFields.innerHTML = `
         <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Min qty</label>
-          <input type="number" id="em-qty-min" value="${q.qtyMin||1}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
+          <input type="number" id="em-qty-min" value="${_qtyMinVal}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
         <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Max qty <span style="font-weight:400">(0 = unlimited)</span></label>
           <input type="number" id="em-qty-max" value="${q.qtyMax||0}" min="0" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>`;
       qtyRangeWrap.appendChild(qtyMinMaxFields);
@@ -940,7 +941,7 @@ function openEditModal(idx) {
               if (!this.checked) {
                 const minEl = document.getElementById("em-qty-min");
                 const maxEl = document.getElementById("em-qty-max");
-                if (minEl) minEl.value = 1;
+                if (minEl) minEl.value = _qtyMinVal;
                 if (maxEl) maxEl.value = 0;
               }
             });
@@ -1219,14 +1220,15 @@ function openEditModal(idx) {
       // Min/Max qty for multiselect
       const msQtyRangeWrap = document.createElement("div");
       msQtyRangeWrap.id = "em-ms-qty-range-wrap";
-      msQtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      msQtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "margin-top:8px" : "display:none;margin-top:8px";
       msQtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-ms-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
       const msQtyMinMaxFields = document.createElement("div");
       msQtyMinMaxFields.id = "em-ms-qty-minmax-fields";
       msQtyMinMaxFields.style.cssText = (q.qtyMin || q.qtyMax) ? "display:flex;gap:8px;margin-top:6px" : "display:none";
+      const _msQtyMinVal = q.qtyMin || 1;
       msQtyMinMaxFields.innerHTML = `
         <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Min qty</label>
-          <input type="number" id="em-ms-qty-min" value="${q.qtyMin||1}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
+          <input type="number" id="em-ms-qty-min" value="${_msQtyMinVal}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
         <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Max qty <span style="font-weight:400">(0 = unlimited)</span></label>
           <input type="number" id="em-ms-qty-max" value="${q.qtyMax||0}" min="0" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>`;
       msQtyRangeWrap.appendChild(msQtyMinMaxFields);
@@ -1285,7 +1287,7 @@ function openEditModal(idx) {
             if (!this.checked) {
               const minEl = document.getElementById("em-ms-qty-min");
               const maxEl = document.getElementById("em-ms-qty-max");
-              if (minEl) minEl.value = 1;
+              if (minEl) minEl.value = _msQtyMinVal;
               if (maxEl) maxEl.value = 0;
             }
           });

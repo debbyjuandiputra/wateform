@@ -1990,9 +1990,8 @@ function renderForm(form) {
 
     block.innerHTML = `
       ${q.image ? `<img src="${esc(q.image)}" alt="" style="max-width:100%;max-height:160px;object-fit:cover;border-radius:8px;display:block;margin-bottom:4px">` : ""}
-      ${q.type !== "checkbox" ? `<div class="q-label">${esc(q.title)}${req}</div>` : ""}
+      <div class="q-label"${q.type === "checkbox" ? ` style="margin-bottom:2px"` : ""}>${esc(q.title)}${req}</div>
       ${q.subtitle ? `<div class="q-subtitle">${q.subtitle}</div>` : ""}
-      ${q.type === "checkbox" ? `<div class="q-label" style="margin-bottom:2px">${esc(q.title)}${req}</div>` : ""}
       ${inputHtml}
       ${q.type !== "password" ? `<div class="q-err" style="font-size:12px;color:var(--red);display:none">This field is required.</div>` : ""}`;
     card.appendChild(block);

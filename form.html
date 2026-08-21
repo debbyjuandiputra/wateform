@@ -1629,16 +1629,18 @@ function renderForm(form) {
         const cbRaw = Array.isArray(q.checkboxOptions) && q.checkboxOptions.length ? q.checkboxOptions : (Array.isArray(q.options) ? q.options : []);
         const cbOpts = normOpts(cbRaw);
         const cbWithQty = q.optionWithValue && q.optionWithQuantity;
+        const cbQtyMin = (cbWithQty && q.qtyMin > 1) ? q.qtyMin : 1;
+        const cbQtyMax = (cbWithQty && q.qtyMax > 0) ? q.qtyMax : 0;
         inputHtml = `<div class="check-list" id="cl-${q.id}">` +
           cbOpts.map(opt => {
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = cbWithQty ? `
-              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
+              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}" data-qty-min="${cbQtyMin}" data-qty-max="${cbQtyMax}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
+                <input type="number" class="opt-qty-val" value="${cbQtyMin}" min="${cbQtyMin}"${cbQtyMax > 0 ? ` max="${cbQtyMax}"` : ""} inputmode="numeric">
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
-            return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
+            return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${cbQtyMin}">
               <div class="check-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
             </div>`;
           }).join("") +
@@ -1654,16 +1656,18 @@ function renderForm(form) {
         const choiceRaw = Array.isArray(q.options) ? q.options : [];
         const choiceOpts = normOpts(choiceRaw);
         const choiceWithQty = q.optionWithValue && q.optionWithQuantity;
+        const choiceQtyMin = (choiceWithQty && q.qtyMin > 1) ? q.qtyMin : 1;
+        const choiceQtyMax = (choiceWithQty && q.qtyMax > 0) ? q.qtyMax : 0;
         inputHtml = `<div class="choice-list" id="cl-${q.id}">` +
           choiceOpts.map(opt => {
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = choiceWithQty ? `
-              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
+              <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}" data-qty-min="${choiceQtyMin}" data-qty-max="${choiceQtyMax}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
+                <input type="number" class="opt-qty-val" value="${choiceQtyMin}" min="${choiceQtyMin}"${choiceQtyMax > 0 ? ` max="${choiceQtyMax}"` : ""} inputmode="numeric">
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
-            return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
+            return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${choiceQtyMin}">
               <div class="choice-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
             </div>`;
           }).join("") +
@@ -1730,6 +1734,8 @@ function renderForm(form) {
         const msOpts = Array.isArray(q.multiselectOptions) ? q.multiselectOptions : [];
         const msMax  = q.multiselectMax || 0;
         const msWithQty = q.optionWithValue && q.optionWithQuantity;
+        const msQtyMin = (msWithQty && q.qtyMin > 1) ? q.qtyMin : 1;
+        const msQtyMax = (msWithQty && q.qtyMax > 0) ? q.qtyMax : 0;
         inputHtml = `<div class="ms-wrap" id="msw-${q.id}">
           <div class="ms-trigger" id="mst-${q.id}" tabindex="0" role="combobox" aria-expanded="false">
             <span class="ms-placeholder" id="msp-${q.id}">${esc(q.multiselectPlaceholder||"Select options…")}</span>
@@ -1741,12 +1747,12 @@ function renderForm(form) {
               ${normOpts(msOpts).map(o => {
                 const priceStr = (q.optionWithValue && o.value !== "") ? esc(String(o.value)) : "";
                 const qtyHtml = msWithQty ? `
-                  <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}">
+                  <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}" data-qty-min="${msQtyMin}" data-qty-max="${msQtyMax}">
                     <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                    <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
+                    <input type="number" class="opt-qty-val" value="${msQtyMin}" min="${msQtyMin}"${msQtyMax > 0 ? ` max="${msQtyMax}"` : ""} inputmode="numeric">
                     <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
                   </div>` : (priceStr ? `<span class="opt-price-tag" style="margin-left:auto">${priceStr}</span>` : "");
-                return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="1"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
+                return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="${msQtyMin}"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
               }).join("")}
             </div>
             <div class="ms-no-res" id="msnr-${q.id}" style="display:none">No results</div>
@@ -2008,13 +2014,26 @@ function renderForm(form) {
       const plus  = optEl.querySelector(".opt-qty-plus");
       const inp   = optEl.querySelector(".opt-qty-val");
       if (!minus || !plus || !inp) return;
-      function getQty() { return Math.max(1, parseInt(inp.value) || 1); }
+      const stepper = optEl.querySelector(".opt-qty-stepper");
+      const qtyMin = parseInt(stepper?.dataset.qtyMin) || 1;
+      const qtyMax = parseInt(stepper?.dataset.qtyMax) || 0; // 0 = unlimited
+      function clamp(v) {
+        let val = Math.max(qtyMin, v || qtyMin);
+        if (qtyMax > 0) val = Math.min(qtyMax, val);
+        return val;
+      }
+      function getQty() { return clamp(parseInt(inp.value)); }
       function setQty(v) {
-        const val = Math.max(1, v || 1);
+        const val = clamp(v);
         inp.value = val;
         optEl.dataset.qty = val;
+        minus.disabled = val <= qtyMin;
+        plus.disabled  = qtyMax > 0 && val >= qtyMax;
         onChangeCallback();
       }
+      // Initial state
+      minus.disabled = getQty() <= qtyMin;
+      plus.disabled  = qtyMax > 0 && getQty() >= qtyMax;
       minus.addEventListener("click", e => {
         e.stopPropagation();
         setQty(getQty() - 1);
@@ -2029,15 +2048,16 @@ function renderForm(form) {
       inp.addEventListener("input", e => {
         e.stopPropagation();
         const raw = parseInt(inp.value);
-        if (!isNaN(raw) && raw >= 1) {
-          optEl.dataset.qty = raw;
+        if (!isNaN(raw)) {
+          optEl.dataset.qty = raw; // tentative, clamped on blur
+          minus.disabled = raw <= qtyMin;
+          plus.disabled  = qtyMax > 0 && raw >= qtyMax;
           onChangeCallback();
         }
       });
       inp.addEventListener("blur", e => {
-        // Clamp to min 1 on blur if empty or invalid
         const raw = parseInt(inp.value);
-        setQty(isNaN(raw) ? 1 : raw);
+        setQty(isNaN(raw) ? qtyMin : raw);
       });
       inp.addEventListener("keydown", e => {
         if (e.key === "Enter") { inp.blur(); e.preventDefault(); }

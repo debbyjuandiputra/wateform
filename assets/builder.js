@@ -829,6 +829,22 @@ function openEditModal(idx) {
       qtyToggleWrap.id = "em-qty-toggle-wrap";
       qtyToggleWrap.style.cssText = q.optionWithValue ? "" : "display:none";
       qtyToggleWrap.appendChild(makeToggleField("Allow respondent to set quantity per option", "em-option-with-quantity", q.optionWithQuantity || false));
+
+      // Min/Max qty — visible when qty toggle is ON
+      const qtyRangeWrap = document.createElement("div");
+      qtyRangeWrap.id = "em-qty-range-wrap";
+      qtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      qtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
+      const qtyMinMaxFields = document.createElement("div");
+      qtyMinMaxFields.id = "em-qty-minmax-fields";
+      qtyMinMaxFields.style.cssText = (q.qtyMin || q.qtyMax) ? "display:flex;gap:8px;margin-top:6px" : "display:none";
+      qtyMinMaxFields.innerHTML = `
+        <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Min qty</label>
+          <input type="number" id="em-qty-min" value="${q.qtyMin||1}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
+        <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Max qty <span style="font-weight:400">(0 = unlimited)</span></label>
+          <input type="number" id="em-qty-max" value="${q.qtyMax||0}" min="0" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>`;
+      qtyRangeWrap.appendChild(qtyMinMaxFields);
+      qtyToggleWrap.appendChild(qtyRangeWrap);
       wrap.appendChild(qtyToggleWrap);
     }
 
@@ -890,7 +906,11 @@ function openEditModal(idx) {
         if (tog) tog.addEventListener("change", function() {
           const withVal = this.checked;
           if (qtyWrap) qtyWrap.style.display = withVal ? "" : "none";
-          if (!withVal && qtyTog) qtyTog.checked = false;
+          if (!withVal && qtyTog) { qtyTog.checked = false; }
+          if (!withVal) {
+            const rw = document.getElementById("em-qty-range-wrap");
+            if (rw) rw.style.display = "none";
+          }
           const cur = collectOptions(withVal);
           refreshHeader();
           renderOptions(cur, optsDiv, withVal, withVal && (qtyTog?.checked || false));
@@ -898,10 +918,34 @@ function openEditModal(idx) {
         if (qtyTog) qtyTog.addEventListener("change", function() {
           const withVal = tog?.checked || false;
           const withQty = this.checked;
+          const rangeWrap = document.getElementById("em-qty-range-wrap");
+          if (rangeWrap) rangeWrap.style.display = withQty ? "" : "none";
+          if (!withQty) {
+            const ltog = document.getElementById("em-qty-limit-toggle");
+            const mmf = document.getElementById("em-qty-minmax-fields");
+            if (ltog) ltog.checked = false;
+            if (mmf) mmf.style.display = "none";
+          }
           const cur = collectOptions(withVal);
           refreshHeader();
           renderOptions(cur, optsDiv, withVal, withVal && withQty);
         });
+        // Wire limit toggle
+        setTimeout(() => {
+          const limitTog = document.getElementById("em-qty-limit-toggle");
+          const mmFields = document.getElementById("em-qty-minmax-fields");
+          if (limitTog && mmFields) {
+            limitTog.addEventListener("change", function() {
+              mmFields.style.display = this.checked ? "flex" : "none";
+              if (!this.checked) {
+                const minEl = document.getElementById("em-qty-min");
+                const maxEl = document.getElementById("em-qty-max");
+                if (minEl) minEl.value = 1;
+                if (maxEl) maxEl.value = 0;
+              }
+            });
+          }
+        }, 0);
       }, 0);
     }
 
@@ -1171,6 +1215,22 @@ function openEditModal(idx) {
       msQtyWrap.id = "em-ms-qty-toggle-wrap";
       msQtyWrap.style.cssText = q.optionWithValue ? "" : "display:none";
       msQtyWrap.appendChild(makeToggleField("Allow respondent to set quantity per option", "em-ms-with-quantity", q.optionWithQuantity || false));
+
+      // Min/Max qty for multiselect
+      const msQtyRangeWrap = document.createElement("div");
+      msQtyRangeWrap.id = "em-ms-qty-range-wrap";
+      msQtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      msQtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-ms-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
+      const msQtyMinMaxFields = document.createElement("div");
+      msQtyMinMaxFields.id = "em-ms-qty-minmax-fields";
+      msQtyMinMaxFields.style.cssText = (q.qtyMin || q.qtyMax) ? "display:flex;gap:8px;margin-top:6px" : "display:none";
+      msQtyMinMaxFields.innerHTML = `
+        <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Min qty</label>
+          <input type="number" id="em-ms-qty-min" value="${q.qtyMin||1}" min="1" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>
+        <div style="flex:1"><label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px">Max qty <span style="font-weight:400">(0 = unlimited)</span></label>
+          <input type="number" id="em-ms-qty-max" value="${q.qtyMax||0}" min="0" step="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg-raised);color:var(--text)"></div>`;
+      msQtyRangeWrap.appendChild(msQtyMinMaxFields);
+      msQtyWrap.appendChild(msQtyRangeWrap);
       msWrap.appendChild(msQtyWrap);
     }
     const msOpts = document.createElement("div"); msOpts.className = "choice-options"; msOpts.id = "em-ms-options";
@@ -1194,15 +1254,42 @@ function openEditModal(idx) {
         if (tog) tog.addEventListener("change", function() {
           const withVal = this.checked;
           if (qtyWrap) qtyWrap.style.display = withVal ? "" : "none";
-          if (!withVal && qtyTog) qtyTog.checked = false;
+          if (!withVal && qtyTog) { qtyTog.checked = false; }
+          if (!withVal) {
+            const rw = document.getElementById("em-ms-qty-range-wrap");
+            if (rw) rw.style.display = "none";
+          }
           const cur = collectMsOptions(withVal);
           renderMsOptions(cur, msOpts, withVal, withVal && (qtyTog?.checked || false));
         });
         if (qtyTog) qtyTog.addEventListener("change", function() {
           const withVal = tog?.checked || false;
+          const withQty = this.checked;
+          const rangeWrap = document.getElementById("em-ms-qty-range-wrap");
+          if (rangeWrap) rangeWrap.style.display = withQty ? "" : "none";
+          if (!withQty) {
+            const ltog = document.getElementById("em-ms-qty-limit-toggle");
+            const mmf = document.getElementById("em-ms-qty-minmax-fields");
+            if (ltog) ltog.checked = false;
+            if (mmf) mmf.style.display = "none";
+          }
           const cur = collectMsOptions(withVal);
-          renderMsOptions(cur, msOpts, withVal, withVal && this.checked);
+          renderMsOptions(cur, msOpts, withVal, withVal && withQty);
         });
+        // Wire limit toggle
+        const limitTog = document.getElementById("em-ms-qty-limit-toggle");
+        const mmFields = document.getElementById("em-ms-qty-minmax-fields");
+        if (limitTog && mmFields) {
+          limitTog.addEventListener("change", function() {
+            mmFields.style.display = this.checked ? "flex" : "none";
+            if (!this.checked) {
+              const minEl = document.getElementById("em-ms-qty-min");
+              const maxEl = document.getElementById("em-ms-qty-max");
+              if (minEl) minEl.value = 1;
+              if (maxEl) maxEl.value = 0;
+            }
+          });
+        }
       }, 0);
     }
     body.appendChild(makeField("Max selections (0 = unlimited)", "input",
@@ -2446,6 +2533,13 @@ function saveEditToMemory() {
     const withQty = get("em-option-with-quantity")?.checked || false;
     q.optionWithValue = withVal;
     q.optionWithQuantity = withVal ? withQty : false;
+    const limitOn = get("em-qty-limit-toggle")?.checked || false;
+    if (withQty && limitOn) {
+      q.qtyMin = parseInt(get("em-qty-min")?.value) || 1;
+      q.qtyMax = parseInt(get("em-qty-max")?.value) || 0;
+    } else {
+      q.qtyMin = null; q.qtyMax = null;
+    }
     if (q.type === "checkbox") {
       q.checkboxOptions = collectOptions(withVal);
     } else {
@@ -2465,6 +2559,13 @@ function saveEditToMemory() {
     const withQtyMs = get("em-ms-with-quantity")?.checked || false;
     q.optionWithValue    = withValMs;
     q.optionWithQuantity = withValMs ? withQtyMs : false;
+    const msLimitOn = get("em-ms-qty-limit-toggle")?.checked || false;
+    if (withQtyMs && msLimitOn) {
+      q.qtyMin = parseInt(get("em-ms-qty-min")?.value) || 1;
+      q.qtyMax = parseInt(get("em-ms-qty-max")?.value) || 0;
+    } else {
+      q.qtyMin = null; q.qtyMax = null;
+    }
     q.multiselectOptions = collectMsOptions(withValMs);
   }
   // calculation

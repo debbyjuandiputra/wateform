@@ -98,26 +98,19 @@ body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hid
 
 /* Quantity stepper (for options with pricing + quantity enabled) */
 .opt-qty-stepper {
-  display: flex; align-items: center; gap: 0;
+  display: flex; align-items: center;
   margin-left: auto; flex-shrink: 0;
   border: 1.5px solid var(--border); border-radius: 8px;
   overflow: hidden; background: var(--bg-raised);
   transition: border-color .15s;
-  min-width: 96px; max-width: 96px;
+  min-width: 64px; max-width: 64px;
 }
 .opt-qty-stepper:focus-within { border-color: var(--teal); }
-.opt-qty-btn {
-  background: none; border: none; cursor: pointer;
-  width: 30px; height: 30px; min-width: 30px; display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 700; color: var(--teal); transition: background .1s;
-  flex-shrink: 0; user-select: none;
-}
-.opt-qty-btn:hover { background: var(--teal-dim); }
-.opt-qty-btn:disabled { color: var(--text-muted); cursor: default; }
+.opt-qty-btn { display: none; }
 .opt-qty-val {
   flex: 1; min-width: 0; width: 100%; text-align: center; font-size: 13px; font-weight: 600;
   font-family: 'JetBrains Mono', monospace; color: var(--text);
-  border: none; background: transparent; padding: 0; outline: none;
+  border: none; background: transparent; padding: 4px 8px; outline: none;
   -moz-appearance: textfield; appearance: textfield; cursor: text;
 }
 .opt-qty-val::-webkit-outer-spin-button,
@@ -1636,9 +1629,7 @@ function renderForm(form) {
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = cbWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}" data-qty-min="${cbQtyMin}" data-qty-max="${cbQtyMax}">
-                <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <input type="number" class="opt-qty-val" value="${cbQtyMin}" min="${cbQtyMin}"${cbQtyMax > 0 ? ` max="${cbQtyMax}"` : ""} inputmode="numeric">
-                <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+                <input type="number" class="opt-qty-val" value="" placeholder="${cbQtyMin}" min="${cbQtyMin}"${cbQtyMax > 0 ? ` max="${cbQtyMax}"` : ""} inputmode="numeric">
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
             return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${cbQtyMin}">
               <div class="check-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
@@ -1663,9 +1654,7 @@ function renderForm(form) {
             const priceStr = (q.optionWithValue && opt.value !== "") ? esc(String(opt.value)) : "";
             const qtyHtml = choiceWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}" data-qty-min="${choiceQtyMin}" data-qty-max="${choiceQtyMax}">
-                <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <input type="number" class="opt-qty-val" value="${choiceQtyMin}" min="${choiceQtyMin}"${choiceQtyMax > 0 ? ` max="${choiceQtyMax}"` : ""} inputmode="numeric">
-                <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+                <input type="number" class="opt-qty-val" value="" placeholder="${choiceQtyMin}" min="${choiceQtyMin}"${choiceQtyMax > 0 ? ` max="${choiceQtyMax}"` : ""} inputmode="numeric">
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
             return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="${choiceQtyMin}">
               <div class="choice-marker"></div><span style="flex:1">${esc(opt.label)}</span>${qtyHtml}
@@ -1748,9 +1737,7 @@ function renderForm(form) {
                 const priceStr = (q.optionWithValue && o.value !== "") ? esc(String(o.value)) : "";
                 const qtyHtml = msWithQty ? `
                   <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}" data-qty-min="${msQtyMin}" data-qty-max="${msQtyMax}">
-                    <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                    <input type="number" class="opt-qty-val" value="${msQtyMin}" min="${msQtyMin}"${msQtyMax > 0 ? ` max="${msQtyMax}"` : ""} inputmode="numeric">
-                    <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
+                    <input type="number" class="opt-qty-val" value="" placeholder="${msQtyMin}" min="${msQtyMin}"${msQtyMax > 0 ? ` max="${msQtyMax}"` : ""} inputmode="numeric">
                   </div>` : (priceStr ? `<span class="opt-price-tag" style="margin-left:auto">${priceStr}</span>` : "");
                 return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="${msQtyMin}"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
               }).join("")}
@@ -2010,48 +1997,29 @@ function renderForm(form) {
 
     // Helper: bind qty stepper buttons inside an opt element
     function bindQtyStepper(optEl, onChangeCallback) {
-      const minus = optEl.querySelector(".opt-qty-minus");
-      const plus  = optEl.querySelector(".opt-qty-plus");
-      const inp   = optEl.querySelector(".opt-qty-val");
-      if (!minus || !plus || !inp) return;
+      const inp = optEl.querySelector(".opt-qty-val");
+      if (!inp) return;
       const stepper = optEl.querySelector(".opt-qty-stepper");
       const qtyMin = parseInt(stepper?.dataset.qtyMin) || 1;
-      const qtyMax = parseInt(stepper?.dataset.qtyMax) || 0; // 0 = unlimited
+      const qtyMax = parseInt(stepper?.dataset.qtyMax) || 0;
       function clamp(v) {
-        let val = Math.max(qtyMin, v || qtyMin);
+        let val = Math.max(qtyMin, v);
         if (qtyMax > 0) val = Math.min(qtyMax, val);
         return val;
       }
-      function getQty() { return clamp(parseInt(inp.value)); }
       function setQty(v) {
         const val = clamp(v);
         inp.value = val;
         optEl.dataset.qty = val;
-        minus.disabled = val <= qtyMin;
-        plus.disabled  = qtyMax > 0 && val >= qtyMax;
         onChangeCallback();
       }
-      // Initial state
-      minus.disabled = getQty() <= qtyMin;
-      plus.disabled  = qtyMax > 0 && getQty() >= qtyMax;
-      minus.addEventListener("click", e => {
-        e.stopPropagation();
-        setQty(getQty() - 1);
-      });
-      plus.addEventListener("click", e => {
-        e.stopPropagation();
-        setQty(getQty() + 1);
-      });
-      // Support direct typing
       inp.addEventListener("click", e => e.stopPropagation());
       inp.addEventListener("mousedown", e => e.stopPropagation());
       inp.addEventListener("input", e => {
         e.stopPropagation();
         const raw = parseInt(inp.value);
         if (!isNaN(raw)) {
-          optEl.dataset.qty = raw; // tentative, clamped on blur
-          minus.disabled = raw <= qtyMin;
-          plus.disabled  = qtyMax > 0 && raw >= qtyMax;
+          optEl.dataset.qty = raw;
           onChangeCallback();
         }
       });

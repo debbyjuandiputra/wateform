@@ -2541,6 +2541,8 @@ function saveEditToMemory() {
     if (withQty && limitOn) {
       q.qtyMin = parseInt(get("em-qty-min")?.value) || 1;
       q.qtyMax = parseInt(get("em-qty-max")?.value) || 0;
+    } else if (withQty) {
+      q.qtyMin = 1; q.qtyMax = null;
     } else {
       q.qtyMin = null; q.qtyMax = null;
     }
@@ -2567,6 +2569,8 @@ function saveEditToMemory() {
     if (withQtyMs && msLimitOn) {
       q.qtyMin = parseInt(get("em-ms-qty-min")?.value) || 1;
       q.qtyMax = parseInt(get("em-ms-qty-max")?.value) || 0;
+    } else if (withQtyMs) {
+      q.qtyMin = 1; q.qtyMax = null;
     } else {
       q.qtyMin = null; q.qtyMax = null;
     }

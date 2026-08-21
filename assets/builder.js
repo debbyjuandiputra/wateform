@@ -833,7 +833,8 @@ function openEditModal(idx) {
       // Min/Max qty — visible when qty toggle is ON
       const qtyRangeWrap = document.createElement("div");
       qtyRangeWrap.id = "em-qty-range-wrap";
-      qtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "margin-top:8px" : "display:none;margin-top:8px";
+      qtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      qtyRangeWrap.style.marginTop = "10px";
       qtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
       const qtyMinMaxFields = document.createElement("div");
       qtyMinMaxFields.id = "em-qty-minmax-fields";
@@ -920,7 +921,7 @@ function openEditModal(idx) {
           const withVal = tog?.checked || false;
           const withQty = this.checked;
           const rangeWrap = document.getElementById("em-qty-range-wrap");
-          if (rangeWrap) rangeWrap.style.display = withQty ? "" : "none";
+          if (rangeWrap) { rangeWrap.style.display = withQty ? "" : "none"; rangeWrap.style.marginTop = "10px"; }
           if (!withQty) {
             const ltog = document.getElementById("em-qty-limit-toggle");
             const mmf = document.getElementById("em-qty-minmax-fields");
@@ -1220,7 +1221,8 @@ function openEditModal(idx) {
       // Min/Max qty for multiselect
       const msQtyRangeWrap = document.createElement("div");
       msQtyRangeWrap.id = "em-ms-qty-range-wrap";
-      msQtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "margin-top:8px" : "display:none;margin-top:8px";
+      msQtyRangeWrap.style.cssText = (q.optionWithValue && q.optionWithQuantity) ? "" : "display:none";
+      msQtyRangeWrap.style.marginTop = "10px";
       msQtyRangeWrap.appendChild(makeToggleField("Limit quantity (set min / max)", "em-ms-qty-limit-toggle", !!(q.qtyMin || q.qtyMax)));
       const msQtyMinMaxFields = document.createElement("div");
       msQtyMinMaxFields.id = "em-ms-qty-minmax-fields";
@@ -1268,7 +1270,7 @@ function openEditModal(idx) {
           const withVal = tog?.checked || false;
           const withQty = this.checked;
           const rangeWrap = document.getElementById("em-ms-qty-range-wrap");
-          if (rangeWrap) rangeWrap.style.display = withQty ? "" : "none";
+          if (rangeWrap) { rangeWrap.style.display = withQty ? "" : "none"; rangeWrap.style.marginTop = "10px"; }
           if (!withQty) {
             const ltog = document.getElementById("em-ms-qty-limit-toggle");
             const mmf = document.getElementById("em-ms-qty-minmax-fields");

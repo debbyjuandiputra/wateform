@@ -109,10 +109,13 @@ body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hid
 .opt-qty-btn:hover { background: var(--teal-dim); }
 .opt-qty-btn:disabled { color: var(--text-muted); cursor: default; }
 .opt-qty-val {
-  min-width: 28px; text-align: center; font-size: 13px; font-weight: 600;
+  min-width: 36px; width: 36px; text-align: center; font-size: 13px; font-weight: 600;
   font-family: 'JetBrains Mono', monospace; color: var(--text);
   border: none; background: transparent; padding: 0 2px; outline: none;
+  -moz-appearance: textfield; appearance: textfield; cursor: text;
 }
+.opt-qty-val::-webkit-outer-spin-button,
+.opt-qty-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .opt-price-tag {
   font-size: 11px; color: var(--text-muted);
   font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
@@ -1626,7 +1629,7 @@ function renderForm(form) {
             const qtyHtml = cbWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <span class="opt-qty-val">1</span>
+                <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
             return `<div class="check-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
@@ -1651,7 +1654,7 @@ function renderForm(form) {
             const qtyHtml = choiceWithQty ? `
               <div class="opt-qty-stepper" data-qid="${q.id}" data-val="${esc(opt.label)}">
                 <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                <span class="opt-qty-val">1</span>
+                <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
                 <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
               </div>` : (priceStr ? `<span class="opt-price-tag">${priceStr}</span>` : "");
             return `<div class="choice-opt" data-qid="${q.id}" data-val="${esc(opt.label)}" data-price="${priceStr}" data-qty="1">
@@ -1734,7 +1737,7 @@ function renderForm(form) {
                 const qtyHtml = msWithQty ? `
                   <div class="opt-qty-stepper" style="margin-left:auto" data-qid="${q.id}" data-val="${esc(o.label)}">
                     <button type="button" class="opt-qty-btn opt-qty-minus">−</button>
-                    <span class="opt-qty-val">1</span>
+                    <input type="number" class="opt-qty-val" value="1" min="1" inputmode="numeric">
                     <button type="button" class="opt-qty-btn opt-qty-plus">+</button>
                   </div>` : (priceStr ? `<span class="opt-price-tag" style="margin-left:auto">${priceStr}</span>` : "");
                 return `<div class="ms-opt" data-val="${esc(o.label)}" data-price="${priceStr}" data-qty="1"><div class="ms-opt-check"></div><span style="flex:1">${esc(o.label)}</span>${qtyHtml}</div>`;
@@ -1998,23 +2001,41 @@ function renderForm(form) {
     function bindQtyStepper(optEl, onChangeCallback) {
       const minus = optEl.querySelector(".opt-qty-minus");
       const plus  = optEl.querySelector(".opt-qty-plus");
-      const disp  = optEl.querySelector(".opt-qty-val");
-      if (!minus || !plus || !disp) return;
-      function getQty() { return Math.max(1, parseInt(disp.textContent) || 1); }
+      const inp   = optEl.querySelector(".opt-qty-val");
+      if (!minus || !plus || !inp) return;
+      function getQty() { return Math.max(1, parseInt(inp.value) || 1); }
+      function setQty(v) {
+        const val = Math.max(1, v || 1);
+        inp.value = val;
+        optEl.dataset.qty = val;
+        onChangeCallback();
+      }
       minus.addEventListener("click", e => {
         e.stopPropagation();
-        const cur = getQty();
-        if (cur <= 1) return;
-        disp.textContent = cur - 1;
-        optEl.dataset.qty = cur - 1;
-        onChangeCallback();
+        setQty(getQty() - 1);
       });
       plus.addEventListener("click", e => {
         e.stopPropagation();
-        const cur = getQty();
-        disp.textContent = cur + 1;
-        optEl.dataset.qty = cur + 1;
-        onChangeCallback();
+        setQty(getQty() + 1);
+      });
+      // Support direct typing
+      inp.addEventListener("click", e => e.stopPropagation());
+      inp.addEventListener("mousedown", e => e.stopPropagation());
+      inp.addEventListener("input", e => {
+        e.stopPropagation();
+        const raw = parseInt(inp.value);
+        if (!isNaN(raw) && raw >= 1) {
+          optEl.dataset.qty = raw;
+          onChangeCallback();
+        }
+      });
+      inp.addEventListener("blur", e => {
+        // Clamp to min 1 on blur if empty or invalid
+        const raw = parseInt(inp.value);
+        setQty(isNaN(raw) ? 1 : raw);
+      });
+      inp.addEventListener("keydown", e => {
+        if (e.key === "Enter") { inp.blur(); e.preventDefault(); }
       });
     }
 

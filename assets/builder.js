@@ -213,10 +213,14 @@ async function uploadFormMedia(file) {
 
   // Hitung storage usage ke currentUser (= workspace creator saat buka builder)
   // Tidak await agar upload tidak terblok jika RPC gagal
-  _sb.rpc("increment_storage_usage", {
-    p_owner_id: currentUser?.id,
-    p_bytes:    file.size,
-  }).catch(e => console.warn("increment_storage_usage failed:", e));
+  // Wrap dengan Promise.resolve() karena Supabase v2 .rpc() mengembalikan
+  // PostgrestFilterBuilder (thenable) yang tidak selalu punya .catch()
+  Promise.resolve(
+    _sb.rpc("increment_storage_usage", {
+      p_owner_id: currentUser?.id,
+      p_bytes:    file.size,
+    })
+  ).catch(e => console.warn("increment_storage_usage failed:", e));
 
   return data?.publicUrl || "";
 }

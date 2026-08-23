@@ -549,12 +549,13 @@
     function tick() {
       elapsed++;
       const leftConfirm = Math.max(0, 20 - elapsed);
-      if (countEl) countEl.textContent = leftConfirm;
       if (elapsed >= 20 && confirmBtn && confirmBtn.disabled) {
         confirmBtn.disabled      = false;
         confirmBtn.style.opacity = "1";
         confirmBtn.style.cursor  = "pointer";
         if (hintEl) hintEl.style.display = "none";
+      } else {
+        if (countEl) countEl.textContent = leftConfirm;
       }
       // Show report link after 50 seconds regardless of fail count
       if (elapsed >= 50) {

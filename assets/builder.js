@@ -530,7 +530,7 @@ function addQuestion(type) {
     // calculation
     calcLabel: "Order Summary",
     calcOps: [],
-    calcPrefix: "$",
+    calcPrefix: "Rp",
     calcSuffix: "",
     calcDecimals: 0,
     calcShowBreakdown: true,
@@ -1729,7 +1729,7 @@ function openEditModal(idx) {
       i.addEventListener("input", updateCalcPreview);
       d.appendChild(l); d.appendChild(i); return d;
     };
-    fmtGrid.appendChild(mkFmtField("Prefix", "em-calc-prefix", q.calcPrefix ?? "$", "$", "text", "0 0 80px"));
+    fmtGrid.appendChild(mkFmtField("Prefix", "em-calc-prefix", q.calcPrefix ?? "Rp", "Rp", "text", "0 0 80px"));
     fmtGrid.appendChild(mkFmtField("Suffix", "em-calc-suffix", q.calcSuffix ?? "", "", "text", "0 0 80px"));
     fmtGrid.appendChild(mkFmtField("Decimals", "em-calc-decimals", q.calcDecimals ?? 0, "0", "number", "0 0 70px"));
     fmtRow.appendChild(fmtGrid); body.appendChild(fmtRow);
@@ -2312,7 +2312,7 @@ function updateCalcPreview() {
   const prev = document.getElementById("em-calc-preview");
   if (!prev) return;
 
-  const prefix = document.getElementById("em-calc-prefix")?.value ?? "$";
+  const prefix = document.getElementById("em-calc-prefix")?.value ?? "Rp";
   const suffix = document.getElementById("em-calc-suffix")?.value ?? "";
   const dec    = Number(document.getElementById("em-calc-decimals")?.value) || 0;
   const fmtNum = n => `${prefix}${Number(n).toLocaleString("en-US",{minimumFractionDigits:dec,maximumFractionDigits:dec})}${suffix}`;
@@ -2609,7 +2609,7 @@ function saveEditToMemory() {
     }
     q.calcLabel         = get("em-calc-label")?.value     || "Order Summary";
     q.calcOps           = collectCalcOps();
-    q.calcPrefix        = get("em-calc-prefix")?.value    ?? "$";
+    q.calcPrefix        = get("em-calc-prefix")?.value    ?? "Rp";
     q.calcSuffix        = get("em-calc-suffix")?.value    ?? "";
     q.calcDecimals      = Number(get("em-calc-decimals")?.value) || 0;
     q.calcShowBreakdown = get("em-calc-breakdown")?.checked !== false;

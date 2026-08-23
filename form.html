@@ -1107,16 +1107,17 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
     var _cdInterval = setInterval(function() {
       _cdElapsed++;
       var left = Math.max(0, _cdSec - _cdElapsed);
-      if (_confirmCdEl) _confirmCdEl.textContent = left;
       if (_cdElapsed >= _cdSec && _confirmBtn && _confirmBtn.disabled) {
         _confirmBtn.disabled = false;
         _confirmBtn.style.background = "var(--teal,#2bbda4)";
         _confirmBtn.style.color = "#fff";
         _confirmBtn.style.cursor = "pointer";
         if (_confirmCdEl) _confirmCdEl.parentElement.style.display = "none";
+      } else {
+        if (_confirmCdEl) _confirmCdEl.textContent = left;
       }
-      if (_cdElapsed >= _reportSec && reportDiv) {
-        reportDiv.style.display = "block";
+      if (_cdElapsed >= _reportSec && _reportDiv) {
+        _reportDiv.style.display = "block";
       }
       if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
     }, 1000);

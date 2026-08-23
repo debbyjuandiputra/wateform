@@ -1104,6 +1104,8 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
     var _confirmBtn  = document.getElementById("qris-confirm-" + paymentFieldId);
     var _reportDiv   = document.getElementById("qris-report-" + paymentFieldId);
     var _cdElapsed = 0, _cdSec = 20, _reportSec = 50;
+    var _qrisStartTime = Date.now();
+    window._qrisStartTime = _qrisStartTime;
     var _cdInterval = setInterval(function() {
       _cdElapsed++;
       var left = Math.max(0, _cdSec - _cdElapsed);
@@ -1161,14 +1163,17 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
           clearInterval(window._qrisTimer);
           if (checkEl) checkEl.textContent = "\u274C QRIS kadaluwarsa. Close dan coba lagi.";
         } else {
-          // Payment not found — increment fail count, show report link after 3 failures
-          if (typeof onFailedAttempt === "function") onFailedAttempt();
-          // Re-enable confirm button after short delay
-          var _cb = document.getElementById("qris-confirm-" + paymentFieldId);
-          var _jeda = 4000 + Math.random() * 3000; // 4-7 detik
-          setTimeout(function() {
-            if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
-          }, _jeda);
+          // Payment not found — only show report link / re-enable button if countdown already elapsed
+          var _elapsed = window._qrisStartTime ? (Date.now() - window._qrisStartTime) : Infinity;
+          if (_elapsed >= 50000 && typeof onFailedAttempt === "function") onFailedAttempt();
+          // Re-enable confirm button only after the 20s countdown has passed
+          if (_elapsed >= 20000) {
+            var _cb = document.getElementById("qris-confirm-" + paymentFieldId);
+            var _jeda = 4000 + Math.random() * 3000; // 4-7 detik
+            setTimeout(function() {
+              if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
+            }, _jeda);
+          }
         }
       } catch(pollErr) { /* ignore poll errors, keep trying */ }
     }

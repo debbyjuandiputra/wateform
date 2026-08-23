@@ -329,7 +329,7 @@
             <!-- Static QRIS warning — shown only when Casaku subscription is expired -->
             <div id="qris-static-warn" style="display:none;width:100%;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 12px;font-size:12.5px;color:#92680a;line-height:1.5;text-align:center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <strong>Transfer the exact amount shown above! No less, no more.</strong>
+              <strong>Transfer the exact amount shown above!<br>No less, no more.</strong>
             </div>
 
             <div class="qris-countdown-bar">

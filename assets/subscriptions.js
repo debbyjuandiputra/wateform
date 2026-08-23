@@ -326,6 +326,12 @@
 
             </div>
 
+            <!-- Static QRIS warning — shown only when Casaku subscription is expired -->
+            <div id="qris-static-warn" style="display:none;width:100%;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 12px;font-size:12.5px;color:#92680a;line-height:1.5;text-align:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <strong>Transfer the exact amount shown above! No less, no more.</strong>
+            </div>
+
             <div class="qris-countdown-bar">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Expires in <strong id="qris-countdown">5:00</strong>
@@ -406,6 +412,9 @@
     const reportWrap = document.getElementById("qris-report-link-wrap");
     if (reportWrap) reportWrap.style.display = "none";
 
+    const staticWarn = document.getElementById("qris-static-warn");
+    if (staticWarn) staticWarn.style.display = "none";
+
     const genBtn = document.getElementById("qris-btn-generate");
     genBtn.disabled     = false;
     genBtn.textContent  = "Pay now";
@@ -479,6 +488,10 @@
       document.getElementById("qris-pay-plan").textContent   = data.plan_label;
       document.getElementById("qris-pay-amount").textContent = fmtIdr(data.amount);
       document.getElementById("qris-pay-unique").textContent = `IDR ${data.unique_code}`;
+
+      // Show static QRIS warning only when Casaku subscription is expired
+      const staticWarn = document.getElementById("qris-static-warn");
+      if (staticWarn) staticWarn.style.display = data.is_static ? "block" : "none";
 
       startCountdown(data.expires_in || 300);
       startConfirmCountdown();

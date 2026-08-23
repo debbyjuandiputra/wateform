@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" translate="no">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="google" content="notranslate">
 <title>WateForm</title>
 <link rel="icon" href="assets/logo.webp" type="image/webp">
 <link rel="stylesheet" href="assets/style.css">
@@ -2693,28 +2692,28 @@ function renderForm(form) {
   // Build the submit buttons HTML
   const submitBtnsHtml = (() => {
     if (target === "both") {
-      const labelWa = settings.submitLabelWa || "Send WateForm to WhatsApp";
-      const labelTg = settings.submitLabelTg || "Send WateForm to Telegram";
+      const labelWa = settings.submitLabelWa ? esc(settings.submitLabelWa) : 'Send <span translate="no">WateForm</span> to WhatsApp';
+      const labelTg = settings.submitLabelTg ? esc(settings.submitLabelTg) : 'Send <span translate="no">WateForm</span> to Telegram';
       return `
-        <button class="btn-submit btn-submit-wa" id="submit-btn-wa">${_waIcon} ${esc(labelWa)}</button>
-        <button class="btn-submit btn-submit-tg" id="submit-btn-tg">${_tgIcon} ${esc(labelTg)}</button>`;
+        <button class="btn-submit btn-submit-wa" id="submit-btn-wa">${_waIcon} ${labelWa}</button>
+        <button class="btn-submit btn-submit-tg" id="submit-btn-tg">${_tgIcon} ${labelTg}</button>`;
     } else if (target === "wa2") {
-      const labelWa  = settings.submitLabelWa  || "Send WateForm to WhatsApp 1";
-      const labelWa2 = settings.submitLabelWa2 || "Send WateForm to WhatsApp 2";
+      const labelWa  = settings.submitLabelWa  ? esc(settings.submitLabelWa)  : 'Send <span translate="no">WateForm</span> to WhatsApp 1';
+      const labelWa2 = settings.submitLabelWa2 ? esc(settings.submitLabelWa2) : 'Send <span translate="no">WateForm</span> to WhatsApp 2';
       return `
-        <button class="btn-submit btn-submit-wa"  id="submit-btn-wa">${_waIcon} ${esc(labelWa)}</button>
-        <button class="btn-submit btn-submit-wa2" id="submit-btn-wa2">${_waIcon} ${esc(labelWa2)}</button>`;
+        <button class="btn-submit btn-submit-wa"  id="submit-btn-wa">${_waIcon} ${labelWa}</button>
+        <button class="btn-submit btn-submit-wa2" id="submit-btn-wa2">${_waIcon} ${labelWa2}</button>`;
     } else if (target === "tg2") {
-      const labelTg  = settings.submitLabelTg  || "Send WateForm to Telegram 1";
-      const labelTg2 = settings.submitLabelTg2 || "Send WateForm to Telegram 2";
+      const labelTg  = settings.submitLabelTg  ? esc(settings.submitLabelTg)  : 'Send <span translate="no">WateForm</span> to Telegram 1';
+      const labelTg2 = settings.submitLabelTg2 ? esc(settings.submitLabelTg2) : 'Send <span translate="no">WateForm</span> to Telegram 2';
       return `
-        <button class="btn-submit btn-submit-tg"  id="submit-btn-tg">${_tgIcon} ${esc(labelTg)}</button>
-        <button class="btn-submit btn-submit-tg2" id="submit-btn-tg2">${_tgIcon} ${esc(labelTg2)}</button>`;
+        <button class="btn-submit btn-submit-tg"  id="submit-btn-tg">${_tgIcon} ${labelTg}</button>
+        <button class="btn-submit btn-submit-tg2" id="submit-btn-tg2">${_tgIcon} ${labelTg2}</button>`;
     } else {
-      const submitLabel = settings.submitLabel || (
-        target === "tg" ? "Send WateForm to Telegram" : "Send WateForm to WhatsApp"
+      const submitLabel = settings.submitLabel ? esc(settings.submitLabel) : (
+        target === "tg" ? 'Send <span translate="no">WateForm</span> to Telegram' : 'Send <span translate="no">WateForm</span> to WhatsApp'
       );
-      return `<button class="btn-submit" id="submit-btn">${esc(submitLabel)}</button>`;
+      return `<button class="btn-submit" id="submit-btn">${submitLabel}</button>`;
     }
   })();
 
@@ -2808,7 +2807,7 @@ function renderForm(form) {
   if (!hideBranding) {
     const branding = document.createElement("p");
     branding.style.cssText = "text-align:center;margin-top:16px;font-size:12.5px;color:var(--text-muted)";
-    branding.innerHTML = '<strong>This form was created using <a href="https://wateform.my.id" target="_blank" rel="noopener" style="color:#2bbda4;text-decoration:underline">WateForm</a></strong>';
+    branding.innerHTML = '<strong>This form was created using <a href="https://wateform.my.id" target="_blank" rel="noopener" translate="no" style="color:#2bbda4;text-decoration:underline">WateForm</a></strong>';
     root.appendChild(branding);
   }
 

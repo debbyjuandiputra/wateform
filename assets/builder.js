@@ -3327,16 +3327,16 @@ document.getElementById("preview-btn").addEventListener("click", () => {
   let previewBtns = "";
   if (target === "wa2") {
     previewBtns = `
-      <button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || "Send WateForm to WhatsApp 1"}</button>
-      <button class="btn btn-solid" style="background:#128C7E;color:#fff;border-color:#128C7E;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa2 || "Send WateForm to WhatsApp 2"}</button>`;
+      <button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || 'Send <span translate="no">WateForm</span> to WhatsApp 1'}</button>
+      <button class="btn btn-solid" style="background:#128C7E;color:#fff;border-color:#128C7E;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa2 || 'Send <span translate="no">WateForm</span> to WhatsApp 2'}</button>`;
   } else if (target === "tg2") {
     previewBtns = `
-      <button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || "Send WateForm to Telegram 1"}</button>
-      <button class="btn btn-solid" style="background:#1A7FAF;color:#fff;border-color:#1A7FAF;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg2 || "Send WateForm to Telegram 2"}</button>`;
+      <button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || 'Send <span translate="no">WateForm</span> to Telegram 1'}</button>
+      <button class="btn btn-solid" style="background:#1A7FAF;color:#fff;border-color:#1A7FAF;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg2 || 'Send <span translate="no">WateForm</span> to Telegram 2'}</button>`;
   } else {
     previewBtns = `
-      ${target !== "tg" ? `<button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || s.submitLabel || "Send WateForm to WhatsApp"}</button>` : ""}
-      ${target !== "wa" ? `<button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || s.submitLabel || "Send WateForm to Telegram"}</button>` : ""}`;
+      ${target !== "tg" ? `<button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || s.submitLabel || 'Send <span translate="no">WateForm</span> to WhatsApp'}</button>` : ""}
+      ${target !== "wa" ? `<button class="btn btn-solid" style="background:#229ED9;color:#fff;border-color:#229ED9;flex:1;min-width:160px">${tgIcon} ${s.submitLabelTg || s.submitLabel || 'Send <span translate="no">WateForm</span> to Telegram'}</button>` : ""}`;
   }
   html += `
     <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">

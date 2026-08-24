@@ -101,6 +101,8 @@
     const { data: { session } } = await _sb.auth.getSession();
     if (!session) return;
 
+    _userEmail = session.user.email ?? "";
+
     const { data: subRow } = await _sb
       .from("subscriptions")
       .select("plan, status, expires_at")
@@ -392,6 +394,7 @@
   let _countdownTimer   = null;
   let _confirmTimer     = null;
   let _failCount        = 0;
+  let _userEmail        = "";
 
   function resetModal() {
     clearInterval(_countdownTimer);
@@ -651,10 +654,9 @@
   }
 
   // ── Report link: "Already paid but not detected?" ────────────────────────
-  document.getElementById("qris-report-link")?.addEventListener("click", async function(e) {
+  document.getElementById("qris-report-link")?.addEventListener("click", function(e) {
     e.preventDefault();
-    const { data: { session } } = await _sb.auth.getSession();
-    const userEmail = session?.user?.email ?? "";
+    const userEmail = _userEmail;
     const planInfo  = PLANS[_activePlan];
     const amount    = planInfo ? fmtIdr(planInfo.price) : "";
     const now       = new Date();

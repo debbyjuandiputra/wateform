@@ -35,10 +35,15 @@
     ));
   })();
 
+  let _userEmail = "";
+
   // ── Auth guard ───────────────────────────────────────────────────────────
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
       window.location.replace("../login.html");
+    }
+    if (session?.user?.email) {
+      _userEmail = session.user.email;
     }
   });
 
@@ -394,7 +399,6 @@
   let _countdownTimer   = null;
   let _confirmTimer     = null;
   let _failCount        = 0;
-  let _userEmail        = "";
 
   function resetModal() {
     clearInterval(_countdownTimer);

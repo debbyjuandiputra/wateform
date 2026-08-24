@@ -565,27 +565,6 @@
     }
     _confirmTimer = setInterval(tick, 1000);
 
-    // Report link handler — build mailto on click
-    const reportLink = document.getElementById("qris-report-link");
-    if (reportLink) {
-      reportLink.addEventListener("click", async function(e) {
-        e.preventDefault();
-        const { data: { session } } = await _sb.auth.getSession();
-        const userEmail = session?.user?.email ?? "";
-        const planInfo  = PLANS[_activePlan];
-        const amount    = planInfo ? fmtIdr(planInfo.price) : "";
-        const now       = new Date();
-        const timeStr   = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-        const subject   = encodeURIComponent("Payment not detected");
-        const body      = encodeURIComponent(
-          "Email: " + userEmail + "\n" +
-          "Total: " + amount + "\n" +
-          "Time: " + timeStr + "\n" +
-          "Message: "
-        );
-        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
-      });
-    }
   }
 
   // ── Confirm payment button ────────────────────────────────────────────────
@@ -670,6 +649,25 @@
     showToast(`${PLANS[data.plan]?.label ?? data.plan} plan is now active.`, "success");
     setTimeout(() => window.location.reload(), 3500);
   }
+
+  // ── Report link: "Already paid but not detected?" ────────────────────────
+  document.getElementById("qris-report-link")?.addEventListener("click", async function(e) {
+    e.preventDefault();
+    const { data: { session } } = await _sb.auth.getSession();
+    const userEmail = session?.user?.email ?? "";
+    const planInfo  = PLANS[_activePlan];
+    const amount    = planInfo ? fmtIdr(planInfo.price) : "";
+    const now       = new Date();
+    const timeStr   = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+    const subject   = encodeURIComponent("Payment not detected");
+    const body      = encodeURIComponent(
+      "Email: " + userEmail + "\n" +
+      "Total: " + amount + "\n" +
+      "Time: " + timeStr + "\n" +
+      "Message: "
+    );
+    window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
+  });
 
   // ── Skip link ─────────────────────────────────────────────────────────────
   document.getElementById("skip-link")?.addEventListener("click", () => {

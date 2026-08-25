@@ -263,6 +263,33 @@
     document.head.appendChild(style);
   })();
 
+  // ── Pending-payment banner (shown on page after modal closed mid-payment) ─
+  (function injectPendingBanner() {
+    const banner = document.createElement("div");
+    banner.id = "sub-pending-banner";
+    banner.style.cssText = "display:none;margin-bottom:16px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius-lg);padding:12px 16px;font-size:13px;color:#92680a;display:none;align-items:center;gap:10px;line-height:1.5";
+    banner.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;color:#d97706"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="sub-pending-text">Payment pending — checking in background…</span>
+      <button id="sub-pending-show-qris" style="margin-left:auto;flex-shrink:0;background:none;border:1px solid rgba(180,120,0,.4);border-radius:6px;padding:4px 10px;font-size:12px;color:#92680a;cursor:pointer;font-weight:600">Show QRIS</button>
+    `;
+    const wrap = document.querySelector(".sub-wrap");
+    if (wrap) wrap.insertBefore(banner, wrap.firstChild);
+  })();
+
+  function showPendingBanner(text) {
+    const banner = document.getElementById("sub-pending-banner");
+    if (!banner) return;
+    const textEl = document.getElementById("sub-pending-text");
+    if (textEl && text) textEl.textContent = text;
+    banner.style.display = "flex";
+  }
+
+  function hidePendingBanner() {
+    const banner = document.getElementById("sub-pending-banner");
+    if (banner) banner.style.display = "none";
+  }
+
   (function injectModal() {
     const backdrop = document.createElement("div");
     backdrop.id        = "qris-modal";
@@ -353,9 +380,6 @@
             </div>
 
             <div id="qris-status-msg" style="font-size:13px;color:var(--text-soft);text-align:center;min-height:18px"></div>
-            <div id="qris-already-paid-bar" style="display:none;width:100%;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5">
-              Already paid? Use the <strong>Confirm payment</strong> button above, or <a id="qris-report-link-inline" href="#" style="color:#92680a;font-weight:600;text-decoration:underline;cursor:pointer">report manually</a>.
-            </div>
             <div id="qris-report-link-wrap" style="display:none;text-align:center;margin-top:2px">
               <a id="qris-report-link" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>
             </div>
@@ -432,9 +456,6 @@
     const staticWarn = document.getElementById("qris-static-warn");
     if (staticWarn) staticWarn.style.display = "none";
 
-    const alreadyPaidBar = document.getElementById("qris-already-paid-bar");
-    if (alreadyPaidBar) alreadyPaidBar.style.display = "none";
-
     const showAgainBtn = document.getElementById("qris-btn-show-again");
     if (showAgainBtn) showAgainBtn.style.display = "none";
 
@@ -455,32 +476,91 @@
   function show(id) { const el = document.getElementById(id); if (el) el.style.display = "flex"; }
   function hide(id) { const el = document.getElementById(id); if (el) el.style.display = "none"; }
 
-  // ── Smart close: jika QRIS sudah di-generate, tunda reset 5 detik ─────────
+  // ── Background polling saat modal ditutup mid-payment ────────────────────
+  let _bgPollTimer    = null;
+  let _bgPollCount    = 0;
+  const BG_POLL_MAX   = 20;   // max ~2 menit polling background (setiap 6 detik)
+  const BG_POLL_INTERVAL = 6000;
+
+  function stopBgPoll() {
+    clearInterval(_bgPollTimer);
+    _bgPollTimer = null;
+    _bgPollCount = 0;
+  }
+
+  async function bgPollOnce() {
+    if (!_refNo) { stopBgPoll(); return; }
+    _bgPollCount++;
+
+    let session;
+    try {
+      const { data } = await _sb.auth.getSession();
+      session = data?.session;
+    } catch (_) { return; }
+    if (!session) { stopBgPoll(); return; }
+
+    try {
+      const res  = await fetch(`${EDGE_BASE}/check-subscription-qris`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },
+        body:    JSON.stringify({ ref_no: _refNo }),
+      });
+      const data = await res.json();
+
+      if (data.status === "success") {
+        stopBgPoll();
+        hidePendingBanner();
+        onPaymentSuccess(data);
+        return;
+      }
+
+      if (data.status === "expired" || _bgPollCount >= BG_POLL_MAX) {
+        stopBgPoll();
+        hidePendingBanner();
+        resetModal();
+        return;
+      }
+
+      // Update teks banner sementara polling
+      const textEl = document.getElementById("sub-pending-text");
+      if (textEl) textEl.textContent = `Payment pending — still checking… (${_bgPollCount}/${BG_POLL_MAX})`;
+
+    } catch (_) { /* network error, coba lagi di interval berikutnya */ }
+  }
+
+  function startBgPoll() {
+    stopBgPoll();
+    _bgPollCount = 0;
+    _bgPollTimer = setInterval(bgPollOnce, BG_POLL_INTERVAL);
+  }
+
+  // ── Smart close: polling background aktif saat modal ditutup ─────────────
   function handleClose() {
-    // Jika sedang di step pay (QRIS sudah tampil), tunda resetModal 5 detik
-    const stepPay = document.getElementById("qris-step-pay");
+    const stepPay     = document.getElementById("qris-step-pay");
     const isOnPayStep = stepPay && stepPay.style.display !== "none";
 
     closeModal("qris-modal");
 
     if (isOnPayStep && _refNo) {
-      // Tunda reset — simpan state agar "Show QRIS again" bisa dipakai
-      clearTimeout(_closeTimer);
-      _closeTimer = setTimeout(() => {
-        resetModal();
-      }, 5000);
+      // Mulai polling background
+      startBgPoll();
 
-      // Tampilkan footer dengan tombol "Show QRIS again"
-      const footer = document.getElementById("qris-modal-footer");
-      if (footer) footer.style.display = "";
-      const showAgainBtn = document.getElementById("qris-btn-show-again");
-      if (showAgainBtn) showAgainBtn.style.display = "";
-      const genBtn = document.getElementById("qris-btn-generate");
-      if (genBtn) genBtn.style.display = "none";
+      // Tampilkan banner pending di halaman
+      showPendingBanner("Payment pending — checking in background…");
 
-      // Tampilkan already-paid-bar setelah modal ditutup
-      const bar = document.getElementById("qris-already-paid-bar");
-      if (bar) bar.style.display = "block";
+      // Tampilkan "Show QRIS" di banner
+      const showQrisBtn = document.getElementById("sub-pending-show-qris");
+      if (showQrisBtn) {
+        showQrisBtn.onclick = () => {
+          stopBgPoll();
+          hidePendingBanner();
+          clearTimeout(_closeTimer);
+          hide("qris-step-confirm");
+          show("qris-step-pay");
+          hide("qris-modal-footer");
+          openModal("qris-modal");
+        };
+      }
     } else {
       resetModal();
     }
@@ -490,26 +570,21 @@
   document.getElementById("qris-modal")?.addEventListener("click", e => { if (e.target.id === "qris-modal") handleClose(); });
   document.getElementById("qris-btn-cancel")?.addEventListener("click", handleClose);
 
-  // ── Show QRIS Again ────────────────────────────────────────────────────────
+  // ── Show QRIS Again (footer button — fallback jika banner tidak ada) ──────
   document.getElementById("qris-btn-show-again")?.addEventListener("click", () => {
     if (!_qrisData || !_refNo) return;
     clearTimeout(_closeTimer);
+    stopBgPoll();
+    hidePendingBanner();
 
-    // Sembunyikan tombol show-again, tampilkan generate lagi
     const showAgainBtn = document.getElementById("qris-btn-show-again");
     if (showAgainBtn) showAgainBtn.style.display = "none";
     const genBtn = document.getElementById("qris-btn-generate");
     if (genBtn) genBtn.style.display = "";
 
-    // Tampilkan kembali step pay
     hide("qris-step-confirm");
     show("qris-step-pay");
     hide("qris-modal-footer");
-
-    // Hide already-paid-bar saat QRIS ditampilkan lagi
-    const bar = document.getElementById("qris-already-paid-bar");
-    if (bar) bar.style.display = "none";
-
     openModal("qris-modal");
   });
 
@@ -642,11 +717,9 @@
       } else if (elapsed < 20) {
         if (countEl) countEl.textContent = leftConfirm;
       }
-      // Show already-paid-bar + report link after 50 seconds
+      // Show report link after 50 seconds
       if (elapsed >= 50) {
         showReportLink();
-        const bar = document.getElementById("qris-already-paid-bar");
-        if (bar) bar.style.display = "block";
         clearInterval(_confirmTimer);
       }
     }
@@ -698,9 +771,9 @@
       if (_failCount >= 3) {
         showReportLink();
       }
-      // Jeda 5-7 detik sebelum re-enable
-      alert("Payment not detected yet. Please wait a moment and try again.");
+      // Update status, jeda 5-7 detik, lalu tampilkan toast & re-enable button
       const _jeda = 5000 + Math.random() * 2000;
+      if (statusEl) statusEl.textContent = "Payment not detected yet. Please wait…";
       setTimeout(() => {
         _isChecking              = false;
         if (statusEl) statusEl.textContent = "";
@@ -708,6 +781,7 @@
         confirmBtn.style.opacity = "1";
         confirmBtn.style.cursor  = "pointer";
         confirmBtn.textContent   = "Confirm payment";
+        showToast("Payment not detected yet. Please wait a moment and try again.", "error");
       }, _jeda);
 
     } catch (_) {
@@ -724,6 +798,8 @@
   function onPaymentSuccess(data) {
     clearInterval(_countdownTimer);
     clearInterval(_confirmTimer);
+    stopBgPoll();
+    hidePendingBanner();
 
     hide("qris-step-pay");
     show("qris-step-success");
@@ -743,25 +819,6 @@
   }
 
   // ── Report link: "Already paid but not detected?" ────────────────────────
-  // Handler yang sama untuk inline report link di already-paid-bar
-  function handleReportLink(e) {
-    e.preventDefault();
-    const userEmail = _userEmail;
-    const planInfo  = PLANS[_activePlan];
-    const amount    = planInfo ? fmtIdr(planInfo.price) : "";
-    const now       = new Date();
-    const timeStr   = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-    const subject   = encodeURIComponent("Payment not detected");
-    const body      = encodeURIComponent(
-      "Email: " + userEmail + "\n" +
-      "Total: " + amount + "\n" +
-      "Time: " + timeStr + "\n" +
-      "Message: "
-    );
-    window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
-  }
-  document.getElementById("qris-report-link-inline")?.addEventListener("click", handleReportLink);
-
   document.getElementById("qris-report-link")?.addEventListener("click", function(e) {
     e.preventDefault();
     const userEmail = _userEmail;

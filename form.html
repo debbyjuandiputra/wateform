@@ -988,8 +988,8 @@ function updatePaymentFields() {
         var existingShowAgain = document.getElementById(showQrisAgainId);
 
         if (hasPendingRef) {
-          hintEl.className = "payment-status-hint";
-          hintEl.textContent = "Verifying payment... Submit button will activate automatically.";
+          // hintEl.className = "payment-status-hint";
+          // hintEl.textContent = "Submit button will activate automatically.";
 
           // Tombol "Show QRIS again" — selalu tampilkan saat ada pending transaction
           if (!existingShowAgain) {

@@ -371,6 +371,10 @@
               Expires in <strong id="qris-countdown">5:00</strong>
             </div>
 
+            <div id="qris-report-link-wrap" style="display:none;text-align:center;margin-top:2px">
+              <a id="qris-report-link" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>
+            </div>
+
             <!-- Confirm button — enabled after 15 seconds -->
             <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px">
               <button id="qris-btn-confirm" class="btn btn-solid btn-sm" style="width:100%;opacity:.4;cursor:not-allowed" disabled>
@@ -380,9 +384,6 @@
             </div>
 
             <div id="qris-status-msg" style="font-size:13px;color:var(--text-soft);text-align:center;min-height:18px"></div>
-            <div id="qris-report-link-wrap" style="display:none;text-align:center;margin-top:2px">
-              <a id="qris-report-link" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>
-            </div>
           </div>
 
           <!-- Step 3: success -->

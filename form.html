@@ -1265,27 +1265,68 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
           updatePaymentFields();
           if (checkEl) checkEl.textContent = "QRIS has expired. Close and try again.";
         } else {
-          // Payment not found — only show report link / re-enable button if countdown already elapsed
+          // Payment not found - only show report link / re-enable button if countdown already elapsed.
           var _elapsed = window._qrisStartTime ? (Date.now() - window._qrisStartTime) : Infinity;
           if (_elapsed >= 50000 && typeof onFailedAttempt === "function") onFailedAttempt();
-          // Re-enable confirm button only after the 20s countdown has passed
-          if (_elapsed >= 20000) {
+          // Re-enable confirm button only after the 20s countdown has passed.
+          // Skip when a manual check is in flight; its .finally() handles re-enable.
+          if (_elapsed >= 20000 && !_manualCheckInFlight) {
             var _cb = document.getElementById("qris-confirm-" + paymentFieldId);
-            var _jeda = 4000 + Math.random() * 3000; // 4-7 detik
+            // 4-7 second delay so the user sees the result before the button reactivates.
+            var _jeda = 4000 + Math.random() * 3000;
             setTimeout(function() {
-              if (_cb) { _cb.disabled = false; _cb.style.background = "var(--teal,#2bbda4)"; _cb.style.color = "#fff"; _cb.style.cursor = "pointer"; _cb.textContent = "Confirm Payment"; }
+              // Only re-enable if no manual check is running and payment is still pending.
+              if (_cb && !_manualCheckInFlight && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
+                _cb.disabled = false;
+                _cb.style.background = "var(--teal,#2bbda4)";
+                _cb.style.color = "#fff";
+                _cb.style.cursor = "pointer";
+                _cb.textContent = "Confirm Payment";
+              }
             }, _jeda);
           }
         }
       } catch(pollErr) { /* ignore poll errors, keep trying */ }
     }
 
+    // True while a manual "Confirm Payment" check is in flight.
+    // The interval doPoll skips re-enabling the button while this is set.
+    var _manualCheckInFlight = false;
+
     window._qrisPollNow = function(onFail, btn) {
-      // Allow confirm button handler to pass its own callbacks
+      if (_manualCheckInFlight) return; // prevent double-trigger
+      _manualCheckInFlight = true;
+
+      // Pause the auto-poll interval for the duration of the manual check
+      // so there is only ever one in-flight request at a time.
+      if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
+
       var _savedOnFail = typeof onFail === "function" ? onFail : onFailedAttempt;
       var _origOnFail = onFailedAttempt;
       onFailedAttempt = _savedOnFail;
-      doPoll().finally(function() { onFailedAttempt = _origOnFail; });
+
+      doPoll().finally(function() {
+        onFailedAttempt = _origOnFail;
+        _manualCheckInFlight = false;
+        // If payment is still pending, re-enable the confirm button after
+        // a 4-7 second delay so the user sees "Checking..." for a moment.
+        var state = paymentState[paymentFieldId];
+        if (state && state.refNo && !state.paid) {
+          var _cb2 = document.getElementById("qris-confirm-" + paymentFieldId);
+          var _jeda2 = 4000 + Math.random() * 3000;
+          setTimeout(function() {
+            if (_cb2 && !_manualCheckInFlight && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
+              _cb2.disabled = false;
+              _cb2.style.background = "var(--teal,#2bbda4)";
+              _cb2.style.color = "#fff";
+              _cb2.style.cursor = "pointer";
+              _cb2.textContent = "Confirm Payment";
+            }
+          }, _jeda2);
+          // Resume auto-poll interval.
+          if (!window._qrisTimer) window._qrisTimer = setInterval(doPoll, 4000);
+        }
+      });
     };
     window._qrisTimer = setInterval(doPoll, 4000);
   } catch (e) {

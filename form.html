@@ -963,6 +963,8 @@ function updatePaymentFields() {
       if (_apBarDone) _apBarDone.remove();
       var _showAgainDone = document.getElementById("card-show-qris-" + pq.id);
       if (_showAgainDone) _showAgainDone.remove();
+      var _reportDone = document.getElementById("card-report-" + pq.id);
+      if (_reportDone) _reportDone.remove();
       if (window._alreadyPaidBarTimer) { clearTimeout(window._alreadyPaidBarTimer); window._alreadyPaidBarTimer = null; }
     } else {
       var hasPendingRef = paymentState[pq.id] && paymentState[pq.id].refNo && !paymentState[pq.id].paid;
@@ -989,7 +991,7 @@ function updatePaymentFields() {
 
         if (hasPendingRef) {
           // hintEl.className = "payment-status-hint";
-          // hintEl.textContent = "Submit button will activate automatically.";
+          // hintEl.textContent = "Verifying payment... Submit button will activate automatically.";
 
           // Tombol "Show QRIS again" — selalu tampilkan saat ada pending transaction
           if (!existingShowAgain) {

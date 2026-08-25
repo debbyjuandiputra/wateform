@@ -1092,9 +1092,7 @@ function openQrisModal(paymentFieldId) {
     '<div id="qris-report-' + paymentFieldId + '" style="display:none;text-align:center;margin-top:8px">' +
       '<a id="qris-report-link-' + paymentFieldId + '" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>' +
     '</div>' +
-    '<div id="qris-already-paid-bar-' + paymentFieldId + '" style="display:none;margin-top:10px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5">' +
-      'Already paid? Use <strong>Confirm Payment</strong> above, or <a id="qris-report-inline-' + paymentFieldId + '" href="#" style="color:#92680a;font-weight:600;text-decoration:underline;cursor:pointer">report manually</a>.' +
-    '</div>' +
+
     '<button class="qris-close-btn" id="qris-close-' + paymentFieldId + '">Close</button>' +
   '</div>';
   document.body.appendChild(modal);
@@ -1191,9 +1189,7 @@ function reopenQrisModal(paymentFieldId) {
     '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>' +
     '<div class="qris-checking" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px">Verifying payment in background...</div>' +
     '<button class="qris-confirm-btn" id="qris-reopen-confirm-' + paymentFieldId + '" style="width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:var(--teal,#2bbda4);color:#fff">Confirm Payment</button>' +
-    '<div id="qris-reopen-already-' + paymentFieldId + '" style="display:none;margin-top:10px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5">' +
-      'Already paid? Use <strong>Confirm Payment</strong> above.' +
-    '</div>' +
+
     '<button class="qris-close-btn" id="qris-reopen-close-' + paymentFieldId + '">Close</button>' +
   '</div>';
   document.body.appendChild(modal);
@@ -1256,24 +1252,8 @@ function closeQrisModal(paymentFieldId) {
       var barEl = document.createElement("div");
       barEl.id = cardBarId;
       barEl.style.cssText = "margin-top:8px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5";
-      barEl.innerHTML = 'Already paid? Click <strong>Confirm Payment</strong> in the QRIS modal, or <a id="card-report-inline-' + paymentFieldId + '" href="#" style="color:#92680a;font-weight:600;text-decoration:underline;cursor:pointer">report manually</a>.';
+      barEl.innerHTML = 'Already paid? Click <strong>Confirm Payment</strong> in the QRIS modal.';
       hintEl.parentNode.insertBefore(barEl, hintEl.nextSibling);
-      // report link
-      var reportInline = document.getElementById("card-report-inline-" + paymentFieldId);
-      if (reportInline) {
-        reportInline.addEventListener("click", function(e) {
-          e.preventDefault();
-          var sd = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
-          sd.then(function(s) {
-            var userEmail = (s && s.data && s.data.session && s.data.session.user) ? s.data.session.user.email : "";
-            var now = new Date();
-            var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-            var st = paymentState[paymentFieldId];
-            var amt = st && st.fmtTotal ? st.fmtTotal : "";
-            window.location.href = "mailto:wateform@gmail.com?subject=" + encodeURIComponent("Payment not detected") + "&body=" + encodeURIComponent("Email: " + userEmail + "\nTotal: " + amt + "\nTime: " + timeStr + "\nMessage: ");
-          });
-        });
-      }
     }, 5000);
   }
 }

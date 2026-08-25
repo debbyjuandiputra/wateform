@@ -2764,12 +2764,14 @@ function renderSettingsPanel() {
     <div class="field">
       <label>Target</label>
       <select id="s-target">
+        <option value="just" ${s.target==="just"?"selected":""}${!planFeatures().fieldPlus?" disabled":""}>Just submit${!planFeatures().fieldPlus?" (Plus+)":""}</option>
         <option value="wa"   ${(s.target||"wa")==="wa"?"selected":""}>WhatsApp only</option>
         <option value="tg"   ${s.target==="tg"?"selected":""}>Telegram only</option>
         <option value="both" ${s.target==="both"?"selected":""}>WhatsApp & Telegram</option>
         <option value="wa2"  ${s.target==="wa2"?"selected":""}>Double WhatsApp</option>
         <option value="tg2"  ${s.target==="tg2"?"selected":""}>Double Telegram</option>
       </select>
+      ${s.target==="just" && !planFeatures().fieldPlus ? `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher to use Just submit. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>` : ""}
     </div>
     <div id="s-wa-wrap">
       <div class="field">
@@ -2962,11 +2964,11 @@ function updateTargetVisibility() {
   const tgLabel = document.getElementById("s-tg-label");
 
   // WA primary: shown for wa, both, wa2
-  if (waWrap)  waWrap.style.display  = (t === "tg" || t === "tg2") ? "none" : "block";
+  if (waWrap)  waWrap.style.display  = (t === "tg" || t === "tg2" || t === "just") ? "none" : "block";
   // WA secondary: shown only for wa2
   if (wa2Wrap) wa2Wrap.style.display = t === "wa2" ? "block" : "none";
   // TG primary: shown for tg, both, tg2
-  if (tgWrap)  tgWrap.style.display  = (t === "wa" || t === "wa2") ? "none" : "block";
+  if (tgWrap)  tgWrap.style.display  = (t === "wa" || t === "wa2" || t === "just") ? "none" : "block";
   // TG secondary: shown only for tg2
   if (tg2Wrap) tg2Wrap.style.display = t === "tg2" ? "block" : "none";
 
@@ -2985,7 +2987,19 @@ function renderSubmitFields(target) {
   const lockIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="color:var(--text-muted)"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
   const upgradeHint = `<div class="hint" style="margin-top:5px;font-size:12px;color:var(--text-muted)">Upgrade to <strong>Plus</strong> or higher to customize the submit button. <a href="dashboard/subscription.html" style="color:var(--teal)">View plans →</a></div>`;
 
-  if (target === "both") {
+  if (target === "just") {
+    wrap.innerHTML = `
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button text</label>
+        <input type="text" id="s-submit-label" value="${canCustom ? esc(s.submitLabel||"") : ""}"
+          placeholder="${canCustom ? "Submit WateForm" : "Upgrade to Plus to customize…"}"
+          ${!canCustom ? "disabled" : ""}
+          style="${!canCustom ? "opacity:.55;cursor:not-allowed" : ""}">
+        ${!canCustom ? upgradeHint : ""}
+      </div>
+    `;
+    document.getElementById("s-submit-label")?.addEventListener("input", () => saveSetting());
+  } else if (target === "both") {
     wrap.innerHTML = `
       <div class="field">
         <label style="display:flex;align-items:center;gap:5px">${!canCustom ? lockIcon : ""}Submit button for WhatsApp</label>
@@ -3140,7 +3154,18 @@ async function saveSetting() {
     ? (document.getElementById("s-closed-msg")?.value.trim() || null)
     : null;
   const tgt = document.getElementById("s-target")?.value || "wa";
-  if (tgt === "both") {
+  // Gate "just" target to plus+ plan; fall back to "wa" if plan doesn't allow
+  if (tgt === "just" && !planFeatures().fieldPlus) {
+    settings.target = "wa";
+    document.getElementById("s-target").value = "wa";
+  }
+  if (tgt === "just") {
+    settings.submitLabel    = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label")?.value.trim() || "") : "";
+    settings.submitLabelWa  = "";
+    settings.submitLabelTg  = "";
+    settings.submitLabelWa2 = "";
+    settings.submitLabelTg2 = "";
+  } else if (tgt === "both") {
     settings.submitLabelWa  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-wa")?.value.trim() || "") : "";
     settings.submitLabelTg  = planFeatures().customSubmitButton ? (document.getElementById("s-submit-label-tg")?.value.trim() || "") : "";
     settings.submitLabel    = "";
@@ -3208,7 +3233,9 @@ document.getElementById("publish-btn").addEventListener("click", async () => {
     const tgUser  = (settings.tgUsername  || "").trim();
     const tgUser2 = (settings.tgUsername2 || "").trim();
 
-    if (target === "wa" && !waNum) {
+    if (target === "just") {
+      // No WA/TG number required for Just submit — skip all WA/TG validation
+    } else if (target === "wa" && !waNum) {
       toast("Enter your WhatsApp number", "error");
       document.getElementById("settings-panel").classList.add("open");
       setTimeout(() => document.getElementById("s-wa-number")?.focus(), 150);
@@ -3325,7 +3352,10 @@ document.getElementById("preview-btn").addEventListener("click", () => {
   const waIcon = `<svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.997 0C5.373 0 0 5.373 0 12c0 2.122.559 4.112 1.532 5.835L.054 23.94l6.285-1.448A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.624 0 11.997 0zm.003 21.818a9.82 9.82 0 0 1-5.022-1.376l-.36-.214-3.733.979 1.001-3.656-.234-.376A9.82 9.82 0 0 1 2.182 12c0-5.421 4.41-9.818 9.818-9.818 5.42 0 9.818 4.397 9.818 9.818 0 5.42-4.397 9.818-9.818 9.818z"/></svg>`;
   const tgIcon = `<svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 14.147l-2.95-.924c-.64-.203-.655-.64.136-.953l11.57-4.461c.537-.194 1.006.131.968.412z"/></svg>`;
   let previewBtns = "";
-  if (target === "wa2") {
+  if (target === "just") {
+    previewBtns = `
+      <button class="btn btn-solid" style="background:var(--teal);color:#fff;border-color:var(--teal);flex:1;min-width:160px">${s.submitLabel || 'Submit <span translate="no">WateForm</span>'}</button>`;
+  } else if (target === "wa2") {
     previewBtns = `
       <button class="btn btn-solid" style="background:#25D366;color:#fff;border-color:#25D366;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa || 'Send <span translate="no">WateForm</span> to WhatsApp 1'}</button>
       <button class="btn btn-solid" style="background:#128C7E;color:#fff;border-color:#128C7E;flex:1;min-width:160px">${waIcon} ${s.submitLabelWa2 || 'Send <span translate="no">WateForm</span> to WhatsApp 2'}</button>`;

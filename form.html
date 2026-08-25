@@ -693,6 +693,7 @@ function showError(msg) {
 
 function showSuccess(settings, targetOverride) {
   const target = targetOverride || settings.target || "wa";
+  const isJust = target === "just";
   root.className = "state-screen";
   root.innerHTML = `
     <div class="state-box">
@@ -700,7 +701,7 @@ function showSuccess(settings, targetOverride) {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
       </svg>
       <h2>Response sent!</h2>
-      <p>Check your ${(target === "tg" || target === "tg2" || target === "tg2-2") ? "Telegram" : "WhatsApp"} for a confirmation message.</p>
+      <p>${isJust ? "Your response has been submitted successfully." : "Check your " + ((target === "tg" || target === "tg2" || target === "tg2-2") ? "Telegram" : "WhatsApp") + " for a confirmation message."}</p>
     </div>`;
 }
 
@@ -2698,7 +2699,10 @@ function renderForm(form) {
 
   // Build the submit buttons HTML
   const submitBtnsHtml = (() => {
-    if (target === "both") {
+    if (target === "just") {
+      const submitLabel = settings.submitLabel ? esc(settings.submitLabel) : 'Submit <span translate="no">WateForm</span>';
+      return `<button class="btn-submit" id="submit-btn">${submitLabel}</button>`;
+    } else if (target === "both") {
       const labelWa = settings.submitLabelWa ? esc(settings.submitLabelWa) : 'Send <span translate="no">WateForm</span> to WhatsApp';
       const labelTg = settings.submitLabelTg ? esc(settings.submitLabelTg) : 'Send <span translate="no">WateForm</span> to Telegram';
       return `
@@ -2787,7 +2791,9 @@ function renderForm(form) {
       window.scrollTo({top: 0, behavior: "smooth"});
       showPage(currentPage + 1);
     });
-    if (target === "both") {
+    if (target === "just") {
+      navDiv.querySelector("#submit-btn")?.addEventListener("click", () => doSubmit("just"));
+    } else if (target === "both") {
       navDiv.querySelector("#submit-btn-wa")?.addEventListener("click", () => doSubmit("wa"));
       navDiv.querySelector("#submit-btn-tg")?.addEventListener("click", () => doSubmit("tg"));
     } else if (target === "wa2") {
@@ -2938,7 +2944,9 @@ function renderForm(form) {
     // Open a blank window IMMEDIATELY (synchronously, before any await) so mobile
     // browsers treat it as a direct user-gesture popup and don't block it.
     // We'll set its URL after the async work is done.
-    const _msgWindow = window.open("", "_blank");
+    // For "just submit" mode, skip opening any external window.
+    const _isJust = (targetOverride || target) === "just";
+    const _msgWindow = _isJust ? null : window.open("", "_blank");
     const btns = [
       document.getElementById("submit-btn-wa"),
       document.getElementById("submit-btn-wa2"),
@@ -3039,16 +3047,19 @@ function renderForm(form) {
       // Non-blocking: still let the person send their answers even if the save failed.
     }
 
-    // Now point the pre-opened window to the real link.
-    // Using location.href on the pre-opened window avoids the popup-blocker
-    // issue on mobile (Chrome/Safari Android) that fires when window.open()
-    // is called after an await.
-    const _link = buildLink(settings, questions, answers, targetOverride, form?.title);
-    if (_msgWindow && !_msgWindow.closed) {
-      _msgWindow.location.href = _link;
-    } else {
-      // Fallback: try window.open again, or redirect current tab
-      try { window.open(_link, "_blank"); } catch(e) { window.location.href = _link; }
+    // For "just submit": skip WA/TG redirect entirely — response is already saved above.
+    if (!_isJust) {
+      // Now point the pre-opened window to the real link.
+      // Using location.href on the pre-opened window avoids the popup-blocker
+      // issue on mobile (Chrome/Safari Android) that fires when window.open()
+      // is called after an await.
+      const _link = buildLink(settings, questions, answers, targetOverride, form?.title);
+      if (_msgWindow && !_msgWindow.closed) {
+        _msgWindow.location.href = _link;
+      } else {
+        // Fallback: try window.open again, or redirect current tab
+        try { window.open(_link, "_blank"); } catch(e) { window.location.href = _link; }
+      }
     }
     showSuccess(settings, targetOverride);
     // Re-enable submit only if no unpaid payment fields remain

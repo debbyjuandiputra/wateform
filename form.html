@@ -169,6 +169,7 @@ body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hid
 .btn-pay-qris:hover { background:var(--teal-deep,#1a9a87); }
 .btn-pay-qris:disabled { background:var(--border); color:var(--text-muted); cursor:not-allowed; }
 .btn-pay-qris.paid { background:transparent; color:#16a34a; border:2px solid #16a34a; cursor:default; }
+.btn-payment-success { width:100%; padding:11px; background:var(--bg,#fff); color:#16a34a; border:2px solid #16a34a; border-radius:8px; font-size:14px; font-weight:600; cursor:default; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .15s; }
 .payment-status-hint { font-size:12px; color:var(--text-muted); margin-top:8px; text-align:center; }
 /* Form lock after payment */
 .q-block.form-field-locked { position:relative; pointer-events:none; user-select:none; opacity:0.72; }
@@ -927,7 +928,12 @@ function updatePaymentFields() {
         ? fmtCalc(paidAmount, calcQPaid)
         : ("Rp" + paidAmount.toLocaleString("en-US"));
       if (totalEl) totalEl.textContent = fmtPaid;
-      if (payBtn) { payBtn.style.display = "none"; }
+      if (payBtn) {
+        payBtn.style.display = "";
+        payBtn.disabled = true;
+        payBtn.className = "btn-payment-success";
+        payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg> Payment Successful';
+      }
       if (hintEl) { hintEl.className = ""; hintEl.innerHTML = ""; }
     } else {
       if (payBtn) {
@@ -935,6 +941,7 @@ function updatePaymentFields() {
         payBtn.disabled = (total <= 0);
         payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
         payBtn.style.background = "";
+        payBtn.className = "btn-pay-qris";
         payBtn.classList.remove("paid");
       }
       if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "Submit button will activate after payment is confirmed" : (src === "fixed" ? "No price set" : "Calculating total..."); }

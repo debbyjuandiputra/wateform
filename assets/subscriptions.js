@@ -415,6 +415,7 @@
     _closeTimer     = null;
     _refNo          = null;
     _qrisData       = null;
+    _isChecking     = false;
     _failCount      = 0;
 
     show("qris-step-confirm");
@@ -620,6 +621,8 @@
   }
 
   // ── 15-second confirm button countdown ───────────────────────────────────
+  let _isChecking = false; // flag: sedang proses check, countdown tidak boleh re-enable
+
   function startConfirmCountdown() {
     let elapsed     = 0;
     const hintEl    = document.getElementById("qris-confirm-hint");
@@ -629,12 +632,14 @@
     function tick() {
       elapsed++;
       const leftConfirm = Math.max(0, 20 - elapsed);
-      if (elapsed >= 20 && confirmBtn && confirmBtn.disabled) {
+      // Hanya re-enable jika TIDAK sedang checking
+      if (elapsed >= 20 && confirmBtn && confirmBtn.disabled && !_isChecking) {
         confirmBtn.disabled      = false;
         confirmBtn.style.opacity = "1";
         confirmBtn.style.cursor  = "pointer";
+        confirmBtn.textContent   = "Confirm payment";
         if (hintEl) hintEl.style.display = "none";
-      } else {
+      } else if (elapsed < 20) {
         if (countEl) countEl.textContent = leftConfirm;
       }
       // Show already-paid-bar + report link after 50 seconds
@@ -651,11 +656,12 @@
 
   // ── Confirm payment button ────────────────────────────────────────────────
   document.getElementById("qris-btn-confirm")?.addEventListener("click", async () => {
-    if (!_refNo) return;
+    if (!_refNo || _isChecking) return;
 
     const confirmBtn = document.getElementById("qris-btn-confirm");
     const statusEl   = document.getElementById("qris-status-msg");
 
+    _isChecking              = true;
     confirmBtn.disabled      = true;
     confirmBtn.style.opacity = ".4";
     confirmBtn.style.cursor  = "not-allowed";
@@ -663,7 +669,7 @@
     if (statusEl) statusEl.textContent = "Verifying your payment...";
 
     const { data: { session } } = await _sb.auth.getSession();
-    if (!session) { showToast("Session expired.", "error"); return; }
+    if (!session) { showToast("Session expired.", "error"); _isChecking = false; return; }
 
     try {
       const res  = await fetch(`${EDGE_BASE}/check-subscription-qris`, {
@@ -674,11 +680,13 @@
       const data = await res.json();
 
       if (data.status === "success") {
+        _isChecking = false;
         onPaymentSuccess(data);
         return;
       }
 
       if (data.status === "expired") {
+        _isChecking = false;
         if (statusEl) statusEl.textContent = "";
         hide("qris-step-pay");
         show("qris-step-notfound");
@@ -690,10 +698,11 @@
       if (_failCount >= 3) {
         showReportLink();
       }
-      // Alert + jeda 4-7 detik sebelum re-enable
+      // Jeda 5-7 detik sebelum re-enable
       alert("Payment not detected yet. Please wait a moment and try again.");
-      const _jeda = 4000 + Math.random() * 3000;
+      const _jeda = 5000 + Math.random() * 2000;
       setTimeout(() => {
+        _isChecking              = false;
         if (statusEl) statusEl.textContent = "";
         confirmBtn.disabled      = false;
         confirmBtn.style.opacity = "1";
@@ -702,6 +711,7 @@
       }, _jeda);
 
     } catch (_) {
+      _isChecking = false;
       if (statusEl) statusEl.textContent = "Network error. Please try again.";
       confirmBtn.disabled      = false;
       confirmBtn.style.opacity = "1";

@@ -936,6 +936,12 @@ function updatePaymentFields() {
         payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg> Payment Successful';
       }
       if (hintEl) { hintEl.className = ""; hintEl.innerHTML = ""; }
+      // Bersihkan bar dan tombol yang tidak perlu setelah paid
+      var _apBarDone = document.getElementById("card-already-paid-" + pq.id);
+      if (_apBarDone) _apBarDone.remove();
+      var _showAgainDone = document.getElementById("card-show-qris-" + pq.id);
+      if (_showAgainDone) _showAgainDone.remove();
+      if (window._alreadyPaidBarTimer) { clearTimeout(window._alreadyPaidBarTimer); window._alreadyPaidBarTimer = null; }
     } else {
       var hasPendingRef = paymentState[pq.id] && paymentState[pq.id].refNo && !paymentState[pq.id].paid;
       if (payBtn) {
@@ -1100,27 +1106,7 @@ function openQrisModal(paymentFieldId) {
   var _failCount  = 0;
 
   document.getElementById("qris-close-" + paymentFieldId).addEventListener("click", function() {
-    // Tampilkan already-paid-bar di dalam modal selama 5 detik sebelum close
-    var barEl = document.getElementById("qris-already-paid-bar-" + paymentFieldId);
-    var closeBtn = document.getElementById("qris-close-" + paymentFieldId);
-    var state = paymentState[paymentFieldId];
-    var hasActiveTx = state && state.refNo && !state.paid;
-
-    if (hasActiveTx && barEl) {
-      barEl.style.display = "block";
-      if (closeBtn) { closeBtn.textContent = "Close (5s)"; closeBtn.disabled = true; }
-      var _cd = 5;
-      var _closeCountdown = setInterval(function() {
-        _cd--;
-        if (closeBtn && _cd > 0) closeBtn.textContent = "Close (" + _cd + "s)";
-        if (_cd <= 0) {
-          clearInterval(_closeCountdown);
-          closeQrisModal(paymentFieldId);
-        }
-      }, 1000);
-    } else {
-      closeQrisModal(paymentFieldId);
-    }
+    closeQrisModal(paymentFieldId);
   });
 
   function onFailedAttempt() {
@@ -1256,6 +1242,40 @@ function closeQrisModal(paymentFieldId) {
   // Always stop the UI-only timers (countdown display, confirm-button countdown).
   if (window._qrisCountdown) { clearInterval(window._qrisCountdown); window._qrisCountdown = null; }
   if (window._qrisConfirmCdInterval) { clearInterval(window._qrisConfirmCdInterval); window._qrisConfirmCdInterval = null; }
+
+  // Jika ada transaksi pending, tampilkan already-paid bar di card setelah 5 detik
+  if (hasPendingTransaction) {
+    if (window._alreadyPaidBarTimer) clearTimeout(window._alreadyPaidBarTimer);
+    window._alreadyPaidBarTimer = setTimeout(function() {
+      var cardBarId = "card-already-paid-" + paymentFieldId;
+      if (document.getElementById(cardBarId)) return; // sudah ada
+      var hintEl = document.getElementById("payment-hint-" + paymentFieldId);
+      if (!hintEl) return;
+      var state = paymentState[paymentFieldId];
+      if (!state || !state.refNo || state.paid) return; // sudah terbayar, skip
+      var barEl = document.createElement("div");
+      barEl.id = cardBarId;
+      barEl.style.cssText = "margin-top:8px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5";
+      barEl.innerHTML = 'Already paid? Click <strong>Confirm Payment</strong> in the QRIS modal, or <a id="card-report-inline-' + paymentFieldId + '" href="#" style="color:#92680a;font-weight:600;text-decoration:underline;cursor:pointer">report manually</a>.';
+      hintEl.parentNode.insertBefore(barEl, hintEl.nextSibling);
+      // report link
+      var reportInline = document.getElementById("card-report-inline-" + paymentFieldId);
+      if (reportInline) {
+        reportInline.addEventListener("click", function(e) {
+          e.preventDefault();
+          var sd = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
+          sd.then(function(s) {
+            var userEmail = (s && s.data && s.data.session && s.data.session.user) ? s.data.session.user.email : "";
+            var now = new Date();
+            var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+            var st = paymentState[paymentFieldId];
+            var amt = st && st.fmtTotal ? st.fmtTotal : "";
+            window.location.href = "mailto:wateform@gmail.com?subject=" + encodeURIComponent("Payment not detected") + "&body=" + encodeURIComponent("Email: " + userEmail + "\nTotal: " + amt + "\nTime: " + timeStr + "\nMessage: ");
+          });
+        });
+      }
+    }, 5000);
+  }
 }
 
 async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportDiv, onFailedAttempt) {

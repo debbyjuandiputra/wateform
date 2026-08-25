@@ -1180,7 +1180,7 @@ function openQrisModal(paymentFieldId) {
     });
   }
 
-  generateFormPaymentQris(paymentFieldId, total, _reportDiv, onFailedAttempt);
+  generateFormPaymentQris(paymentFieldId, total, fmtTotal, _reportDiv, onFailedAttempt);
 }
 
 // ── Reopen QRIS modal menggunakan qris_data yang tersimpan (tanpa generate ulang) ──
@@ -1258,7 +1258,7 @@ function closeQrisModal(paymentFieldId) {
   if (window._qrisConfirmCdInterval) { clearInterval(window._qrisConfirmCdInterval); window._qrisConfirmCdInterval = null; }
 }
 
-async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFailedAttempt) {
+async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportDiv, onFailedAttempt) {
   var bodyEl  = document.getElementById("qris-body-" + paymentFieldId);
   var countEl = document.getElementById("qris-countdown-" + paymentFieldId);
   var checkEl = document.getElementById("qris-checking-" + paymentFieldId);

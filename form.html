@@ -981,7 +981,7 @@ function updatePaymentFields() {
       if (hintEl) {
         var bgPollSince = paymentState[pq.id] && paymentState[pq.id].bgPollSince;
         var bgElapsed   = bgPollSince ? (Date.now() - bgPollSince) : 0;
-        var showCardReport = hasPendingRef && bgElapsed >= 50000;
+        var showCardReport = hasPendingRef && bgElapsed >= 5000;
         var cardReportId   = "card-report-" + pq.id;
         var existingReport = document.getElementById(cardReportId);
         var showQrisAgainId = "card-show-qris-" + pq.id;
@@ -1223,7 +1223,7 @@ function closeQrisModal(paymentFieldId) {
     if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
   } else {
     // Record when background polling started so the card can show the
-    // "Already paid but not detected?" link after 50 seconds.
+    // "Already paid but not detected?" link after 5 seconds.
     if (!state.bgPollSince) state.bgPollSince = Date.now();
     // Refresh the card UI to show "Verifying payment..." immediately.
     updatePaymentFields();

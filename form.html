@@ -956,10 +956,26 @@ function updatePaymentFields() {
         var showCardReport = hasPendingRef && bgElapsed >= 50000;
         var cardReportId   = "card-report-" + pq.id;
         var existingReport = document.getElementById(cardReportId);
+        var showQrisAgainId = "card-show-qris-" + pq.id;
+        var existingShowAgain = document.getElementById(showQrisAgainId);
 
         if (hasPendingRef) {
           hintEl.className = "payment-status-hint";
           hintEl.textContent = "Verifying payment... Submit button will activate automatically.";
+
+          // Tombol "Show QRIS again" — selalu tampilkan saat ada pending transaction
+          if (!existingShowAgain) {
+            var showAgainEl = document.createElement("div");
+            showAgainEl.id = showQrisAgainId;
+            showAgainEl.style.cssText = "text-align:center;margin-top:6px";
+            var showAgainBtn = document.createElement("button");
+            showAgainBtn.type = "button";
+            showAgainBtn.style.cssText = "font-size:12px;color:var(--teal-deep,#1a9a87);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0";
+            showAgainBtn.textContent = "Show QRIS again";
+            showAgainBtn.addEventListener("click", function() { reopenQrisModal(pq.id); });
+            showAgainEl.appendChild(showAgainBtn);
+            hintEl.parentNode.insertBefore(showAgainEl, hintEl.nextSibling);
+          }
           if (showCardReport && !existingReport) {
             var reportEl = document.createElement("div");
             reportEl.id = cardReportId;
@@ -992,6 +1008,8 @@ function updatePaymentFields() {
           }
         } else {
           if (existingReport) existingReport.remove();
+          var _showAgainClean = document.getElementById("card-show-qris-" + pq.id);
+          if (_showAgainClean) _showAgainClean.remove();
           hintEl.className = "payment-status-hint";
           hintEl.textContent = total > 0
             ? "Submit button will activate after payment is confirmed"
@@ -1068,6 +1086,9 @@ function openQrisModal(paymentFieldId) {
     '<div id="qris-report-' + paymentFieldId + '" style="display:none;text-align:center;margin-top:8px">' +
       '<a id="qris-report-link-' + paymentFieldId + '" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>' +
     '</div>' +
+    '<div id="qris-already-paid-bar-' + paymentFieldId + '" style="display:none;margin-top:10px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5">' +
+      'Already paid? Use <strong>Confirm Payment</strong> above, or <a id="qris-report-inline-' + paymentFieldId + '" href="#" style="color:#92680a;font-weight:600;text-decoration:underline;cursor:pointer">report manually</a>.' +
+    '</div>' +
     '<button class="qris-close-btn" id="qris-close-' + paymentFieldId + '">Close</button>' +
   '</div>';
   document.body.appendChild(modal);
@@ -1079,7 +1100,27 @@ function openQrisModal(paymentFieldId) {
   var _failCount  = 0;
 
   document.getElementById("qris-close-" + paymentFieldId).addEventListener("click", function() {
-    closeQrisModal(paymentFieldId);
+    // Tampilkan already-paid-bar di dalam modal selama 5 detik sebelum close
+    var barEl = document.getElementById("qris-already-paid-bar-" + paymentFieldId);
+    var closeBtn = document.getElementById("qris-close-" + paymentFieldId);
+    var state = paymentState[paymentFieldId];
+    var hasActiveTx = state && state.refNo && !state.paid;
+
+    if (hasActiveTx && barEl) {
+      barEl.style.display = "block";
+      if (closeBtn) { closeBtn.textContent = "Close (5s)"; closeBtn.disabled = true; }
+      var _cd = 5;
+      var _closeCountdown = setInterval(function() {
+        _cd--;
+        if (closeBtn && _cd > 0) closeBtn.textContent = "Close (" + _cd + "s)";
+        if (_cd <= 0) {
+          clearInterval(_closeCountdown);
+          closeQrisModal(paymentFieldId);
+        }
+      }, 1000);
+    } else {
+      closeQrisModal(paymentFieldId);
+    }
   });
 
   function onFailedAttempt() {
@@ -1117,7 +1158,74 @@ function openQrisModal(paymentFieldId) {
     });
   }
 
+  // Listener untuk inline report link di already-paid-bar
+  var _reportInlineLink = document.getElementById("qris-report-inline-" + paymentFieldId);
+  if (_reportInlineLink) {
+    _reportInlineLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
+      sessionData.then(function(sd) {
+        var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
+        var now = new Date();
+        var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+        var subject = encodeURIComponent("Payment not detected");
+        var body = encodeURIComponent(
+          "Email: " + userEmail + "\n" +
+          "Total: " + fmtTotal + "\n" +
+          "Time: " + timeStr + "\n" +
+          "Message: "
+        );
+        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
+      });
+    });
+  }
+
   generateFormPaymentQris(paymentFieldId, total, _reportDiv, onFailedAttempt);
+}
+
+// ── Reopen QRIS modal menggunakan qris_data yang tersimpan (tanpa generate ulang) ──
+function reopenQrisModal(paymentFieldId) {
+  var state = paymentState[paymentFieldId];
+  if (!state || !state.qrisData || !state.refNo || state.paid) return;
+
+  // Jika modal sudah terbuka, jangan buka lagi
+  if (document.getElementById("qris-modal-" + paymentFieldId)) return;
+
+  var calcQ = (typeof questions !== "undefined") ? questions.find(function(q){ return q.type === "calculation"; }) : null;
+  var fmtAmt = state.fmtTotal || (calcQ ? fmtCalc(state.amount, calcQ) : ("Rp " + state.amount.toLocaleString("id-ID")));
+
+  var modal = document.createElement("div");
+  modal.className = "qris-modal-backdrop";
+  modal.id = "qris-modal-" + paymentFieldId;
+  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(state.qrisData);
+  modal.innerHTML = '<div class="qris-modal">' +
+    '<div class="qris-modal-title">Scan QRIS to Pay</div>' +
+    '<div class="qris-modal-amount">' + fmtAmt + '</div>' +
+    (state.isStatic ? '<div style="font-size:12px;color:#ef4444;font-weight:600;text-align:center;margin-top:4px"><strong>Transfer the exact amount shown above!<br>No less, no more.</strong></div>' : '') +
+    '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>' +
+    '<div class="qris-checking" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px">Verifying payment in background...</div>' +
+    '<button class="qris-confirm-btn" id="qris-reopen-confirm-' + paymentFieldId + '" style="width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:var(--teal,#2bbda4);color:#fff">Confirm Payment</button>' +
+    '<div id="qris-reopen-already-' + paymentFieldId + '" style="display:none;margin-top:10px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5">' +
+      'Already paid? Use <strong>Confirm Payment</strong> above.' +
+    '</div>' +
+    '<button class="qris-close-btn" id="qris-reopen-close-' + paymentFieldId + '">Close</button>' +
+  '</div>';
+  document.body.appendChild(modal);
+
+  // Close button — langsung tutup karena ini reopen, polling tetap berjalan di background
+  document.getElementById("qris-reopen-close-" + paymentFieldId).addEventListener("click", function() {
+    modal.remove();
+    updatePaymentFields();
+  });
+
+  // Confirm button — pakai pollNow yang sudah ada
+  document.getElementById("qris-reopen-confirm-" + paymentFieldId).addEventListener("click", function() {
+    var btn = document.getElementById("qris-reopen-confirm-" + paymentFieldId);
+    if (btn) { btn.disabled = true; btn.textContent = "Checking..."; btn.style.background = "var(--border)"; btn.style.color = "var(--text-muted)"; }
+    if (window._qrisPollNow) {
+      window._qrisPollNow(function() {}, btn);
+    }
+  });
 }
 
 function closeQrisModal(paymentFieldId) {
@@ -1203,6 +1311,9 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
       }
       if (_cdElapsed >= _reportSec && _reportDiv) {
         _reportDiv.style.display = "block";
+        // Tampilkan already-paid-bar di dalam modal saat 50 detik
+        var _apBar = document.getElementById("qris-already-paid-bar-" + paymentFieldId);
+        if (_apBar) _apBar.style.display = "block";
       }
       if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
     }, 1000);
@@ -1231,6 +1342,8 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
     paymentState[paymentFieldId].amount   = amount;
     paymentState[paymentFieldId].paid     = false;
     paymentState[paymentFieldId].isStatic = data.is_static || false;
+    paymentState[paymentFieldId].qrisData = data.qris_data;
+    paymentState[paymentFieldId].fmtTotal = fmtTotal;
     delete paymentState[paymentFieldId].bgPollSince; // reset if re-opening
 
     if (window._qrisTimer) clearInterval(window._qrisTimer);

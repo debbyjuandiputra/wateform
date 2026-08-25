@@ -835,7 +835,7 @@ function updateCalcFields() {
 
 
 // ── Payment field state ──────────────────────────────────────────────────────────────────────────────────
-// Maps payment field id => { paid: bool, refNo: str, amount: num }
+// Maps payment field id => { paid: bool, refNo: str, amount: num, isStatic: bool, bgPollSince: number }
 var paymentState = {};
 // Total from linked calculation per payment field id
 var paymentTotals = {};
@@ -937,15 +937,67 @@ function updatePaymentFields() {
       }
       if (hintEl) { hintEl.className = ""; hintEl.innerHTML = ""; }
     } else {
+      var hasPendingRef = paymentState[pq.id] && paymentState[pq.id].refNo && !paymentState[pq.id].paid;
       if (payBtn) {
         payBtn.style.display = "";
-        payBtn.disabled = (total <= 0);
-        payBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
-        payBtn.style.background = "";
+        payBtn.disabled = hasPendingRef || (total <= 0);
+        payBtn.innerHTML = hasPendingRef
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Waiting for payment...'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Pay with QRIS';
+        payBtn.style.background = hasPendingRef ? "var(--border)" : "";
+        payBtn.style.color = hasPendingRef ? "var(--text-muted)" : "";
+        payBtn.style.cursor = hasPendingRef ? "not-allowed" : "";
         payBtn.className = "btn-pay-qris";
         payBtn.classList.remove("paid");
       }
-      if (hintEl) { hintEl.className = "payment-status-hint"; hintEl.textContent = total > 0 ? "Submit button will activate after payment is confirmed" : (src === "fixed" ? "No price set" : "Calculating total..."); }
+      if (hintEl) {
+        var bgPollSince = paymentState[pq.id] && paymentState[pq.id].bgPollSince;
+        var bgElapsed   = bgPollSince ? (Date.now() - bgPollSince) : 0;
+        var showCardReport = hasPendingRef && bgElapsed >= 50000;
+        var cardReportId   = "card-report-" + pq.id;
+        var existingReport = document.getElementById(cardReportId);
+
+        if (hasPendingRef) {
+          hintEl.className = "payment-status-hint";
+          hintEl.textContent = "Verifying payment... Submit button will activate automatically.";
+          if (showCardReport && !existingReport) {
+            var reportEl = document.createElement("div");
+            reportEl.id = cardReportId;
+            reportEl.style.cssText = "text-align:center;margin-top:8px";
+            var reportA = document.createElement("a");
+            reportA.href = "#";
+            reportA.style.cssText = "font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer";
+            reportA.textContent = "Already paid but not detected?";
+            reportA.addEventListener("click", function(e) {
+              e.preventDefault();
+              var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
+              sessionData.then(function(sd) {
+                var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
+                var now = new Date();
+                var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+                var subject = encodeURIComponent("Payment not detected");
+                var body = encodeURIComponent(
+                  "Email: " + userEmail + "\n" +
+                  "Ref No: " + (paymentState[pq.id] ? paymentState[pq.id].refNo : "") + "\n" +
+                  "Time: " + timeStr + "\n" +
+                  "Message: "
+                );
+                window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
+              });
+            });
+            reportEl.appendChild(reportA);
+            hintEl.parentNode.insertBefore(reportEl, hintEl.nextSibling);
+          } else if (!showCardReport && existingReport) {
+            existingReport.remove();
+          }
+        } else {
+          if (existingReport) existingReport.remove();
+          hintEl.className = "payment-status-hint";
+          hintEl.textContent = total > 0
+            ? "Submit button will activate after payment is confirmed"
+            : (src === "fixed" ? "No price set" : "Calculating total...");
+        }
+      }
     }
   });
   updateSubmitBtnState();
@@ -1071,7 +1123,29 @@ function openQrisModal(paymentFieldId) {
 function closeQrisModal(paymentFieldId) {
   var modal = document.getElementById("qris-modal-" + paymentFieldId);
   if (modal) modal.remove();
-  if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
+
+  // Only kill the poll timer if there is no pending transaction to track.
+  // If the user closed the modal after scanning but before the server confirmed,
+  // keep polling in the background so the submit button activates automatically.
+  var state = paymentState[paymentFieldId];
+  var hasPendingTransaction = state && state.refNo && !state.paid;
+  if (!hasPendingTransaction) {
+    if (window._qrisTimer) { clearInterval(window._qrisTimer); window._qrisTimer = null; }
+  } else {
+    // Record when background polling started so the card can show the
+    // "Already paid but not detected?" link after 50 seconds.
+    if (!state.bgPollSince) state.bgPollSince = Date.now();
+    // Refresh the card UI to show "Verifying payment..." immediately.
+    updatePaymentFields();
+    // Schedule periodic card refreshes so the "already paid" link appears on time.
+    if (!window._qrisBgUiInterval) {
+      window._qrisBgUiInterval = setInterval(function() {
+        updatePaymentFields();
+      }, 5000);
+    }
+  }
+
+  // Always stop the UI-only timers (countdown display, confirm-button countdown).
   if (window._qrisCountdown) { clearInterval(window._qrisCountdown); window._qrisCountdown = null; }
   if (window._qrisConfirmCdInterval) { clearInterval(window._qrisConfirmCdInterval); window._qrisConfirmCdInterval = null; }
 }
@@ -1098,7 +1172,7 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
     });
     var data = await res.json();
     if (!data.ref_no || !data.qris_data) {
-      if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">\u274C Failed to create QRIS: ' + (data.error || "Unknown error") + '</div>';
+      if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">Failed to create QRIS: ' + (data.error || "Unknown error") + '</div>';
       return;
     }
     if (bodyEl) {
@@ -1143,11 +1217,22 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
       if (remaining <= 0) {
         clearInterval(window._qrisCountdown);
         if (countEl) countEl.textContent = "QRIS has expired.";
-        if (checkEl) checkEl.textContent = "Waktu habis. Close dan coba lagi.";
+        if (checkEl) checkEl.textContent = "Time is up. Close and try again.";
         if (window._qrisTimer) clearInterval(window._qrisTimer);
       }
     }, 1000);
     var refNo = data.ref_no;
+
+    // Fix 1: Persist the transaction reference immediately so that if the user
+    // closes the modal before the server confirms, the background poll can still
+    // resolve the payment and the card UI knows a transaction is in flight.
+    paymentState[paymentFieldId] = paymentState[paymentFieldId] || {};
+    paymentState[paymentFieldId].refNo    = refNo;
+    paymentState[paymentFieldId].amount   = amount;
+    paymentState[paymentFieldId].paid     = false;
+    paymentState[paymentFieldId].isStatic = data.is_static || false;
+    delete paymentState[paymentFieldId].bgPollSince; // reset if re-opening
+
     if (window._qrisTimer) clearInterval(window._qrisTimer);
 
     async function doPoll() {
@@ -1163,14 +1248,22 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
         });
         var checkData = await checkRes.json();
         if (checkData.status === "success") {
-          clearInterval(window._qrisTimer);
-          clearInterval(window._qrisCountdown);
+          clearInterval(window._qrisTimer);   window._qrisTimer = null;
+          clearInterval(window._qrisCountdown); window._qrisCountdown = null;
+          if (window._qrisBgUiInterval) { clearInterval(window._qrisBgUiInterval); window._qrisBgUiInterval = null; }
           paymentState[paymentFieldId] = { paid: true, refNo: refNo, amount: amount };
           closeQrisModal(paymentFieldId);
           updatePaymentFields();
         } else if (checkData.status === "expired") {
-          clearInterval(window._qrisTimer);
-          if (checkEl) checkEl.textContent = "\u274C QRIS kadaluwarsa. Close dan coba lagi.";
+          clearInterval(window._qrisTimer);   window._qrisTimer = null;
+          if (window._qrisBgUiInterval) { clearInterval(window._qrisBgUiInterval); window._qrisBgUiInterval = null; }
+          // Reset pending state so the user can start a new QRIS
+          if (paymentState[paymentFieldId]) {
+            paymentState[paymentFieldId].refNo = null;
+            paymentState[paymentFieldId].bgPollSince = null;
+          }
+          updatePaymentFields();
+          if (checkEl) checkEl.textContent = "QRIS has expired. Close and try again.";
         } else {
           // Payment not found — only show report link / re-enable button if countdown already elapsed
           var _elapsed = window._qrisStartTime ? (Date.now() - window._qrisStartTime) : Infinity;
@@ -1196,7 +1289,7 @@ async function generateFormPaymentQris(paymentFieldId, amount, reportDiv, onFail
     };
     window._qrisTimer = setInterval(doPoll, 4000);
   } catch (e) {
-    if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">\u274C Error: ' + e.message + '</div>';
+    if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--red,#ef4444);font-size:13px;padding:16px 0">Error: ' + e.message + '</div>';
   }
 }
 

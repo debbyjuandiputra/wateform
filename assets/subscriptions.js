@@ -699,7 +699,7 @@
         showReportLink();
       }
       // Jeda 5-7 detik sebelum re-enable
-      alert("Payment not detected yet. Please wait a moment and try again.");
+      // alert("Payment not detected yet. Please wait a moment and try again.");
       const _jeda = 5000 + Math.random() * 2000;
       setTimeout(() => {
         _isChecking              = false;

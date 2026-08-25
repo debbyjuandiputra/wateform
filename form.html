@@ -1187,7 +1187,7 @@ function reopenQrisModal(paymentFieldId) {
     '<div class="qris-modal-amount">' + fmtAmt + '</div>' +
     (state.isStatic ? '<div style="font-size:12px;color:#ef4444;font-weight:600;text-align:center;margin-top:4px"><strong>Transfer the exact amount shown above!<br>No less, no more.</strong></div>' : '') +
     '<div class="qris-img-wrap"><img src="' + qrUrl + '" alt="QRIS" width="220" height="220"></div>' +
-    '<div class="qris-checking" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px">Verifying payment in background...</div>' +
+    '<div id="qris-reopen-checking-' + paymentFieldId + '" class="qris-checking" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px">Verifying payment in background...</div>' +
     '<button class="qris-confirm-btn" id="qris-reopen-confirm-' + paymentFieldId + '" style="width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;background:var(--teal,#2bbda4);color:#fff">Confirm Payment</button>' +
 
     '<button class="qris-close-btn" id="qris-reopen-close-' + paymentFieldId + '">Close</button>' +
@@ -1203,9 +1203,13 @@ function reopenQrisModal(paymentFieldId) {
   // Confirm button — pakai pollNow yang sudah ada
   document.getElementById("qris-reopen-confirm-" + paymentFieldId).addEventListener("click", function() {
     var btn = document.getElementById("qris-reopen-confirm-" + paymentFieldId);
-    if (btn) { btn.disabled = true; btn.textContent = "Checking..."; btn.style.background = "var(--border)"; btn.style.color = "var(--text-muted)"; }
+    var checkingEl = document.getElementById("qris-reopen-checking-" + paymentFieldId);
+    if (btn) { btn.disabled = true; btn.textContent = "Checking..."; btn.style.background = "var(--border)"; btn.style.color = "var(--text-muted)"; btn.style.cursor = "not-allowed"; }
+    if (checkingEl) checkingEl.textContent = "Verifying your payment...";
     if (window._qrisPollNow) {
-      window._qrisPollNow(function() {}, btn);
+      window._qrisPollNow(function() {
+        // Re-enable reopen btn setelah jeda (ditangani _qrisPollNow via btn param)
+      }, btn);
     }
   });
 }
@@ -1404,11 +1408,15 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
         // a 5-7 second delay so the user sees "Checking..." for a moment.
         var state = paymentState[paymentFieldId];
         if (state && state.refNo && !state.paid) {
-          var _cb2 = document.getElementById("qris-confirm-" + paymentFieldId);
+          // Gunakan btn yang di-pass (reopen modal), fallback ke ID default (modal utama)
+          var _cb2 = btn || document.getElementById("qris-confirm-" + paymentFieldId);
           var _checkEl2 = document.getElementById("qris-checking-" + paymentFieldId);
+          var _reopenCheckEl = document.getElementById("qris-reopen-checking-" + paymentFieldId);
+          var _activeCheckEl = _reopenCheckEl || _checkEl2;
           var _jeda2 = 5000 + Math.random() * 2000;
           // Tampilkan status sementara di dalam modal
-          if (_checkEl2) _checkEl2.textContent = "Payment not detected yet. Please wait\u2026";
+          if (_activeCheckEl) { _activeCheckEl.style.display = ""; _activeCheckEl.textContent = "Payment not detected yet. Please wait\u2026"; }
+          if (_checkEl2 && _checkEl2 !== _activeCheckEl) { _checkEl2.style.display = ""; _checkEl2.textContent = "Payment not detected yet. Please wait\u2026"; }
           setTimeout(function() {
             if (_cb2 && !_manualCheckInFlight && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
               _cb2.disabled = false;
@@ -1418,8 +1426,12 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
               _cb2.textContent = "Confirm Payment";
             }
             // Reset status text
-            if (_checkEl2 && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
+            if (_activeCheckEl && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
+              _activeCheckEl.textContent = "Verifying payment in background...";
+            }
+            if (_checkEl2 && _checkEl2 !== _activeCheckEl && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
               _checkEl2.textContent = "";
+              _checkEl2.style.display = "none";
             }
             // Toast muncul setelah checking selesai
             if (typeof showToast === "function") {

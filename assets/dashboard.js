@@ -39,6 +39,23 @@ const PLAN_LIMITS = {
 };
 function planLimits() { return PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free; }
 
+// Which plan tier each field type requires (must stay in sync with builder.js).
+const FIELD_TIERS = {
+  file_upload: "plus", video: "plus", color: "plus", password: "plus",
+  toggle: "plus", multiselect: "plus", likert: "plus", multi_input: "plus",
+  datetime: "plus", ranking: "plus", slider: "plus", page_break: "plus",
+  matrix: "pro", data_table: "pro", nps_score: "pro", map: "pro",
+  button_link: "pro", calculation: "pro", payment: "pro",
+};
+// Which field tiers each plan unlocks (must stay in sync with builder.js).
+const PLAN_FEATURES = {
+  free:     { fieldPlus: false, fieldPro: false },
+  plus:     { fieldPlus: true,  fieldPro: false },
+  pro:      { fieldPlus: true,  fieldPro: true  },
+  ultimate: { fieldPlus: true,  fieldPro: true  },
+  admin:    { fieldPlus: true,  fieldPro: true  },
+};
+
 
 // ── Theme ─────────────────────────────────────────────────────
 (function initTheme() {
@@ -1130,6 +1147,31 @@ async function duplicateForm(formId, wsId) {
     toast(
       `The ${ownerPlan} plan can only have ${limLabel} form(s). ` +
       (wsOwnerId === currentUser.id ? "Upgrade to add more." : "Workspace owner needs to upgrade."),
+      "error"
+    );
+    return;
+  }
+
+  // Block duplicate if the form uses field types above the owner's plan.
+  const ownerFeatures = PLAN_FEATURES[ownerPlan] || PLAN_FEATURES.free;
+  const formQuestions = Array.isArray(orig.questions) ? orig.questions : [];
+  const lockedFields = formQuestions.filter(q => {
+    const tier = FIELD_TIERS[q.type];
+    if (!tier) return false;
+    if (tier === "pro"  && !ownerFeatures.fieldPro)  return true;
+    if (tier === "plus" && !ownerFeatures.fieldPlus) return true;
+    return false;
+  });
+  if (lockedFields.length > 0) {
+    const names = [...new Set(lockedFields.map(q => q.type.replace(/_/g, " ")))];
+    const isOwner = wsOwnerId === currentUser.id;
+    const planLabel = ownerPlan.charAt(0).toUpperCase() + ownerPlan.slice(1);
+    toast(
+      `Cannot duplicate: this form contains ${names.join(", ")} field${
+        names.length > 1 ? "s" : ""} which require a higher plan than ${planLabel}. ` +
+      (isOwner
+        ? "Upgrade your plan to duplicate this form."
+        : "The workspace owner needs to upgrade."),
       "error"
     );
     return;

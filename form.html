@@ -1142,28 +1142,6 @@ function openQrisModal(paymentFieldId) {
     });
   }
 
-  // Listener untuk inline report link di already-paid-bar
-  var _reportInlineLink = document.getElementById("qris-report-inline-" + paymentFieldId);
-  if (_reportInlineLink) {
-    _reportInlineLink.addEventListener("click", function(e) {
-      e.preventDefault();
-      var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
-      sessionData.then(function(sd) {
-        var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
-        var now = new Date();
-        var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-        var subject = encodeURIComponent("Payment not detected");
-        var body = encodeURIComponent(
-          "Email: " + userEmail + "\n" +
-          "Total: " + fmtTotal + "\n" +
-          "Time: " + timeStr + "\n" +
-          "Message: "
-        );
-        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
-      });
-    });
-  }
-
   generateFormPaymentQris(paymentFieldId, total, fmtTotal, _reportDiv, onFailedAttempt);
 }
 
@@ -1238,24 +1216,6 @@ function closeQrisModal(paymentFieldId) {
   // Always stop the UI-only timers (countdown display, confirm-button countdown).
   if (window._qrisCountdown) { clearInterval(window._qrisCountdown); window._qrisCountdown = null; }
   if (window._qrisConfirmCdInterval) { clearInterval(window._qrisConfirmCdInterval); window._qrisConfirmCdInterval = null; }
-
-  // Jika ada transaksi pending, tampilkan already-paid bar di card setelah 5 detik
-  if (hasPendingTransaction) {
-    if (window._alreadyPaidBarTimer) clearTimeout(window._alreadyPaidBarTimer);
-    window._alreadyPaidBarTimer = setTimeout(function() {
-      var cardBarId = "card-already-paid-" + paymentFieldId;
-      if (document.getElementById(cardBarId)) return; // sudah ada
-      var hintEl = document.getElementById("payment-hint-" + paymentFieldId);
-      if (!hintEl) return;
-      var state = paymentState[paymentFieldId];
-      if (!state || !state.refNo || state.paid) return; // sudah terbayar, skip
-      var barEl = document.createElement("div");
-      barEl.id = cardBarId;
-      barEl.style.cssText = "margin-top:8px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:9px 12px;font-size:12.5px;color:#92680a;text-align:center;line-height:1.5";
-      barEl.innerHTML = 'Already paid? Click <strong>Confirm Payment</strong> in the QRIS modal.';
-      hintEl.parentNode.insertBefore(barEl, hintEl.nextSibling);
-    }, 5000);
-  }
 }
 
 async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportDiv, onFailedAttempt) {
@@ -1311,9 +1271,6 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
       }
       if (_cdElapsed >= _reportSec && _reportDiv) {
         _reportDiv.style.display = "block";
-        // Tampilkan already-paid-bar di dalam modal saat 50 detik
-        var _apBar = document.getElementById("qris-already-paid-bar-" + paymentFieldId);
-        if (_apBar) _apBar.style.display = "block";
       }
       if (_cdElapsed >= Math.max(_cdSec, _reportSec)) clearInterval(_cdInterval);
     }, 1000);

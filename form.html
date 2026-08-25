@@ -604,6 +604,28 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ── Toast notification ────────────────────────────────────────────────────
+(function() {
+  var tc = document.createElement("div");
+  tc.id = "toast-container";
+  tc.className = "toast-container";
+  document.body.appendChild(tc);
+})();
+function showToast(msg, type) {
+  type = type || "success";
+  var container = document.getElementById("toast-container");
+  if (!container) return;
+  var el = document.createElement("div");
+  el.className = "toast " + type;
+  el.textContent = msg;
+  container.appendChild(el);
+  requestAnimationFrame(function() { el.classList.add("show"); });
+  setTimeout(function() {
+    el.classList.remove("show");
+    el.addEventListener("transitionend", function() { el.remove(); }, { once: true });
+  }, 4000);
+}
+
 // Phone country codes (matches builder.js)
 const COUNTRY_CODES = [
   {code:"+62",label:"🇮🇩 Indonesia (+62)"},{code:"+1",label:"🇺🇸 USA (+1)"},{code:"+44",label:"🇬🇧 UK (+44)"},
@@ -1086,10 +1108,10 @@ function openQrisModal(paymentFieldId) {
       '<div style="color:var(--text-muted);font-size:13px;padding:20px 0">Loading QRIS...</div>' +
     '</div>' +
     '<div class="qris-countdown" id="qris-countdown-' + paymentFieldId + '"></div>' +
-    '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '">Waiting for payment confirmation...</div>' +
+    '<div class="qris-checking" id="qris-checking-' + paymentFieldId + '" style="display:none"></div>' +
     '<button class="qris-confirm-btn" id="qris-confirm-' + paymentFieldId + '" disabled style="width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:not-allowed;background:var(--border);color:var(--text-muted)">Confirm Payment</button>' +
     '<div style="font-size:11.5px;color:var(--text-muted);text-align:center;margin-top:4px">Available in <span id="qris-confirm-cd-' + paymentFieldId + '">20</span>s</div>' +
-    '<div id="qris-report-' + paymentFieldId + '" style="display:none;text-align:center;margin-top:8px">' +
+    '<div id="qris-report-' + paymentFieldId + '" style="display:none;text-align:center;margin-top:4px">' +
       '<a id="qris-report-link-' + paymentFieldId + '" href="#" style="font-size:12px;color:#ef4444;text-decoration:underline;cursor:pointer">Already paid but not detected?</a>' +
     '</div>' +
 
@@ -1379,11 +1401,14 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
         onFailedAttempt = _origOnFail;
         _manualCheckInFlight = false;
         // If payment is still pending, re-enable the confirm button after
-        // a 4-7 second delay so the user sees "Checking..." for a moment.
+        // a 5-7 second delay so the user sees "Checking..." for a moment.
         var state = paymentState[paymentFieldId];
         if (state && state.refNo && !state.paid) {
           var _cb2 = document.getElementById("qris-confirm-" + paymentFieldId);
-          var _jeda2 = 4000 + Math.random() * 3000;
+          var _checkEl2 = document.getElementById("qris-checking-" + paymentFieldId);
+          var _jeda2 = 5000 + Math.random() * 2000;
+          // Tampilkan status sementara di dalam modal
+          if (_checkEl2) _checkEl2.textContent = "Payment not detected yet. Please wait\u2026";
           setTimeout(function() {
             if (_cb2 && !_manualCheckInFlight && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
               _cb2.disabled = false;
@@ -1391,6 +1416,14 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
               _cb2.style.color = "#fff";
               _cb2.style.cursor = "pointer";
               _cb2.textContent = "Confirm Payment";
+            }
+            // Reset status text
+            if (_checkEl2 && !(paymentState[paymentFieldId] && paymentState[paymentFieldId].paid)) {
+              _checkEl2.textContent = "";
+            }
+            // Toast muncul setelah checking selesai
+            if (typeof showToast === "function") {
+              showToast("Payment not detected yet. Please wait a moment and try again.", "error");
             }
           }, _jeda2);
           // Resume auto-poll interval.

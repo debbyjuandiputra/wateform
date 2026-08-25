@@ -270,7 +270,7 @@
     banner.style.cssText = "display:none;margin-bottom:16px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius-lg);padding:12px 16px;font-size:13px;color:#92680a;display:none;align-items:center;gap:10px;line-height:1.5";
     banner.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;color:#d97706"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span id="sub-pending-text">Payment pending — checking in background…</span>
+      <span id="sub-pending-text">Payment pending...</span>
       <button id="sub-pending-show-qris" style="margin-left:auto;flex-shrink:0;background:none;border:1px solid rgba(180,120,0,.4);border-radius:6px;padding:4px 10px;font-size:12px;color:#92680a;cursor:pointer;font-weight:600">Show QRIS</button>
     `;
     const wrap = document.querySelector(".sub-wrap");
@@ -523,7 +523,7 @@
 
       // Update teks banner sementara polling
       const textEl = document.getElementById("sub-pending-text");
-      if (textEl) textEl.textContent = `Payment pending — still checking… (${_bgPollCount}/${BG_POLL_MAX})`;
+      if (textEl) textEl.textContent = "Payment pending...";
 
     } catch (_) { /* network error, coba lagi di interval berikutnya */ }
   }
@@ -546,7 +546,7 @@
       startBgPoll();
 
       // Tampilkan banner pending di halaman
-      showPendingBanner("Payment pending — checking in background…");
+      showPendingBanner("Payment pending...");
 
       // Tampilkan "Show QRIS" di banner
       const showQrisBtn = document.getElementById("sub-pending-show-qris");

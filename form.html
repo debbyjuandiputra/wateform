@@ -3246,6 +3246,11 @@ function renderForm(form) {
       // ── Insert response dulu (draft), lalu upload file, lalu update answers dengan link final ──
       const responseId = (crypto.randomUUID && crypto.randomUUID()) || genShortCode() + genShortCode();
 
+      // Embed qty info into answers for view-response display (stored as __qty__ key)
+      if (Object.keys(quantityMap).length > 0) {
+        answers.__qty__ = quantityMap;
+      }
+
       const { error: respErr } = await sb.from("responses").insert({
         id:      responseId,
         form_id: form.id,

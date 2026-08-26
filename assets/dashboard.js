@@ -1285,7 +1285,7 @@ async function openResponses(formId) {
           ${responses.map((r, i) => `<tr>
             <td><input type="checkbox" class="resp-select-row" data-idx="${i}" /></td>
             <td style="color:var(--text-muted)">${i+1}</td>
-            ${questions.map(q => `<td>${renderAnswerCell(q, r.answers?.[q.id])}</td>`).join("")}
+            ${questions.map(q => `<td>${renderAnswerCell(q, r.answers?.[q.id], r.answers)}</td>`).join("")}
             <td>${r.sent_to === "wa" ? '<span class="pill pill-wa">WA</span>' : r.sent_to === "tg" ? '<span class="pill pill-tg">TG</span>' : r.sent_to === "both" ? '<span class="pill pill-wa">WA</span><span class="pill pill-tg">TG</span>' : "-"}</td>
             <td style="color:var(--text-muted);white-space:nowrap">${new Date(r.submitted_at).toLocaleString()}</td>
           </tr>`).join("")}
@@ -1373,7 +1373,21 @@ function buildCsv(rows, questions) {
     const sentTo = r.sent_to === "wa" ? "WA" : r.sent_to === "tg" ? "TG" : r.sent_to === "both" ? "WA, TG" : "-";
     const cols = [
       i + 1,
-      ...questions.map(q => r.answers?.[q.id] ?? ""),
+      ...questions.map(q => {
+        const raw = r.answers?.[q.id] ?? "";
+        const s = String(raw);
+        if (r.answers?.__qty__ && ["choice","checkbox","multiselect","dropdown"].includes(q.type) && s) {
+          const qtyMap = r.answers.__qty__[q.id];
+          if (qtyMap) {
+            return s.split(",").map(lbl => {
+              lbl = lbl.trim();
+              const qty = qtyMap[lbl];
+              return (qty && qty > 1) ? lbl + " (" + qty + ")" : lbl;
+            }).join(", ");
+          }
+        }
+        return s;
+      }),
       sentTo,
       new Date(r.submitted_at).toLocaleString(),
     ];
@@ -1427,7 +1441,7 @@ function esc(str) {
 }
 
 // Render a response cell: file_upload answers become anchor links with the original filename
-function renderAnswerCell(q, val) {
+function renderAnswerCell(q, val, allAnswers) {
   const s = String(val ?? "");
   if (q.type === "file_upload" && s.includes("||https://wateform.my.id/storage/")) {
     const sep      = s.indexOf("||");
@@ -1449,6 +1463,18 @@ function renderAnswerCell(q, val) {
     return '<a href="' + safeUrl + '" target="_blank" rel="noopener" '
          + 'style="color:var(--teal);text-decoration:underline">'
          + 'Download file</a>';
+  }
+  // For option-based fields with qty: inject "(N)" from __qty__ stored in answers
+  if (allAnswers && allAnswers.__qty__ && ["choice","checkbox","multiselect","dropdown"].includes(q.type) && s) {
+    const qtyMap = allAnswers.__qty__[q.id];
+    if (qtyMap) {
+      const labels = s.split(",").map(l => l.trim());
+      const formatted = labels.map(lbl => {
+        const qty = qtyMap[lbl];
+        return (qty && qty > 1) ? esc(lbl) + ' <span style="color:var(--text-muted);font-size:12px">(' + qty + ')</span>' : esc(lbl);
+      }).join(", ");
+      return formatted;
+    }
   }
   return esc(s);
 }

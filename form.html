@@ -1055,8 +1055,9 @@ function updatePaymentFields() {
               var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
               var subject = encodeURIComponent("Payment not detected");
               var body = encodeURIComponent(
-                "Username saya: [ISI USERNAME ANDA DI SINI]" + "\n" +
-                "Ref No: " + (paymentState[pq.id] ? paymentState[pq.id].refNo : "") + "\n" +
+                "Form ID: " + (typeof form !== "undefined" && form ? form.id : window.location.pathname) + "\n" +
+                "Ref No: " + (paymentState[pq.id] ? paymentState[pq.id].refNo || "" : "") + "\n" +
+                "Total: " + (paymentState[pq.id] ? paymentState[pq.id].fmtTotal || "" : "") + "\n" +
                 "Time: " + timeStr + "\n" +
                 "Message: \n" +
                 (info.answersText ? "\n--- Form Answers ---\n" + info.answersText : "")
@@ -1186,9 +1187,9 @@ function openQrisModal(paymentFieldId) {
       var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
       var subject = encodeURIComponent("Payment not detected");
       var body = encodeURIComponent(
-        "Username saya: [ISI USERNAME ANDA DI SINI]" + "\n" +
+        "Form ID: " + (typeof form !== "undefined" && form ? form.id : window.location.pathname) + "\n" +
+        "Ref No: " + (paymentState[paymentFieldId] ? paymentState[paymentFieldId].refNo || "" : "") + "\n" +
         "Total: " + fmtTotal + "\n" +
-        "Ref No: " + (paymentState[paymentFieldId] ? paymentState[paymentFieldId].refNo : "") + "\n" +
         "Time: " + timeStr + "\n" +
         "Message: \n" +
         (info.answersText ? "\n--- Form Answers ---\n" + info.answersText : "")

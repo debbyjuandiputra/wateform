@@ -1458,7 +1458,7 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
 // deep links (that only works with the Bot API's parse_mode) — so for
 // Telegram we send plain text without markdown syntax, otherwise the
 // literal asterisks/underscores show up in the message.
-function buildLink(settings, questions, answers, targetOverride, formTitle) {
+function buildLink(settings, questions, answers, targetOverride, formTitle, quantityMap) {
   const target = targetOverride || settings.target || "wa";
   const isTg = target === "tg";
   const bold   = (s) => isTg ? s : `*${s}*`;
@@ -1510,7 +1510,18 @@ function buildLink(settings, questions, answers, targetOverride, formTitle) {
       }
       return;
     }
-    line(`${q.title}: ${ans}`);
+    // For choice/checkbox/multiselect/dropdown: inject qty from quantityMap if available
+    if (quantityMap && quantityMap[q.id] && ["choice","checkbox","multiselect","dropdown"].includes(q.type)) {
+      const qMap = quantityMap[q.id];
+      const labels = typeof ans === "string" ? ans.split(",").map(s => s.trim()) : [ans];
+      const formatted = labels.map(lbl => {
+        const qty = qMap[lbl];
+        return (qty && qty > 1) ? `${lbl} (${qty})` : lbl;
+      }).join(", ");
+      line(`${q.title}: ${formatted}`);
+    } else {
+      line(`${q.title}: ${ans}`);
+    }
   });
 
   lines.push("");
@@ -1609,6 +1620,8 @@ function renderForm(form) {
   window.questions = questions; // expose globally for updateCalcFields()
   const settings  = form.settings || {};
   const answers   = {};
+  // quantityMap[qid][optionLabel] = qty — tracks qty stepper values for WA/Tele message formatting
+  const quantityMap = {};
   window.answers = answers;     // expose globally for updateCalcFields()
   const fileMap   = {};   // qId → File object (for Supabase Storage upload)
   const starState = {};
@@ -2269,6 +2282,15 @@ function renderForm(form) {
       const stepper = optEl.querySelector(".opt-qty-stepper");
       const qtyMin = parseInt(stepper?.dataset.qtyMin) || 1;
       const qtyMax = parseInt(stepper?.dataset.qtyMax) || 0;
+      // Read qid and label from the stepper's parent opt element
+      const qid   = stepper?.dataset.qid   || optEl.dataset.qid   || "";
+      const label = stepper?.dataset.val   || optEl.dataset.val   || "";
+      function syncQuantityMap(val) {
+        if (qid && label) {
+          if (!quantityMap[qid]) quantityMap[qid] = {};
+          quantityMap[qid][label] = val;
+        }
+      }
       function clamp(v) {
         let val = Math.max(qtyMin, v);
         if (qtyMax > 0) val = Math.min(qtyMax, val);
@@ -2278,6 +2300,7 @@ function renderForm(form) {
         const val = clamp(v);
         inp.value = val;
         optEl.dataset.qty = val;
+        syncQuantityMap(val);
         onChangeCallback();
       }
       inp.addEventListener("click", e => e.stopPropagation());
@@ -2287,6 +2310,7 @@ function renderForm(form) {
         const raw = parseInt(inp.value);
         if (!isNaN(raw)) {
           optEl.dataset.qty = raw;
+          syncQuantityMap(raw);
           onChangeCallback();
         }
       });
@@ -2310,13 +2334,7 @@ function renderForm(form) {
             const txt = otherInput?.value?.trim();
             if (txt) parts.push("Other: " + txt);
           } else {
-            if (q.optionWithQuantity) {
-              const optEl = block.querySelector(`.check-opt[data-val="${CSS.escape(v)}"]`);
-              const qty = parseInt(optEl?.dataset.qty) || 1;
-              parts.push(qty > 1 ? v + " (" + qty + ")" : v);
-            } else {
-              parts.push(v);
-            }
+            parts.push(v);
           }
         });
         answers[q.id] = parts.join(",");
@@ -2350,13 +2368,7 @@ function renderForm(form) {
           if (v === "__other__") {
             if (otherInput.value.trim()) parts.push("Other: " + otherInput.value.trim());
           } else {
-            if (q.optionWithQuantity) {
-              const optEl = block.querySelector(`.check-opt[data-val="${CSS.escape(v)}"]`);
-              const qty = parseInt(optEl?.dataset.qty) || 1;
-              parts.push(qty > 1 ? v + " (" + qty + ")" : v);
-            } else {
-              parts.push(v);
-            }
+            parts.push(v);
           }
         });
         answers[q.id] = parts.join(",");
@@ -2378,24 +2390,11 @@ function renderForm(form) {
             answers[q.id] = otherInput?.value || "";
           } else {
             if (otherInput) otherInput.style.display = "none";
-            if (q.optionWithQuantity) {
-              const qty = parseInt(opt.dataset.qty) || 1;
-              answers[q.id] = qty > 1 ? val + " (" + qty + ")" : val;
-            } else {
-              answers[q.id] = val;
-            }
+            answers[q.id] = val;
           }
           updateCalcFields(); updatePaymentFields();
         });
         bindQtyStepper(opt, () => {
-          // Update choice answer with new qty when stepper changes
-          if (q.optionWithQuantity) {
-            const selectedOpt = block.querySelector(".choice-opt.selected");
-            if (selectedOpt && selectedOpt.dataset.val !== "__other__") {
-              const qty = parseInt(selectedOpt.dataset.qty) || 1;
-              answers[q.id] = qty > 1 ? selectedOpt.dataset.val + " (" + qty + ")" : selectedOpt.dataset.val;
-            }
-          }
           updateCalcFields(); updatePaymentFields();
         });
       });
@@ -2641,16 +2640,7 @@ function renderForm(form) {
       const selected = new Set();
 
       function buildMsAnswer() {
-        if (q.optionWithQuantity) {
-          const parts = [...selected].map(v => {
-            const optEl = listEl.querySelector(`.ms-opt[data-val="${CSS.escape(v)}"]`);
-            const qty = parseInt(optEl?.dataset.qty) || 1;
-            return qty > 1 ? v + " (" + qty + ")" : v;
-          });
-          answers[q.id] = parts.join(",");
-        } else {
-          answers[q.id] = [...selected].join(",");
-        }
+        answers[q.id] = [...selected].join(",");
       }
 
       function updateTrigger() {
@@ -3349,7 +3339,7 @@ function renderForm(form) {
       // Using location.href on the pre-opened window avoids the popup-blocker
       // issue on mobile (Chrome/Safari Android) that fires when window.open()
       // is called after an await.
-      const _link = buildLink(settings, questions, answers, targetOverride, form?.title);
+      const _link = buildLink(settings, questions, answers, targetOverride, form?.title, quantityMap);
       if (_msgWindow && !_msgWindow.closed) {
         _msgWindow.location.href = _link;
       } else {

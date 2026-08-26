@@ -755,6 +755,40 @@ function fmtCalc(n, q) {
   return pfx + Number(n).toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) + sfx;
 }
 
+// ── Helper: extract respondent identity info for "Payment not detected" email ──
+function getRespondentInfo() {
+  if (typeof questions === "undefined" || typeof answers === "undefined") return { email: "", answersText: "" };
+
+  // 1. Find email from dedicated email-type field
+  var email = "";
+  var emailQ = questions.find(function(q) { return q.type === "email"; });
+  if (emailQ && answers[emailQ.id]) {
+    email = answers[emailQ.id];
+  } else {
+    // 2. Fallback: short/long field whose title contains "email", "e-mail", or "surel"
+    var fallbackQ = questions.find(function(q) {
+      if (q.type !== "short" && q.type !== "long" && q.type !== "phone") return false;
+      var t = (q.title || "").toLowerCase();
+      return t.includes("email") || t.includes("e-mail") || t.includes("surel") || t.includes("mail");
+    });
+    if (fallbackQ && answers[fallbackQ.id]) email = answers[fallbackQ.id];
+  }
+
+  // 3. Build a short summary of all non-empty answers for identification
+  var skipTypes = ["title","image","video","url_input","button","divider","page_break","calculation","payment"];
+  var lines = [];
+  questions.forEach(function(q) {
+    if (skipTypes.includes(q.type)) return;
+    if (q.id === "__qty__") return;
+    var val = answers[q.id];
+    if (val === undefined || val === null || val === "") return;
+    var label = q.title || q.type;
+    lines.push(label + ": " + String(val));
+  });
+
+  return { email: email, answersText: lines.join("\n") };
+}
+
 function updateCalcFields() {
   if (typeof questions === "undefined" || typeof answers === "undefined") return;
   questions.forEach(function(cq) {
@@ -1016,20 +1050,18 @@ function updatePaymentFields() {
             reportA.textContent = "Already paid but not detected?";
             reportA.addEventListener("click", function(e) {
               e.preventDefault();
-              var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
-              sessionData.then(function(sd) {
-                var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
-                var now = new Date();
-                var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-                var subject = encodeURIComponent("Payment not detected");
-                var body = encodeURIComponent(
-                  "Email: " + userEmail + "\n" +
-                  "Ref No: " + (paymentState[pq.id] ? paymentState[pq.id].refNo : "") + "\n" +
-                  "Time: " + timeStr + "\n" +
-                  "Message: "
-                );
-                window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
-              });
+              var info = getRespondentInfo();
+              var now = new Date();
+              var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+              var subject = encodeURIComponent("Payment not detected");
+              var body = encodeURIComponent(
+                "Username saya: [ISI USERNAME ANDA DI SINI]" + "\n" +
+                "Ref No: " + (paymentState[pq.id] ? paymentState[pq.id].refNo : "") + "\n" +
+                "Time: " + timeStr + "\n" +
+                "Message: \n" +
+                (info.answersText ? "\n--- Form Answers ---\n" + info.answersText : "")
+              );
+              window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
             });
             reportEl.appendChild(reportA);
             hintEl.parentNode.insertBefore(reportEl, hintEl.nextSibling);
@@ -1149,20 +1181,19 @@ function openQrisModal(paymentFieldId) {
   if (_reportLink) {
     _reportLink.addEventListener("click", function(e) {
       e.preventDefault();
-      var sessionData = typeof sb !== "undefined" ? sb.auth.getSession() : Promise.resolve({ data: { session: null } });
-      sessionData.then(function(sd) {
-        var userEmail = (sd && sd.data && sd.data.session && sd.data.session.user) ? sd.data.session.user.email : "";
-        var now = new Date();
-        var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
-        var subject = encodeURIComponent("Payment not detected");
-        var body = encodeURIComponent(
-          "Email: " + userEmail + "\n" +
-          "Total: " + fmtTotal + "\n" +
-          "Time: " + timeStr + "\n" +
-          "Message: "
-        );
-        window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
-      });
+      var info = getRespondentInfo();
+      var now = new Date();
+      var timeStr = now.toLocaleString("en-GB", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit" });
+      var subject = encodeURIComponent("Payment not detected");
+      var body = encodeURIComponent(
+        "Username saya: [ISI USERNAME ANDA DI SINI]" + "\n" +
+        "Total: " + fmtTotal + "\n" +
+        "Ref No: " + (paymentState[paymentFieldId] ? paymentState[paymentFieldId].refNo : "") + "\n" +
+        "Time: " + timeStr + "\n" +
+        "Message: \n" +
+        (info.answersText ? "\n--- Form Answers ---\n" + info.answersText : "")
+      );
+      window.location.href = "mailto:wateform@gmail.com?subject=" + subject + "&body=" + body;
     });
   }
 

@@ -2310,7 +2310,13 @@ function renderForm(form) {
             const txt = otherInput?.value?.trim();
             if (txt) parts.push("Other: " + txt);
           } else {
-            parts.push(v);
+            if (q.optionWithQuantity) {
+              const optEl = block.querySelector(`.check-opt[data-val="${CSS.escape(v)}"]`);
+              const qty = parseInt(optEl?.dataset.qty) || 1;
+              parts.push(qty > 1 ? v + " (" + qty + ")" : v);
+            } else {
+              parts.push(v);
+            }
           }
         });
         answers[q.id] = parts.join(",");
@@ -2344,7 +2350,13 @@ function renderForm(form) {
           if (v === "__other__") {
             if (otherInput.value.trim()) parts.push("Other: " + otherInput.value.trim());
           } else {
-            parts.push(v);
+            if (q.optionWithQuantity) {
+              const optEl = block.querySelector(`.check-opt[data-val="${CSS.escape(v)}"]`);
+              const qty = parseInt(optEl?.dataset.qty) || 1;
+              parts.push(qty > 1 ? v + " (" + qty + ")" : v);
+            } else {
+              parts.push(v);
+            }
           }
         });
         answers[q.id] = parts.join(",");
@@ -2366,11 +2378,26 @@ function renderForm(form) {
             answers[q.id] = otherInput?.value || "";
           } else {
             if (otherInput) otherInput.style.display = "none";
-            answers[q.id] = val;
+            if (q.optionWithQuantity) {
+              const qty = parseInt(opt.dataset.qty) || 1;
+              answers[q.id] = qty > 1 ? val + " (" + qty + ")" : val;
+            } else {
+              answers[q.id] = val;
+            }
           }
           updateCalcFields(); updatePaymentFields();
         });
-        bindQtyStepper(opt, () => { updateCalcFields(); updatePaymentFields(); });
+        bindQtyStepper(opt, () => {
+          // Update choice answer with new qty when stepper changes
+          if (q.optionWithQuantity) {
+            const selectedOpt = block.querySelector(".choice-opt.selected");
+            if (selectedOpt && selectedOpt.dataset.val !== "__other__") {
+              const qty = parseInt(selectedOpt.dataset.qty) || 1;
+              answers[q.id] = qty > 1 ? selectedOpt.dataset.val + " (" + qty + ")" : selectedOpt.dataset.val;
+            }
+          }
+          updateCalcFields(); updatePaymentFields();
+        });
       });
       block.querySelector(`#q-${q.id}-other`)?.addEventListener("input", e => {
         answers[q.id] = e.target.value;
@@ -2613,6 +2640,19 @@ function renderForm(form) {
       const msMax    = q.multiselectMax || 0;
       const selected = new Set();
 
+      function buildMsAnswer() {
+        if (q.optionWithQuantity) {
+          const parts = [...selected].map(v => {
+            const optEl = listEl.querySelector(`.ms-opt[data-val="${CSS.escape(v)}"]`);
+            const qty = parseInt(optEl?.dataset.qty) || 1;
+            return qty > 1 ? v + " (" + qty + ")" : v;
+          });
+          answers[q.id] = parts.join(",");
+        } else {
+          answers[q.id] = [...selected].join(",");
+        }
+      }
+
       function updateTrigger() {
         const tags = [...selected].map(v =>
           `<span class="ms-tag">${esc(v)}<button type="button" class="ms-tag-rm" data-val="${esc(v)}" aria-label="Remove ${esc(v)}">×</button></span>`
@@ -2629,8 +2669,8 @@ function renderForm(form) {
                 if (o.dataset.val === btn.dataset.val) o.classList.remove("selected");
               });
               updateTrigger();
-              answers[q.id] = [...selected].join(",");
-          updateCalcFields();
+              buildMsAnswer();
+              updateCalcFields();
               updateCalcFields();
             });
           });
@@ -2656,7 +2696,8 @@ function renderForm(form) {
       searchEl.addEventListener("input", () => filterMs(searchEl.value));
 
       listEl.querySelectorAll(".ms-opt").forEach(opt => {
-        opt.addEventListener("click", () => {
+        opt.addEventListener("click", e => {
+          if (e.target.closest(".opt-qty-stepper")) return;
           const val = opt.dataset.val;
           if (selected.has(val)) {
             selected.delete(val); opt.classList.remove("selected");
@@ -2665,7 +2706,11 @@ function renderForm(form) {
             selected.add(val); opt.classList.add("selected");
           }
           updateTrigger();
-          answers[q.id] = [...selected].join(",");
+          buildMsAnswer();
+          updateCalcFields(); updatePaymentFields();
+        });
+        bindQtyStepper(opt, () => {
+          buildMsAnswer();
           updateCalcFields(); updatePaymentFields();
         });
       });

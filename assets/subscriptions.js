@@ -608,9 +608,30 @@
     });
   });
 
+  // ── QRIS Rate Limiter subscription (15s, persists via localStorage) ───────
+  const QRIS_SUB_COOLDOWN_MS = 15000;
+  const QRIS_SUB_LS_KEY = "qris_last_create_subscription";
+  function getSubQrisCooldownRemaining() {
+    try {
+      const last = parseInt(localStorage.getItem(QRIS_SUB_LS_KEY) || "0", 10);
+      const elapsed = Date.now() - last;
+      return elapsed < QRIS_SUB_COOLDOWN_MS ? Math.ceil((QRIS_SUB_COOLDOWN_MS - elapsed) / 1000) : 0;
+    } catch(_) { return 0; }
+  }
+  function setSubQrisLastCreate() {
+    try { localStorage.setItem(QRIS_SUB_LS_KEY, String(Date.now())); } catch(_) {}
+  }
+
   // ── Generate QRIS ─────────────────────────────────────────────────────────
   document.getElementById("qris-btn-generate")?.addEventListener("click", async () => {
     if (!_activePlan) return;
+
+    // Rate limiting: jeda 15 detik antar generate QRIS
+    const remainingSub = getSubQrisCooldownRemaining();
+    if (remainingSub > 0) {
+      showToast(`Tunggu ${remainingSub} detik sebelum membuat QRIS baru.`, "error");
+      return;
+    }
 
     const genBtn = document.getElementById("qris-btn-generate");
     genBtn.disabled   = true;
@@ -620,6 +641,8 @@
     if (!session) { showToast("Session expired. Please log in again.", "error"); genBtn.disabled = false; genBtn.textContent = "Pay now"; return; }
 
     try {
+      // Catat waktu generate ke localStorage sebelum fetch (rate limiter)
+      setSubQrisLastCreate();
       const res  = await fetch(`${EDGE_BASE}/create-subscription-qris`, {
         method:  "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session.access_token}` },

@@ -1126,10 +1126,31 @@ function lockFormForPayment() {
   });
 }
 
+// ── QRIS Rate Limiter (15s cooldown, persists across refresh via localStorage) ──
+var QRIS_COOLDOWN_MS = 15000;
+var QRIS_LS_KEY = "qris_last_create_form";
+function getQrisFormCooldownRemaining() {
+  try {
+    var last = parseInt(localStorage.getItem(QRIS_LS_KEY) || "0", 10);
+    var elapsed = Date.now() - last;
+    return elapsed < QRIS_COOLDOWN_MS ? Math.ceil((QRIS_COOLDOWN_MS - elapsed) / 1000) : 0;
+  } catch(_) { return 0; }
+}
+function setQrisFormLastCreate() {
+  try { localStorage.setItem(QRIS_LS_KEY, String(Date.now())); } catch(_) {}
+}
+
 // QRIS Modal
 function openQrisModal(paymentFieldId) {
   var total = paymentTotals[paymentFieldId];
   if (!total || total <= 0) { alert("Total must be greater than 0 to make a payment."); return; }
+
+  // Rate limiting: cek jeda 15 detik sejak terakhir generate QRIS
+  var remaining = getQrisFormCooldownRemaining();
+  if (remaining > 0) {
+    alert("Silakan tunggu " + remaining + " detik sebelum membuat QRIS baru.");
+    return;
+  }
   var modal = document.createElement("div");
   modal.className = "qris-modal-backdrop";
   modal.id = "qris-modal-" + paymentFieldId;
@@ -1285,6 +1306,8 @@ async function generateFormPaymentQris(paymentFieldId, amount, fmtTotal, reportD
   try {
     var sessionData = await sb.auth.getSession();
     var token = sessionData && sessionData.data && sessionData.data.session ? sessionData.data.session.access_token : null;
+    // Catat waktu generate ke localStorage sebelum fetch (rate limiter)
+    setQrisFormLastCreate();
     var res = await fetch(SUPABASE_URL + "/functions/v1/create-form-payment-qris", {
       method: "POST",
       headers: {

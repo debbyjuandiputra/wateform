@@ -5,9 +5,9 @@
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
   const EDGE_BASE = SUPABASE_URL + "/functions/v1";
 
-  const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const _sb = window.__WfSupabaseClient || (window.supabase ? (window.__WfSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, storageKey: "wf-session", autoRefreshToken: true, detectSessionInUrl: false },
-  });
+  })) : null);
 
   const PLANS = {
     plus:     { label: "Plus",     price: 2000  },
@@ -629,13 +629,13 @@
     // Rate limiting: jeda 15 detik antar generate QRIS
     const remainingSub = getSubQrisCooldownRemaining();
     if (remainingSub > 0) {
-      showToast(`Tunggu ${remainingSub} detik sebelum membuat QRIS baru.`, "error");
+      showToast(`Please wait ${remainingSub} seconds before creating a new QRIS.`, "error");
       return;
     }
 
     const genBtn = document.getElementById("qris-btn-generate");
     genBtn.disabled   = true;
-    genBtn.textContent = "Membuat kode…";
+    genBtn.textContent = "Creating code…";
 
     const { data: { session } } = await _sb.auth.getSession();
     if (!session) { showToast("Session expired. Please log in again.", "error"); genBtn.disabled = false; genBtn.textContent = "Pay now"; return; }

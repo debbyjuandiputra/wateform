@@ -1148,8 +1148,7 @@ function openQrisModal(paymentFieldId) {
   // Rate limiting: cek jeda 15 detik sejak terakhir generate QRIS
   var remaining = getQrisFormCooldownRemaining();
   if (remaining > 0) {
-    alert("Silakan tunggu " + remaining + " detik sebelum membuat QRIS baru.");
-    return;
+    alert("Please wait " + remaining + " seconds before creating a new QRIS.");    return;
   }
   var modal = document.createElement("div");
   modal.className = "qris-modal-backdrop";

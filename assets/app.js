@@ -16,8 +16,8 @@ const DASH_URL  = "https://dash.wateform.my.id";
 // ── Supabase client ───────────────────────────────────────────
 let _sb = null;
 function sb() {
-  if (!_sb && window.supabase) {
-    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  if (!window.__WfSupabaseClient && window.supabase) {
+    window.__WfSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession:   true,
         storageKey:       "wf-session",
@@ -26,7 +26,10 @@ function sb() {
       },
     });
   }
-  return _sb;
+  if (!_sb && window.__WfSupabaseClient) {
+    _sb = window.__WfSupabaseClient;
+  }
+  return _sb || window.__WfSupabaseClient || null;
 }
 
 // ── Theme ─────────────────────────────────────────────────────

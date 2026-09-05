@@ -3,14 +3,14 @@ const SUPABASE_URL      = "https://zaaqlfxtymuafalkeftd.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphYXFsZnh0eW11YWZhbGtlZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4Nzg2NjMsImV4cCI6MjEwMTQ1NDY2M30.NKBBX7Qcb4T22tvAjjAzh4Scmbt-bJN1kb1ADBr6Bro";
 const BASE_URL = window.location.origin;
 
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const _sb = window.__WfSupabaseClient || (window.supabase ? (window.__WfSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession:     true,
     storageKey:         "wf-session",
     autoRefreshToken:   true,
     detectSessionInUrl: false,
   },
-});
+})) : null);
 
 // ── State ─────────────────────────────────────────────────────
 let currentUser    = null;
